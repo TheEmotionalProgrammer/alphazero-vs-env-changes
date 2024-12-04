@@ -1,25 +1,5 @@
 
-<p align="center">
-  <img src="assets/AlphaZero.gif" alt="AlphaZero Gameplay Gif" width="49%"/>
-  <img src="assets/MVC.gif" alt="Novel MVC Agent Gif" width="49%"/>
-</p>
 
-# General Tree Evaluation for AlphaZero
-[![Python application](https://github.com/albinjal/GeneralAlphaZero/actions/workflows/python-app.yml/badge.svg)](https://github.com/albinjal/GeneralAlphaZero/actions/workflows/python-app.yml)
-
-
-## Introduction
-Welcome to the official repository for **General Tree Evaluation for AlphaZero**, a novel approach to enhancing model-based deep reinforcement learning. This repository contains the code and resources developed as part of the research that extends and refines the AlphaZero algorithm, particularly focusing on decoupling tree construction from action policies.
-
-
-![Performance Comparison](assets/CliffWalking-v0_Self_Play_Mean_Discounted_Return.svg)
-
-![Algorithm Efficiency](assets/CliffWalking-v0_Evaluation_Mean_Discounted_Returns.svg)
-![cliffwalk](assets/env_picture.png)
-![Project Overview](assets/CliffWalking-vo_Evaluation_Density.svg)
-
-
-These plots demonstrate the empirical benefits of our proposed policies in classical Gym environments, especially under constrained simulation budgets.
 
 ## Capabilities
 - Logging to TensorBoard
@@ -64,4 +44,4 @@ Contributions are welcome! Please open an issue or submit a pull request for any
 ## License
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
-Feel free to explore and modify the code, and don't hesitate to reach out if you have any questions or need further assistance. Happy coding!
+Feel free to explore and modify the code, and don't hesitate to reach out if you have any questions or need further assistance. 
