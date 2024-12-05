@@ -6,6 +6,7 @@ from minigrid.core.mission import MissionSpace
 from minigrid.core.world_object import Door, Goal, Key, Wall, Lava
 from minigrid.minigrid_env import MiniGridEnv
 from minigrid.wrappers import ImgObsWrapper, FullyObsWrapper
+from utilities.a_star_sp import heuristic, astar_pathfinding, compute_actions_from_path
 
 from gymnasium import spaces
 from gymnasium.core import Wrapper
@@ -193,28 +194,44 @@ class SimpleGridEnv(MiniGridEnv):
         return obs, reward, terminated, truncated, info
 
 
-def main():
+def main(policy="random"):
     env =  gym_wrapper(SimpleGridEnv(render_mode="human", bump_penalty=-1))
 
     # Reset the environment
     obs, info = env.reset()
     print("Starting the episode...")
 
-    done = False
-    while not done:
-        # Randomly select an action
-        action = env.action_space.sample()
-        obs, reward, done, truncated, info = env.step(action)
+    if policy == "random":
 
-        # Render the environment
-        env.render()
+        done = False
+        while not done:
+            # Randomly select an action
+            action = env.action_space.sample()
+            obs, reward, done, truncated, info = env.step(action)
 
-        # Print the action and reward for debugging
-        print(f"Action: {action}, Reward: {reward}, Done: {done}")
+            # Render the environment
+            env.render()
 
-    print("Episode finished!")
-    env.close()
+            # Print the action and reward for debugging
+            print(f"Action: {action}, Reward: {reward}, Done: {done}")
+
+        print("Episode finished!")
+        env.close()
+
+    elif policy == "a_star":
+
+        path = astar_pathfinding(env)
+        actions = compute_actions_from_path(path, env)
+
+        done = False
+        for action in actions:
+            obs, reward, done, truncated, info = env.step(action)
+            env.render()
+            print(f"Action: {action}, Reward: {reward}, Done: {done}")
+
+        print("Episode finished!")
+        env.close()
 
 
 if __name__ == "__main__":
-    main()
+    main("a_star")
