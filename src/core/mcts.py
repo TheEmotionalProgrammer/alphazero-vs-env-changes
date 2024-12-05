@@ -199,9 +199,13 @@ class RandomRolloutMCTS(MCTS):
         self,
         node: Node,
     ) -> float:
+        
         """
-        The standard value function for MCTS is the the sum of the future reward when acting with uniformly random policy.
+        The standard value function for MCTS 
+        is the the sum of the future reward 
+        when acting with uniformly random policy.
         """
+
         # if the node is terminal, return 0
         if node.is_terminal():
             return 0.0
