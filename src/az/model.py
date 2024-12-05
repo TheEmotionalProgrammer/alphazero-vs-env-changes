@@ -1,3 +1,4 @@
+import stat
 from typing import Tuple
 import torch as th
 import gymnasium as gym
@@ -63,7 +64,7 @@ class AlphaZeroModel(th.nn.Module):
             if observation_embedding is not None
             else DefaultEmbedding(env.observation_space)
         )
-        self.state_dim = self.observation_embedding.obs_dim()
+        self.state_dim = self.observation_embedding.obs_dim() 
         self.action_dim = gym.spaces.flatdim(env.action_space)
         self.nlayers = nlayers
         self.activation_fn = activation_fn
@@ -149,11 +150,12 @@ class AlphaZeroModel(th.nn.Module):
         """
         model_info = {
             "state_dict": self.state_dict(),
+            "observation_embedding": self.observation_embedding,
             "input_dimensions": self.state_dim,
             "output_dimensions": self.action_dim,
             "hidden_dim": self.hidden_dim,
             "layers": self.nlayers,
-            # Add other relevant model configuration here
+            
         }
         th.save(model_info, filename)
 
@@ -180,11 +182,14 @@ class AlphaZeroModel(th.nn.Module):
         # Get hidden_dim, use a default if not found
         hidden_dim = model_info.get("hidden_dim", default_hidden_dim)
 
+        nlayers = model_info["layers"]
+
         # Create a new instance of the model with the saved specifications
         model = cls(
             env=env,
             hidden_dim=hidden_dim,
-            nlayers=model_info["layers"],
+            nlayers=nlayers,
+            observation_embedding=model_info["observation_embedding"],
             pref_gpu=pref_gpu,
         )
 

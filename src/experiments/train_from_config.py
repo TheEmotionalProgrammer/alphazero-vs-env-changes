@@ -1,7 +1,5 @@
 import sys
 
-
-
 sys.path.append("src/")
 import datetime
 import multiprocessing
@@ -79,6 +77,7 @@ def train_from_config(
     if "observation_embedding" not in hparams:
         hparams["observation_embedding"] = "default"
     observation_embedding: ObservationEmbedding = embedding_dict[hparams["observation_embedding"]](env.observation_space, hparams["ncols"] if "ncols" in hparams else None)
+    
     model: AlphaZeroModel = models_dict[hparams["model_type"]](
         env,
         observation_embedding=observation_embedding,

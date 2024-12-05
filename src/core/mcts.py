@@ -10,8 +10,6 @@ from environments.observation_embeddings import CoordinateEmbedding, Observation
 from policies.policies import Policy
 
 
-
-
 class MCTS:
     """
     This class contains the basic MCTS algorithm without assumtions on the value function.

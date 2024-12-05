@@ -2,8 +2,6 @@ import numpy as np
 from core.node import Node
 from policies.policies import Policy
 
-
-
 class DefaultExpansionPolicy(Policy):
     def sample(self, node: Node) -> int:
         # returns a uniformly random unexpanded action

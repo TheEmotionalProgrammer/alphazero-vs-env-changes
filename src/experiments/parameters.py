@@ -56,7 +56,7 @@ env_challenges = [
     {
         "env_description": "CliffWalking-v0",
         "max_episode_length": 100,
-        "iterations": 30,
+        "iterations": 10,
         "env_params": dict(id="CliffWalking-v0", max_episode_steps=1000000000, nrows=6),
         "ncols": 12,
         "optimal_value": -13,

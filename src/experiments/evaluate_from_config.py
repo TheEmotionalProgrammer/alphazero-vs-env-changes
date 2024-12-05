@@ -17,6 +17,7 @@ from environments.observation_embeddings import ObservationEmbedding, embedding_
 from az.azmcts import AlphaZeroMCTS
 from az.model import (
     AlphaZeroModel,
+    models_dict
 )
 from policies.tree_policies import tree_eval_dict
 from policies.selection_distributions import selection_dict_fn
@@ -102,9 +103,14 @@ def agent_from_config(hparams: dict):
             )
 
     else:
+
         filename = hparams["model_file"]
-        model: AlphaZeroModel = AlphaZeroModel.load_model(
-            filename, env, False, hparams["hidden_dim"]
+        model: AlphaZeroModel = models_dict[hparams["model_type"]].load_model(
+            filename, 
+            env, 
+            False, 
+            hparams["hidden_dim"]
+
         )
 
         model.eval()
@@ -204,13 +210,16 @@ def eval_from_config(
 
 
 def eval_single():
-    challenge = parameters.env_challenges[2]
+    challenge = parameters.env_challenges[1]
     config_modifications = {
-        "workers": 6,
+        "workers": min(6, multiprocessing.cpu_count()),
         "tree_evaluation_policy": "mvc",
         "selection_policy": "PolicyUCT",
         "runs": 10,
-        "agent_type": "distance",
+        "planning_budget": 64,
+        "observation_embedding": "coordinate",
+        "agent_type": "",
+        "model_file": "/Users/isidorotamassia/THESIS/alphazero-vs-env-changes/runs/hyper/CliffWalking-v0_20241205-230653/checkpoint.pth",
     }
     run_config = {**parameters.base_parameters, **challenge, **config_modifications}
     return eval_from_config(config=run_config)
@@ -254,4 +263,4 @@ if __name__ == "__main__":
     # sweep_id = wandb.sweep(sweep=coord_search, project="AlphaZero")
 
     # wandb.agent(sweep_id, function=sweep_agent)
-    custom_eval_sweep()
+    eval_single()
