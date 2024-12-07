@@ -47,7 +47,9 @@ class Policy(ABC):
 
 
 class PolicyDistribution(Policy):
-    """Also lets us view the full distribution of the policy, not only sample from it.
+
+    """
+    Also lets us view the full distribution of the policy, not only sample from it.
     When we have the distribution, we can choose how to sample from it.
     We can either sample stochasticly from distribution or deterministically choose the action with the highest probability.
     We can also apply softmax with temperature to the distribution.
@@ -97,9 +99,11 @@ class PolicyDistribution(Policy):
     def softmaxed_distribution(
         self, node: Node, include_self=False, **kwargs
     ) -> th.distributions.Categorical:
+        
         """
         Relative probabilities with self handling
         """
+
         # policy for leaf nodes
         if include_self and len(node.children) == 0:
             probs = th.zeros(int(node.action_space.n) + include_self, dtype=th.float32)

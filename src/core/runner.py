@@ -27,17 +27,23 @@ def run_episode(
     env: gym.Env,
     tree_evaluation_policy: PolicyDistribution,
     observation_embedding: ObservationEmbedding,
-    planning_budget=1000,
-    max_steps=1000,
+    planning_budget=1000, # number of simulations to run in the planning tree (at each step)
+    max_steps=1000, # maximum number of steps to take in the (real) environment
     seed=None,
     temperature=None,
     return_trees=False,
     ):
-    """Runs an episode using the given solver and environment.
-    For each timestep, the trajectory contains the observation, the policy distribution, the action taken and the reward received.
+
     """
+    Runs an episode using the given solver and environment.
+    We step into the (real) enviroment for a maximum of max_steps steps, or until the environment terminates.
+    For each timestep, the trajectory contains the observation, the policy distribution, the action taken and the reward received.
+    Outputs the trajectory and optionally the trees that were generated during the episode.
+    """
+
     assert isinstance(env.action_space, gym.spaces.Discrete)
     n = int(env.action_space.n)
+
     if seed is not None:
         th.manual_seed(seed)
         np.random.seed(seed)
@@ -57,22 +63,27 @@ def run_episode(
             "mask": th.zeros(max_steps, dtype=th.bool),
             "terminals": th.zeros(max_steps, dtype=th.bool),
             "root_values": th.zeros(max_steps, dtype=th.float32),
-        },
+        }, 
         batch_size=[max_steps],
     )
     if return_trees:
         trees = []
-    tree = solver.search(env, planning_budget, observation, 0.0)
+
+    tree = solver.search(env, planning_budget, observation, 0.0) # Computes a planning tree using the given solver and available budget. Returns the root node of the tree.
+
     for step in range(max_steps):
-        root_value = tree.value_evaluation
+
+        root_value = tree.value_evaluation # Contains the value estimate of the root node computed by the planning step
 
         tree.reset_var_val()
-        policy_dist = tree_evaluation_policy.softmaxed_distribution(tree)
+
+        policy_dist = tree_evaluation_policy.softmaxed_distribution(tree) # Evaluates the tree using the given evaluation policy (e.g., visitation counts)
+
         if return_trees:
             trees.append(tree)
         # apply extra softmax
         action = th.distributions.Categorical(probs=custom_softmax(policy_dist.probs, temperature, None)).sample().item()
-        # res will now contain the obersevation, policy distribution, action, as well as the reward and terminal we got from executing the action
+        # res will now contain the observation, policy distribution, action, as well as the reward and terminal we got from executing the action
         new_obs, reward, terminated, truncated, _ = env.step(action)
         assert not truncated
 

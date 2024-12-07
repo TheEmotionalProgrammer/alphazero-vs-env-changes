@@ -1,10 +1,7 @@
 import torch as th
-
 from core.node import Node
 from policies.policies import PolicyDistribution
 from policies.value_transforms import IdentityValueTransform, ValueTransform
-
-
 
 
 # TODO: can improve this implementation
@@ -14,7 +11,7 @@ def policy_value(
     discount_factor: float,
 ):
     # return the q value the node with the given policy
-    # with the defualt tree evaluator, this should return the same as the default value
+    # with the default tree evaluator, this should return the same as the default value
 
     if node.terminal:
         val = th.tensor(node.reward, dtype=th.float32)
@@ -46,6 +43,11 @@ def policy_value(
 
 
 def reward_variance(node: Node):
+
+    """
+    The variance of the reward of the node, under the assumption that it is deterministic.
+    """
+
     return 0.0
 
 
@@ -152,16 +154,25 @@ def get_children_visits(node: Node) -> th.Tensor:
     return visits
 
 def get_transformed_default_values(node: Node, transform: ValueTransform = IdentityValueTransform) -> th.Tensor:
-    vals = th.ones(int(node.action_space.n), dtype=th.float32) * -th.inf
+
+    """
+    Returns the value estimates of the children of the node.
+    The default estimate is used, which is the total reward of the subtree divided by the number of visits.
+    """
+
+    vals = th.ones(int(node.action_space.n), dtype=th.float32) * -th.inf 
+
     for action, child in node.children.items():
         vals[action] = child.default_value()
 
     return transform.normalize(vals)
 
 def puct_multiplier(c: float, node: Node):
+
     """
-    lambda_N from the mcts as policy optimisation paper.
+    lambda_N from the mcts as policy optimization paper.
     """
+
     return c * (node.visits**0.5) / (node.visits + int(node.action_space.n))
 
 

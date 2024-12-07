@@ -32,7 +32,7 @@ from policies.tree_policies import VistationPolicy
 
 class AlphaZeroController:
     """
-    The Controller will be responsible for orchistrating the training of the model. With self play and training.
+    The Controller will be responsible for orchestrating the training of the model. With self play and training.
     """
 
     def __init__(
@@ -313,15 +313,7 @@ class AlphaZeroController:
         if last_ema is None:
             last_ema = mean_return
         ema_return = mean_return * self.ema_beta + last_ema * (1 - self.ema_beta)
-        # add_self_play_metrics(
-        #     self.writer,
-        #     mean_return,
-        #     return_variance,
-        #     time_steps,
-        #     mean_entropies,
-        #     tot_tim,
-        #     global_step,
-        # )
+
         add_self_play_metrics_wandb(
             np.array(episode_returns),
             np.array(discounted_returns),

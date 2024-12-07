@@ -88,6 +88,7 @@ class MinimalVarianceConstraintPolicyMath(PolicyDistribution):
         probs = inv_vars * th.exp(logits - logits.max())
         softmaxed_probs = custom_softmax(probs, self.temperature, None)
         return th.distributions.Categorical(probs=softmaxed_probs)
+    
 class MinimalVarianceConstraintPolicyPrior(MinimalVarianceConstraintPolicy):
     def _probs(self, node: Node) -> th.Tensor:
         return super()._probs(node) * node.prior_policy

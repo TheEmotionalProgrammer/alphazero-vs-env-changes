@@ -11,9 +11,11 @@ from policies.policies import Policy
 
 
 class MCTS:
+
     """
-    This class contains the basic MCTS algorithm without assumtions on the value function.
+    This class contains the basic MCTS algorithm without assumptions on the leafs value estimation.
     """
+
     root_selection_policy: Policy
     selection_policy: Policy
 
@@ -36,17 +38,15 @@ class MCTS:
         obs,
         reward: float,
     ) -> Node:
-        # the env should be in the state we want to search from
-        # assert that the type of the action space is discrete
-        assert isinstance(env.action_space, gym.spaces.Discrete)
-        # root_node = Node(
-        #     parent=None, reward=reward, action_space=env.action_space, observation=obs
-        # )
-        # # evaluate the root node
-        # value = self.value_function(root_node, copy.deepcopy(self.env))
-        # # backupagate the value (just updates value est)
-        # root_node.backup(value)
-        # return self.build_tree(root_node, iterations - 1)
+        
+        """
+        The main function of the MCTS algorithm. Returns the current root node with updated statistics.
+        It builds a tree of nodes starting from the root, i.e. the current state of the environment.
+        The tree is built iteratively, and the value of the nodes is updated as the tree is built.
+        """
+        
+        assert isinstance(env.action_space, gym.spaces.Discrete) # Assert that the type of the action space is discrete
+
         root_node = Node(
             env=copy.deepcopy(env),
             parent=None,
@@ -54,104 +54,101 @@ class MCTS:
             action_space=env.action_space,
             observation=obs,
         )
-        root_node.value_evaluation = self.value_function(root_node)
-        self.backup(root_node, root_node.value_evaluation)
+
+        root_node.value_evaluation = self.value_function(root_node) # Estimate the value of the root node
+
+        self.backup(root_node, root_node.value_evaluation) # Update node statistics
+
         return self.build_tree(root_node, iterations)
 
     def build_tree(self, from_node: Node, iterations: int) -> Node:
-        while from_node.visits < iterations:
-            # traverse the tree and select the node to expand
-            selected_node_for_expansion, selected_action = self.select_node_to_expand(from_node)
-            # check if the node is terminal
-            if selected_node_for_expansion.is_terminal():
-                # if the node is terminal, we can not expand it
-                # the value (sum of future reward) of the node is 0
-                # the backup will still propagate the visit and reward
+
+        """
+        Builds the tree starting from the input node.
+        The tree is built iteratively, and the value of the nodes is updated as the tree is built.
+        """
+
+        while from_node.visits < iterations: # Fixed number of iterations
+
+            selected_node_for_expansion, selected_action = self.traverse(from_node) # Traverse the existing tree until a leaf node is reached
+
+            if selected_node_for_expansion.is_terminal(): # If the node is terminal, set its value to 0 and backup
+                
                 selected_node_for_expansion.value_evaluation = 0.0
                 self.backup(selected_node_for_expansion, 0)
+
             else:
-                self.handle_single(selected_node_for_expansion, selected_action)
 
-        return from_node
+                eval_node = self.expand(selected_node_for_expansion, selected_action) # Expand the node
+                value = self.value_function(eval_node) # Estimate the value of the node
+                eval_node.value_evaluation = value # Set the value of the node
+                self.backup(eval_node, value) # Backup the value of the node
 
-    def handle_single(
-        self,
-        node: Node,
-        action: int,
-    ):
-        eval_node = self.expand(node, action)
-        # evaluate the node
-        value = self.value_function(eval_node)
-        # backupagate the value
-        eval_node.value_evaluation = value
-        self.backup(eval_node, value)
-
-    # def handle_all(
-    #     self, node: Node,
-    # ):
-    #     for action in range(node.action_space.n):
-    #         self.handle_single(node, int(action))
+        return from_node # Return the root node, which will now have updated statistics after the tree has been built
 
     def value_function(
         self,
         node: Node,
     ) -> float:
-        """The point of the value function is to estimate the value of the node.
-        The value is defined as the expected future reward if we get to the node given some policy.
+        
         """
-        return .0
+        Depending on the specific implementation, the value of a node can be estimated in different ways.
+        For this reason we leave the implementation of the value function to subclasses.
+        In random rollout MCTS, the value is the sum of the future reward when acting with uniformly random policy.
+        """
+        
+        return .0 
 
-    def select_node_to_expand(
+    def traverse(
         self, from_node: Node
     ) -> Tuple[Node, int]:
+        
         """
+        Traverses the tree starting from the input node until a leaf node is reached.
         Returns the node and action to be expanded next.
         Returns None if the node is terminal.
-        The selection policy returns None if the input node should be expanded.
+        Note: The selection policy returns None if the input node should be expanded.
         """
 
         node = from_node
 
-        # select which node to step into
-        action = self.root_selection_policy.sample(node)
-        # if the selection policy returns None, this indicates that the current node should be expanded
-        if action not in node.children:
+        action = self.root_selection_policy.sample(node) # Select which node to step into
+        
+        if action not in node.children: # If the selection policy returns None, this indicates that the current node should be expanded
             return node, action
-        # step into the node
-        node = node.step(action)
-        # the reason we copy the env is because we want to keep the original env in the root state
-        # Question: note that all envs will have the same seed, this might needs to be dealt with for stochastic envs
-        while not node.is_terminal():
-            # select which node to step into
-            action = self.selection_policy.sample(node)
-            # if the selection policy returns None, this indicates that the current node should be expanded
-            if action not in node.children:
-                break
-            # step into the node
-            node = node.step(action)
-            # also step the environment
-            # Question: right now we do not save the observation or reward from the env since we already have them saved
-            # This might be worth considering though if we use stochastic envs since the rewards/states could vary each time we execute an action sequence
+        
+        node = node.step(action)  # Step into the chosen node
 
+        while not node.is_terminal():
+            
+            action = self.selection_policy.sample(node) # Select which node to step into
+
+            if action not in node.children: # This means the node is not expanded, so we stop traversing the tree
+                break
+
+            node = node.step(action) # Step into the chosen node
+            
         return node, action
 
     def expand(
         self, node: Node, action: int
     ) -> Node:
+        
         """
         Expands the node and returns the expanded node.
-        Note that the function will modify the env and the input node
+        Note: The function will modify the environment and the input node.
         """
-        # if this is the last child to be expanded, we do not need to copy the env
-        if len(node.children) == int(node.action_space.n) - 1:
+
+        if len(node.children) == int(node.action_space.n) - 1: # If this is the last child to be expanded, we do not need to copy the environment
             env = node.env
             node.env = None
         else:
-            env = copy.deepcopy(node.env)
+            env = copy.deepcopy(node.env) 
 
         assert env is not None
 
-        # step the environment
+        # Step into the environment
+
         observation, reward, terminated, truncated, _ = env.step(action)
         terminal = terminated
         assert not truncated
@@ -159,7 +156,8 @@ class MCTS:
             observation = None
 
         node_class = type(node)
-        # create the node
+
+        # Create the node for the new state
         new_child = node_class(
             env=env,
             parent=node,
@@ -168,21 +166,29 @@ class MCTS:
             terminal=terminal,
             observation=observation,
         )
-        node.children[action] = new_child
+
+        node.children[action] = new_child # Add the new node to the children of the parent node
+
         return new_child
 
     def backup(self, start_node: Node, value: float, new_visits: int = 1) -> None:
-        # add the value and the reward to all parent nodes
-        # we weight the reward by visit count of node (from mathematically derived formula)
-        # for example, the immidiate reward will have the highest weight
+        
+        """
+        Backups the value of the start node to its parent, grandparent, etc.,  all the way to the root node.
+        Updates the statistic of the nodes in the path:
+            - subtree_sum: the sum of the value of the node and its children
+            - visits: the number of times the node has been visited
+        """
+
         node = start_node
-        cum_reward = value
-        while node is not None:
-            cum_reward *= self.discount_factor
-            cum_reward += node.reward
-            node.subtree_sum += cum_reward
+        cumulative_reward = value
+
+        while node is not None: # The parent is None if node is the root
+            cumulative_reward *= self.discount_factor
+            cumulative_reward += node.reward
+            node.subtree_sum += cumulative_reward
             node.visits += new_visits
-            # parent is None if node is root
+            
             # NEW: reset the prior policy and value evaluation (mark as needing update)
             node.variance = None
             node.policy_value = None
@@ -199,9 +205,8 @@ class RandomRolloutMCTS(MCTS):
     ) -> float:
         
         """
-        The standard value function for MCTS 
-        is the the sum of the future reward 
-        when acting with uniformly random policy.
+        The standard value function for MCTS: 
+        Sum of the future reward when acting with uniformly random policy.
         """
 
         # if the node is terminal, return 0

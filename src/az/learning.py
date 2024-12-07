@@ -12,7 +12,7 @@ def n_step_value_targets(
     discount_factor: float,
     n: int,
 ):
-    """Comutes the n-step value targets for a batch of trajectories.
+    """Computes the n-step value targets for a batch of trajectories.
     Returns only true n-step targets, not the intermediate steps.
 
     Args:

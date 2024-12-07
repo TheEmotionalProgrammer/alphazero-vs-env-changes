@@ -9,17 +9,15 @@ ObservationType = TypeVar("ObservationType")
 
 NodeType = TypeVar("NodeType", bound="Node")
 
-
-
 class Node(Generic[ObservationType]):
+
     parent: Optional["Node[ObservationType]"]
     children: Dict[int, "Node[ObservationType]"]
     visits: int = 0
     subtree_sum: float = 0.0  # sum of reward and value of all children
-    value_evaluation: float  # expected future reward
-    reward: float  # reward recived when stepping into this node
-    # Discrete action space
-    action_space: gym.spaces.Discrete  # the reference to the action space
+    value_evaluation: float  # Expected future reward
+    reward: float  # Reward received when stepping into this node
+    action_space: gym.spaces.Discrete  
     observation: Optional[ObservationType]
     prior_policy: th.Tensor
     env: Optional[gym.Env]
@@ -35,8 +33,8 @@ class Node(Generic[ObservationType]):
         observation: Optional[ObservationType],
         terminal: bool = False,
     ):
-        # TODO: lazy init?
-        self.children = {}
+        
+        self.children = {} # dictionary of children where key is action, value is the child node
         self.action_space = action_space
         self.reward = reward
         self.parent = parent
@@ -48,32 +46,47 @@ class Node(Generic[ObservationType]):
         return self.terminal
 
     def step(self, action: int) -> "Node[ObservationType]":
-        # steps into the action and returns that node
+
+        """
+        Return the child node after taking the given action. 
+        The child has to be expanded already, otherwise the method will throw an error.
+        """
+        
         child = self.children[action]
         return child
 
     def default_value(self) -> float:
+
         """
         The default value estimate for taking this action is the average of the rewards + value estimates of all children
         """
+
         return self.subtree_sum / self.visits
-
-
 
     def is_fully_expanded(self) -> bool:
         return len(self.children) == self.action_space.n
 
     def sample_unexplored_action(self) -> int:
+
         """
-        mask – An optional mask for if an action can be selected. Expected np.ndarray of shape (n,) and dtype np.int8 where 1 represents valid actions and 0 invalid / infeasible actions. If there are no possible actions (i.e. np.all(mask == 0)) then space.start will be returned.
+        An optional mask which indicates if an action can be selected. 
+        Expected np.ndarray of shape (n,) and dtype np.int8 where 1 represents valid actions and 0 invalid / infeasible actions. 
+        If there are no possible actions (i.e. np.all(mask == 0)) then space.start will be returned.
         """
+
         mask = np.ones(self.action_space.n, dtype=np.int8)
         for action in self.children:
             mask[action] = 0
         return self.action_space.sample(mask=mask)
 
     def get_root(self) -> "Node[ObservationType]":
+
+        """
+        Returns the root node of the tree associated with this node.
+        """
+
         node: Node[ObservationType] | None = self
+
         while node.parent is not None:
             node = node.parent
         return node

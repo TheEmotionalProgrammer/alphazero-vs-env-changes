@@ -7,6 +7,7 @@ from minigrid.minigrid_env import MiniGridEnv
 from minigrid.wrappers import ImgObsWrapper, FullyObsWrapper
 from utilities.a_star_sp import heuristic, astar_pathfinding, compute_actions_from_path
 from utilities.wrappers import gym_wrapper
+from minigrid.manual_control import ManualControl
 
 from gymnasium import spaces
 from gymnasium.core import Wrapper
@@ -128,7 +129,12 @@ def main(policy="random"):
 
         print("Episode finished!")
         env.close()
+    
+    elif policy == "manual":
+        # enable manual control for testing
+        manual_control = ManualControl(env, seed=42)
+        manual_control.start()
 
 
 if __name__ == "__main__":
-    main("random")
+    main("manual")

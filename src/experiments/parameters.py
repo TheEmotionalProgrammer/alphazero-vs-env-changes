@@ -115,28 +115,5 @@ env_challenges = [
         "n_steps_learning": 2,
 
     },
-    #     {
-    #     "env_description": 'Acrobot-v1',
-    #     "max_episode_length": 100,
-    #     "iterations": 30,
-    #     "env_params": dict(id='Acrobot-v1', max_episode_steps=1000000000),
-    #     "observation_embedding": "default",
-    #     "ncols": None,
-    # }, # seems to work poorly cuz of exploration
-    # {
-    #     "env_description": "LunarLander-v2",
-    #     "max_episode_length": 100,
-    #     "iterations": 30,
-    #     "env_params":dict(
-    #         id="LunarLander-v2",
-    #         max_episode_steps=1000000000,
-    #         continuous=False,
-    #         gravity=-10.0,
-    #         enable_wind=False,
-    #         wind_power=15.0,
-    #         turbulence_power=1.5,
-    #     ),
-    #     "observation_embedding": "default",
-    #     "ncols": None,
-    # }, # https://github.com/openai/gym/issues/1292
+
 ]

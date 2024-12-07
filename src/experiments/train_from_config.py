@@ -56,7 +56,6 @@ def train_from_config(
     if "tree_value_transform" not in hparams or hparams["tree_value_transform"] is None:
         hparams["tree_value_transform"] = "identity"
 
-
     tree_evaluation_policy = tree_eval_dict(hparams["eval_param"], discount_factor, hparams["puct_c"], hparams["tree_temperature"], value_transform=value_transform_dict[hparams["tree_value_transform"]])[
         hparams["tree_evaluation_policy"]
     ]
@@ -77,7 +76,7 @@ def train_from_config(
     if "observation_embedding" not in hparams:
         hparams["observation_embedding"] = "default"
     observation_embedding: ObservationEmbedding = embedding_dict[hparams["observation_embedding"]](env.observation_space, hparams["ncols"] if "ncols" in hparams else None)
-    
+
     model: AlphaZeroModel = models_dict[hparams["model_type"]](
         env,
         observation_embedding=observation_embedding,

@@ -13,12 +13,24 @@ class SelectionPolicy(PolicyDistribution):
 
 
 class UCT(SelectionPolicy):
+
+    """
+    UCT selection policy for MCTS.
+    No prior policy is used and the selection is based on the Q value of the children + an exploration term.
+    """
+
     def __init__(self, c: float, *args,  **kwargs):
         super().__init__(*args, **kwargs)
         self.c = c
 
     def Q(self, node: Node) -> th.Tensor:
-        return get_transformed_default_values(node, self.value_transform)
+
+        """
+        Default value estimate of the children which divides 
+        the total reward of the subtree by the number of visits
+        """
+
+        return get_transformed_default_values(node, self.value_transform) 
 
     def _probs(self, node: Node) -> th.Tensor:
         child_visits = get_children_visits(node)
@@ -32,6 +44,14 @@ class UCT(SelectionPolicy):
 
 
 class PolicyUCT(UCT):
+
+    """
+    Aka MVC-UCT.
+    Used the same formula as UCT, but the way we calculate Q is different.
+    This is because the way we evaluate trees is different (from standard visitation counts)
+    and it's therefore beneficial to use the related Q estimate instead of the default mean Q.
+    """
+
     def __init__(self, *args, policy: PolicyDistribution, discount_factor: float = 1.0, **kwargs):
         super().__init__(*args, **kwargs)
         self.policy = policy
@@ -42,6 +62,12 @@ class PolicyUCT(UCT):
 
 
 class PUCT(UCT):
+
+    """
+    PUCT selection policy for MCTS.
+    Uses prior policy to weight the exploration term.
+    """
+
     def _probs(self, node: Node) -> th.Tensor:
         child_visits = get_children_visits(node)
         # if any child_visit is 0
@@ -53,8 +79,13 @@ class PUCT(UCT):
 
 
 class PolicyPUCT(PolicyUCT, PUCT):
-    pass
 
+    """
+    Aka MVC-PUCT.
+    Uses the PUCT formula and the MVC Q estimate of PolicyUCT.
+    """
+
+    pass
 
 
 selection_dict_fn = lambda c, policy, discount, value_transform: {

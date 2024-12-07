@@ -29,6 +29,7 @@ def agent_from_config(hparams: dict):
     env = gym.make(**hparams["env_params"])
 
     discount_factor = hparams["discount_factor"]
+
     if "tree_temperature" not in hparams:
         hparams["tree_temperature"] = None
 
