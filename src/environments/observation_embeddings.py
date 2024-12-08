@@ -46,7 +46,6 @@ class DefaultEmbedding(ObservationEmbedding):
     def tensor_to_obs(self, observation, *args, **kwargs):
         return gym.spaces.unflatten(self.observation_space, observation, *args, **kwargs)
 
-
 class CoordinateEmbedding(ObservationEmbedding):
     ncols: int
     nrows: int

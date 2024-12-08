@@ -1,4 +1,5 @@
 from gymnasium import spaces
+import gymnasium as gym
 from gymnasium.core import Wrapper
 import numpy as np
 from minigrid.wrappers import ImgObsWrapper, FullyObsWrapper
@@ -31,7 +32,7 @@ class SparseActionsWrapper(Wrapper):
 
 class SparseFullyObsWrapper(FullyObsWrapper):
     """
-        Transform the observation space to have seperate channels for for every dimension of observation.
+        Transform the observation space to have separate channels for every dimension of observation.
 
         The channels correspond to:
         0 - agent location
@@ -48,7 +49,7 @@ class SparseFullyObsWrapper(FullyObsWrapper):
         new_image_space = spaces.Box(
             low=0,
             high=1,
-            shape=(4, self.env.height, self.env.width),  # number of cells
+            shape=(4, self.env.unwrapped.height, self.env.unwrapped.width),  # number of cells
             dtype="uint8",
         )
 
@@ -105,7 +106,7 @@ class SparseFullyObsWrapper(FullyObsWrapper):
         return observation
 
 
-def gym_wrapper(env): 
+def gym_wrapper(env: gym.Env) -> gym.Env: 
     return ImgObsWrapper(
                 UndiscountedRewardWrapper(
                     SparseActionsWrapper(

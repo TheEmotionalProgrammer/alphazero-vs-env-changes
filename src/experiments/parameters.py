@@ -22,7 +22,7 @@ base_parameters = {
     "planning_budget": 32,
     "layers": 2,
     "replay_buffer_multiplier": 15,
-    "discount_factor": 1.0,
+    "discount_factor": 0.99,
     "lr_gamma": 1.0,
     "iterations": 40,
     "policy_loss_weight": 0.3,
@@ -42,17 +42,6 @@ lake_config = {
 }
 
 env_challenges = [
-    {
-        "env_description": "CartPole-v1",
-        "max_episode_length": 300,
-        "iterations": 40,
-        "env_params": dict(id="CartPole-v1", max_episode_steps=1000000000),
-        "observation_embedding": "default",
-        "ncols": None,
-        "optimal_value": 300,
-        "worst_value": 0.0,
-
-    },
     {
         "env_description": "CliffWalking-v0",
         "max_episode_length": 100,
@@ -115,5 +104,15 @@ env_challenges = [
         "n_steps_learning": 2,
 
     },
+    {
+        "env_description": "MiniGrid-12x12-v0",
+        "iterations": 20,
+        "env_params": dict(id="MiniGrid-12x12-v0", max_steps=1000000000),
+        "optimal_value": 1.0 * 0.99 ** 9,
+        "worst_value": 0.0,
+        "observation_embedding": "default",
+        "puct_c": 1.0,
+        "eval_param": 1.0,
 
+    },
 ]

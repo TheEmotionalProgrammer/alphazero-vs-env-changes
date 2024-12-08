@@ -1,3 +1,4 @@
+from re import I
 import sys
 
 sys.path.append("src/")
@@ -16,6 +17,9 @@ import wandb
 
 import experiments.parameters as parameters
 from environments.observation_embeddings import ObservationEmbedding, embedding_dict
+from environments.minigrid.mini_grid import ObstaclesGridEnv
+from minigrid.wrappers import FullyObsWrapper, ImgObsWrapper
+from environments.minigrid.utilities.wrappers import SparseActionsWrapper, gym_wrapper
 from az.alphazero import AlphaZeroController
 from az.azmcts import AlphaZeroMCTS
 from az.model import (
@@ -27,6 +31,7 @@ from az.model import (
 from policies.tree_policies import tree_eval_dict
 from policies.selection_distributions import selection_dict_fn
 from policies.value_transforms import value_transform_dict
+
 
 
 def train_from_config(
@@ -47,7 +52,34 @@ def train_from_config(
     assert run is not None
     hparams = wandb.config
     print(hparams)
-    env = gym.make(**hparams["env_params"])
+
+    gym.register(
+        id="MiniGrid-12x12-v0",
+        entry_point="environments.minigrid.mini_grid:ObstaclesGridEnv",
+        max_episode_steps=1000000000,
+        kwargs=dict(
+            size=12,
+            agent_start_pos=(1, 6),
+            agent_start_dir=0,
+            bump_penalty=0,
+            obstacles=None,
+        ),
+    )
+
+    env = gym.make(
+        **hparams["env_params"],
+    )
+    #print(env.height, env.width)
+
+    #env = ImgObsWrapper(FullyObsWrapper(SparseActionsWrapper(env)))
+
+    env = gym_wrapper(env)
+    
+
+    print(env.observation_space)
+
+
+    print(env.observation_space)
 
     discount_factor = hparams["discount_factor"]
     if "tree_temperature" not in hparams:
@@ -177,13 +209,14 @@ def sweep_agent():
 
 
 def run_single():
-    challenge = parameters.env_challenges[1]
+    challenge = parameters.env_challenges[3]
     config_modifications = {
         "workers": min(6, multiprocessing.cpu_count()),
-        "tree_evaluation_policy": "mvc",
-        "planning_budget": 64,
-        "selection_policy": "PolicyPUCT",
-        "observation_embedding": "coordinate",
+        # "tree_evaluation_policy": "mvc",
+        # "planning_budget": 64,
+        # "selection_policy": "PolicyPUCT",
+        "observation_embedding": "default",
+        "n_steps_learning": 2,
     }
     run_config = {**parameters.base_parameters, **challenge, **config_modifications}
     return train_from_config(config=run_config, performance=False)
