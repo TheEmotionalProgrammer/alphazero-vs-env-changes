@@ -1,13 +1,11 @@
+from ast import Not
 from collections import Counter
 import torch as th
 import numpy as np
 import matplotlib.pyplot as plt
 from az.model import AlphaZeroModel
 
-from environments.observation_embeddings import CoordinateEmbedding
-
-
-
+from environments.observation_embeddings import CoordinateEmbedding, MiniGridEmbedding
 
 @th.no_grad()
 def investigate_model(model: AlphaZeroModel):
@@ -43,7 +41,7 @@ def plot_image(fig, ax, image, title):
     if fig is not None:
         plt.close(fig)
 
-def plot_value_network(outputs, nrows, ncols, title = "Cliff Walking Value Network"):
+def plot_value_network(outputs, nrows, ncols, title = "Value Network"):
     plt.ioff()
     grid = np.zeros((nrows, ncols))
     for state, value in outputs.items():
@@ -57,10 +55,10 @@ def plot_value_network(outputs, nrows, ncols, title = "Cliff Walking Value Netwo
     return fig
 
 def plot_policy_network(
-    outputs, nrows=4, ncols=12, title="Cliff Walking Policy Network"
+    outputs, nrows=4, ncols=12, title="Policy Network"
 ):
     plt.ioff()
-    action_arrows = {0: "↑", 1: "→", 2: "↓", 3: "←"}
+    action_arrows = {3: "↑", 2: "→", 1: "↓", 0: "←"}
     preffered_actions = np.zeros((nrows, ncols), dtype="<U2")
     entropy = np.zeros((nrows, ncols))
     for state, action in outputs.items():
@@ -89,27 +87,54 @@ def plot_policy_network(
 
 def plot_visits_with_counter(
     visit_counts: Counter,
-    observation_embedding: CoordinateEmbedding,
+    observation_embedding: CoordinateEmbedding | MiniGridEmbedding,
     step,
     title="State Visit Counts",
-):
-    grid = np.zeros((observation_embedding.nrows, observation_embedding.ncols))
+):  
+    if isinstance(observation_embedding, CoordinateEmbedding):
+        grid = np.zeros((observation_embedding.nrows, observation_embedding.ncols))
 
-    for obs in range(observation_embedding.observation_space.n):
-        obs_tensor = tuple(
-            observation_embedding.obs_to_tensor(obs, dtype=th.float32).tolist()
-        )
-        count = visit_counts.get(obs_tensor, 0)
-        row, col = divmod(obs, observation_embedding.ncols)
-        grid[row, col] = count
+        for obs in range(observation_embedding.observation_space.n):
+            obs_tensor = tuple(
+                observation_embedding.obs_to_tensor(obs, dtype=th.float32).tolist()
+            )
+            count = visit_counts.get(obs_tensor, 0)
+            row, col = divmod(obs, observation_embedding.ncols)
+            grid[row, col] = count
 
-    fig, ax = plt.subplots()
-    ax.imshow(grid, cmap="viridis", interpolation="nearest")
-    ax.set_title(f"{title}, Step: {step}")
-    for obs in range(observation_embedding.observation_space.n):
-        row, col = divmod(obs, observation_embedding.ncols)
-        ax.text(
-            col, row, f"{grid[row, col]:.0f}", ha="center", va="center", color="white"
-        )
-    plt.tight_layout()
-    return fig
+        fig, ax = plt.subplots()
+        ax.imshow(grid, cmap="viridis", interpolation="nearest")
+        ax.set_title(f"{title}, Step: {step}")
+        for obs in range(observation_embedding.observation_space.n):
+            row, col = divmod(obs, observation_embedding.ncols)
+            ax.text(
+                col, row, f"{grid[row, col]:.0f}", ha="center", va="center", color="white"
+            )
+        plt.tight_layout()
+        return fig
+    
+    elif isinstance(observation_embedding, MiniGridEmbedding):
+        grid = np.zeros((observation_embedding.height, observation_embedding.width))
+
+        # Iterate over all cells in the grid
+        for row in range(observation_embedding.height):
+            for col in range(observation_embedding.width):
+                # Create a mock observation with direction as 0 (default)
+                obs = np.zeros((observation_embedding.height, observation_embedding.width))
+                obs[row, col] = 1  # Set the agent position
+                obs_tensor = tuple(
+                    observation_embedding.obs_to_tensor(obs, dtype=th.float32).tolist()
+                )
+                count = visit_counts.get(obs_tensor, 0)
+                grid[row, col] = count
+
+        fig, ax = plt.subplots()
+        ax.imshow(grid, cmap="viridis", interpolation="nearest")
+        ax.set_title(f"{title}, Step: {step}")
+        for row in range(observation_embedding.height):
+            for col in range(observation_embedding.width):
+                ax.text(
+                    col, row, f"{grid[row, col]:.0f}", ha="center", va="center", color="white"
+                )
+        plt.tight_layout()
+        return fig

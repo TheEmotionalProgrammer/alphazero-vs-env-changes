@@ -7,6 +7,7 @@ import numpy as np
 import torch as th
 import wandb
 from torch.utils.tensorboard.writer import SummaryWriter
+from environments.observation_embeddings import CoordinateEmbedding, MiniGridEmbedding
 from torchrl.data import TensorDictReplayBuffer
 from tqdm import tqdm
 
@@ -162,11 +163,12 @@ class AlphaZeroController:
 
             # if the env is CliffWalking-v0, plot the output of the value and policy networks
             assert self.env.spec is not None
+
             if (
-                self.agent.model.observation_embedding.ncols is not None
-                and self.save_plots
+                type(self.agent.model.observation_embedding) == CoordinateEmbedding and self.save_plots
             ):
                 assert isinstance(self.env.observation_space, gym.spaces.Discrete)
+
                 show_model_in_tensorboard(self.agent.model, self.writer, i)
                 plot_visits_with_counter_tensorboard(
                     self.train_obs_counter,
@@ -180,6 +182,22 @@ class AlphaZeroController:
                 plot_visits_to_wandb_with_counter(
                     self.train_obs_counter, self.agent.model.observation_embedding, i
                 )
+            
+            elif (
+                  type(self.agent.model.observation_embedding) == MiniGridEmbedding and self.save_plots
+            ):
+                
+                plot_visits_with_counter_tensorboard(
+                    self.train_obs_counter,
+                    self.agent.model.observation_embedding,
+                    self.writer,
+                    i,
+                )
+
+                plot_visits_to_wandb_with_counter(
+                    self.train_obs_counter, self.agent.model.observation_embedding, i
+                )
+
             time_steps = tensor_results["mask"].sum(dim=-1)
             enviroment_steps += th.sum(time_steps).item()
             episodes += time_steps.shape[0]

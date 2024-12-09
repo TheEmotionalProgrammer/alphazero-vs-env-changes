@@ -7,7 +7,7 @@ import gymnasium as gym
 from az.model import AlphaZeroModel
 from log_code.investigate_model import investigate_model, plot_policy_network, plot_value_network, plot_visits_with_counter
 
-from environments.observation_embeddings import CoordinateEmbedding, ObservationEmbedding
+from environments.observation_embeddings import CoordinateEmbedding, MiniGridEmbedding, ObservationEmbedding
 
 def show_model_in_tensorboard(model: AlphaZeroModel, writer, step):
     outputs = investigate_model(model)
@@ -19,7 +19,7 @@ def show_model_in_tensorboard(model: AlphaZeroModel, writer, step):
     plt.close(policy_fig)
 
 
-def plot_visits_with_counter_tensorboard(visit_counts: Counter, observation_embedding: CoordinateEmbedding, writer, step, title="State Visit Counts"):
+def plot_visits_with_counter_tensorboard(visit_counts: Counter, observation_embedding: CoordinateEmbedding | MiniGridEmbedding, writer, step, title="State Visit Counts"):
     fig = plot_visits_with_counter(visit_counts, observation_embedding, step, title)
     # Log the figure to Tensorboard
     writer.add_figure("visit_counts", fig, global_step=step)

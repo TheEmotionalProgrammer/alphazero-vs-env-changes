@@ -14,7 +14,8 @@ from typing import List, Tuple
 from gymnasium import spaces
 from gymnasium.core import Wrapper
 import numpy as np
-    
+
+
 class ObstaclesGridEnv(MiniGridEnv):
 
     """
@@ -100,6 +101,7 @@ class ObstaclesGridEnv(MiniGridEnv):
         """
         Place obstacles randomly in the grid.
         """
+        self.obstacles = []
         num_obstacles = np.random.randint(1, 5)
         for _ in range(num_obstacles):
             x, y = self.place_obj(Wall())
@@ -130,7 +132,9 @@ class ObstaclesGridEnv(MiniGridEnv):
 
 
 def main(policy="random"):
-    env =  ImgObsWrapper(FullyObsWrapper(SparseActionsWrapper(ObstaclesGridEnv(render_mode="human"))))
+    
+    #env =  ImgObsWrapper(FullyObsWrapper(SparseActionsWrapper(ObstaclesGridEnv(render_mode="human"))))
+    env = gym_wrapper(ObstaclesGridEnv(render_mode="human", obstacles="random"))
 
     # Reset the environment
     obs, info = env.reset()

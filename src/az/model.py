@@ -59,12 +59,17 @@ class AlphaZeroModel(th.nn.Module):
 
         self.env = env
         self.hidden_dim = hidden_dim
+        
         self.observation_embedding = (
             observation_embedding
             if observation_embedding is not None
             else DefaultEmbedding(env.observation_space)
         )
+
         self.state_dim = self.observation_embedding.obs_dim() 
+
+        print("Embedding dim:", self.state_dim)
+
         self.action_dim = gym.spaces.flatdim(env.action_space)
         self.nlayers = nlayers
         self.activation_fn = activation_fn
@@ -135,6 +140,7 @@ class AlphaZeroModel(th.nn.Module):
             device=self.device,
             dtype=th.float32,
         ).unsqueeze(0)
+
         value, policy = self.forward(tensor_obs)
         return value.item(), policy.squeeze(0)
 
@@ -215,6 +221,7 @@ def create_layers(state_dim, nlayers, hidden_dim, activation_fn, norm_layer):
 
     """
     layers = []
+
     layers.append(th.nn.Linear(state_dim, hidden_dim))
     layers.append(th.nn.ReLU())
 

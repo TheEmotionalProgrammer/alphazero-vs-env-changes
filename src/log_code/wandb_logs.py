@@ -8,6 +8,7 @@ from az.model import AlphaZeroModel
 
 from log_code.investigate_model import (
     CoordinateEmbedding,
+    MiniGridEmbedding,
     investigate_model,
     plot_policy_network,
     plot_value_network,
@@ -99,7 +100,7 @@ def show_model_in_wandb(model: AlphaZeroModel, step):
 
 
 def plot_visits_to_wandb_with_counter(visit_counts: Counter,
-    observation_embedding: CoordinateEmbedding,
+    observation_embedding: CoordinateEmbedding | MiniGridEmbedding,
     step,
     title="State Visit Counts"):
     fig = plot_visits_with_counter(visit_counts, observation_embedding, step, title)
