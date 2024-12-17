@@ -3,10 +3,17 @@ from gymnasium.envs.toy_text.frozen_lake import FrozenLakeEnv
 from gymnasium.envs.registration import register
 from gymnasium.envs.toy_text.utils import categorical_sample
 
+actions_dict = {
+    0: "Left",
+    1: "Down",
+    2: "Right",
+    3: "Up",
+}
+
 
 class CustomFrozenLakeEnv(FrozenLakeEnv):
     def __init__(
-        self, desc=None, map_name="4x4", is_slippery=False,  hole_reward=-1, terminate_on_hole=False
+        self, desc=None, map_name="4x4", is_slippery=False,  hole_reward=0, terminate_on_hole=False
     ):
         super().__init__(desc=desc, map_name=map_name, hole_reward=hole_reward, is_slippery=is_slippery, render_mode=None)
         self.terminate_on_hole = terminate_on_hole  # Decide if falling into a hole ends the episode

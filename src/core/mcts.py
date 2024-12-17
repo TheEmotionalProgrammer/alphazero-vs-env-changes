@@ -139,11 +139,11 @@ class MCTS:
         Note: The function will modify the environment and the input node.
         """
 
-        if len(node.children) == int(node.action_space.n) - 1: # If this is the last child to be expanded, we do not need to copy the environment
-            env = node.env
-            node.env = None
-        else:
-            env = copy.deepcopy(node.env) 
+        # if len(node.children) == int(node.action_space.n) - 1: # If this is the last child to be expanded, we do not need to copy the environment
+        #     env = node.env
+        #     node.env = None
+        # else:
+        env = copy.deepcopy(node.env) 
 
         assert env is not None
 

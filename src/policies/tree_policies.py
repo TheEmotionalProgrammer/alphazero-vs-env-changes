@@ -268,5 +268,5 @@ tree_eval_dict = lambda param, discount, c=1.0, temperature=None, value_transfor
     'visit_prior_std': VistationPriorStdPolicy(sigma=param, temperature=temperature, value_transform=value_transform),
     'bellman_prior_std': BellmanPriorStdPolicy(sigma=param, temperature=temperature, value_transform=value_transform),
     'mvcp': MinimalVarianceConstraintPolicyPrior(discount_factor=discount, beta=param, temperature=temperature, value_transform=value_transform),
-    'suprise': QSuprisePolicy(beta=param, discount_factor=discount, temperature=temperature, value_transform=value_transform),
+    'surprise': QSuprisePolicy(beta=param, discount_factor=discount, temperature=temperature, value_transform=value_transform),
 }

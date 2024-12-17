@@ -15,6 +15,7 @@ from core.mcts import DistanceMCTS, LakeDistanceMCTS, RandomRolloutMCTS
 import experiments.parameters as parameters
 from environments.observation_embeddings import ObservationEmbedding, embedding_dict
 from az.azmcts import AlphaZeroMCTS
+from azdetection.change_detector import AlphaZeroDetector
 from az.model import (
     AlphaZeroModel,
     models_dict
@@ -23,6 +24,9 @@ from policies.tree_policies import tree_eval_dict
 from policies.selection_distributions import selection_dict_fn
 from policies.value_transforms import value_transform_dict
 import torch as th
+
+import copy
+from environments.register import register_all
 
 
 def agent_from_config(hparams: dict):
@@ -103,9 +107,10 @@ def agent_from_config(hparams: dict):
                 discount_factor=discount_factor,
             )
 
-    else:
+    elif hparams["agent_type"] == "azmcts":
 
         filename = hparams["model_file"]
+
         model: AlphaZeroModel = models_dict[hparams["model_type"]].load_model(
             filename, 
             env, 
@@ -120,6 +125,7 @@ def agent_from_config(hparams: dict):
             hparams["dir_epsilon"] = 0.0
             hparams["dir_alpha"] = None
 
+
         dir_epsilon = hparams["dir_epsilon"]
         dir_alpha = hparams["dir_alpha"]
 
@@ -132,6 +138,48 @@ def agent_from_config(hparams: dict):
             discount_factor=discount_factor,
         )
 
+    elif hparams["agent_type"] == "azdetection":
+
+        filename = hparams["model_file"]
+
+        model: AlphaZeroModel = models_dict[hparams["model_type"]].load_model(
+            filename, 
+            env, 
+            False, 
+            hparams["hidden_dim"]
+        )
+
+        model.eval()
+
+        if "dir_epsilon" not in hparams:
+            hparams["dir_epsilon"] = 0.0
+            hparams["dir_alpha"] = None
+
+        print("Direpslion: ", hparams["dir_epsilon"])
+
+        dir_epsilon = hparams["dir_epsilon"]
+        dir_alpha = hparams["dir_alpha"]
+
+        if "threshold" not in hparams:
+            hparams["threshold"] = 0.05
+
+        threshold = hparams["threshold"]
+
+        agent = AlphaZeroDetector(
+            predictor=None,
+            root_selection_policy=root_selection_policy,
+            selection_policy=selection_policy,
+            model=model,
+            dir_epsilon=dir_epsilon,
+            dir_alpha=dir_alpha,
+            discount_factor=discount_factor,
+            threshold=threshold,
+        )
+
+    else:
+        raise ValueError(f"Unknown agent type {hparams['agent_type']}")
+
+        
     return (
         agent,
         env,
@@ -156,28 +204,50 @@ def eval_from_config(
     assert run is not None
     hparams = wandb.config
 
-    agent, env, tree_evaluation_policy, observation_embedding, planning_budget = (
+    agent, train_env, tree_evaluation_policy, observation_embedding, planning_budget = (
         agent_from_config(hparams)
     )
+
     if "workers" not in hparams or hparams["workers"] is None:
         hparams["workers"] = multiprocessing.cpu_count()
     workers = hparams["workers"]
 
     seeds = [None] * hparams["runs"]
+
+
+    if hparams["test_env"] is None: # Use the training environment as the test environment
+
+        test_env = train_env
+        train_env = None
+        
+
+    elif isinstance(hparams["test_env"], str) and hparams["test_env"] == "train_env": # Use the training environment as the test environment
+
+        test_env = copy.deepcopy(train_env)
+
+
+    elif isinstance(hparams["test_env"], dict): # Use the given test environment
+
+        test_env = gym.make(**hparams["test_env"])
+
     results = eval_agent(
-        agent,
-        env,
-        tree_evaluation_policy,
-        observation_embedding,
-        planning_budget,
-        hparams["max_episode_length"],
+        agent=agent,
+        env=test_env,
+        original_env=train_env,
+        tree_evaluation_policy=tree_evaluation_policy,
+        observation_embedding=observation_embedding,
+        planning_budget=planning_budget,
+        max_episode_length=hparams["max_episode_length"],
         seeds=seeds,
         temperature=hparams["eval_temp"],
         workers=workers,
+        azdetection= (hparams["agent_type"] == "azdetection"),
+        unroll_budget= hparams["unroll_budget"],
     )
     episode_returns, discounted_returns, time_steps, entropies = calc_metrics(
-        results, agent.discount_factor, env.action_space.n
+        results, agent.discount_factor, test_env.action_space.n
     )
+
     trajectories = []
     for i in range(results.shape[0]):
         re = []
@@ -194,14 +264,14 @@ def eval_from_config(
             np.array((discounted_returns))
         ),
         "Evaluation/Timesteps": wandb.Histogram(np.array((time_steps))),
-        "Evaluation/Entropies": wandb.Histogram(
-            np.array(((th.sum(entropies, dim=-1) / time_steps)))
-        ),
+        # "Evaluation/Entropies": wandb.Histogram(
+        #     np.array(((th.sum(entropies, dim=-1) / time_steps)))
+        # ),
         "Evaluation/Mean_Returns": episode_returns.mean().item(),
         "Evaluation/Mean_Discounted_Returns": discounted_returns.mean().item(),
-        "Evaluation/Mean_Entropy": (th.sum(entropies, dim=-1) / time_steps)
-        .mean()
-        .item(),
+        # "Evaluation/Mean_Entropy": (th.sum(entropies, dim=-1) / time_steps)
+        # .mean()
+        # .item(),
         "trajectories": trajectories,
     }
     run.log(data=eval_res)
@@ -211,18 +281,62 @@ def eval_from_config(
 
 
 def eval_single():
-    challenge = parameters.env_challenges[1]
+
+    register_all()
+
+    challenge = parameters.env_challenges[3] # Training environment
+
     config_modifications = {
         "workers": min(6, multiprocessing.cpu_count()),
-        "tree_evaluation_policy": "mvc",
-        "selection_policy": "PolicyUCT",
-        "runs": 10,
+        "tree_evaluation_policy": "visit",
+        "selection_policy": "PUCT",
+        "runs": 1,
         "planning_budget": 64,
         "observation_embedding": "coordinate",
-        "agent_type": "",
-        "model_file": "/Users/isidorotamassia/THESIS/alphazero-vs-env-changes/runs/hyper/CliffWalking-v0_20241205-230653/checkpoint.pth",
+        "agent_type": "azdetection",
+        "threshold": 0.001, # Only for azdetection, ignored otherwise
+        "unroll_budget": 10, # Only for azdetection, ignored otherwise
+        "eval_temp":0,
+
+        #"test_env": None, # If None, the training environment is used
+
+        #"test_env": "train_env", # If "train_env", the training environment is used
+
+        "test_env": dict(    
+            id = "DefaultFrozenLake8x8-v1",
+            #id = "CustomFrozenLakeNoHoles8x8-v1",
+            
+            # desc=[
+            #     "SFFFFFFF",
+            #     "FFFFFFFF",
+            #     "FFFFFFFF",
+            #     "FFFFFFFF",
+            #     "FFFFFFFF",
+            #     "FFFFFFFF",
+            #     "FFFFFFFF",
+            #     "FFFFFFFG",
+            # ],
+            desc = [
+                "SFFFFFFF",
+                "FFFFFFFF",
+                "FFHHHFFF",
+                "FFFFFFFF",
+                "FFFFFFFF",
+                "HFHHHFFH",
+                "FFFFFFHF",
+                "FFFFFFFG",
+            ],
+            is_slippery=False,
+            hole_reward=0,
+            terminate_on_hole=False,
+           
+        ),
+
+        "model_file": "/Users/isidorotamassia/THESIS/alphazero-vs-env-changes/runs/hyper/CustomFrozenLakeNoHoles8x8-v1_20241216-003012/checkpoint.pth",
     }
+
     run_config = {**parameters.base_parameters, **challenge, **config_modifications}
+
     return eval_from_config(config=run_config)
 
 

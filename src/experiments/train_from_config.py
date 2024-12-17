@@ -32,7 +32,7 @@ from policies.tree_policies import tree_eval_dict
 from policies.selection_distributions import selection_dict_fn
 from policies.value_transforms import value_transform_dict
 
-
+from environments.register import register_all
 
 def train_from_config(
     project_name="AlphaZero", entity=None, job_name=None, config=None, performance=True, tags = None,
@@ -205,104 +205,18 @@ def sweep_agent():
 
 
 def run_single():
-    challenge = parameters.env_challenges[4]
+    challenge = parameters.env_challenges[3]
     config_modifications = {
         "workers": min(6, multiprocessing.cpu_count()),
         "tree_evaluation_policy": "mvc",
-        "planning_budget": 64,
+        "planning_budget": 32,
         "iterations": 40,
         "selection_policy": "PolicyPUCT",
         "observation_embedding": "coordinate",
-        "n_steps_learning": 2,
+        "n_steps_learning": 1,
     }
     run_config = {**parameters.base_parameters, **challenge, **config_modifications}
     return train_from_config(config=run_config, performance=False)
-
-
-def register_all():
-
-    """
-    Register all created custom environments that haven't been registered yet.
-    """
-
-    if "MiniGrid-12x12-v0" not in gym.registry:
-        
-        gym.register(
-            id="MiniGrid-12x12-v0",
-            entry_point="environments.minigrid.mini_grid:ObstaclesGridEnv",
-            max_episode_steps=1000000000,
-            kwargs=dict(
-                size=12,
-                agent_start_pos=(1, 1),
-                agent_start_dir=0,
-                bump_penalty=0,
-                obstacles=[(3,3), (3,4), (3,5)],
-            ),
-        )
-
-    if "CustomFrozenLakeNoHoles4x4-v1" not in gym.registry:
-        gym.register(
-            id="CustomFrozenLakeNoHoles4x4-v1",
-            entry_point="environments.frozenlake.frozen_lake:CustomFrozenLakeEnv",
-            kwargs={
-                "desc": [
-                    "SFFF",
-                    "FFFF",
-                    "FFFF",
-                    "FFFG"
-                    ],
-                "map_name": None,
-                "is_slippery": False,
-                "terminate_on_hole": False,
-            },
-        )
-    
-    if "CustomFrozenLakeNoHoles8x8-v1" not in gym.registry:
-
-        gym.register(
-            id="CustomFrozenLakeNoHoles8x8-v1",
-            entry_point="enviroments.frozenlake.frozen_lake:CustomFrozenLakeEnv",
-            kwargs={
-                "desc": [
-                    "SFFFFFFF",
-                    "FFFFFFFF",
-                    "FFFFFFFF",
-                    "FFFFFFFF",
-                    "FFFFFFFF",
-                    "FFFFFFFF",
-                    "FFFFFFFF",
-                    "FFFFFFFG"
-                    ],
-                "map_name": None,
-                "is_slippery": False,
-                "terminate_on_hole": False,
-            },
-        )
-
-    if "DefaultFrozenLake4x4-v1" not in gym.registry:
-        gym.register(
-            id="DefaultFrozenLake4x4-v1",
-            entry_point="environments.frozenlake.frozen_lake:CustomFrozenLakeEnv",
-            kwargs={
-                "map_name": "4x4",
-                "is_slippery": False,
-                "hole_reward": 0,
-                "terminate_on_hole": True,
-            },
-        )
-
-    if "DefaultFrozenLake8x8-v1" not in gym.registry:
-        gym.register(
-            id="DefaultFrozenLake8x8-v1",
-            entry_point="environments.frozenlake.frozen_lake:CustomFrozenLakeEnv",
-            kwargs={
-                "map_name": "8x8",
-                "is_slippery": False,
-                "hole_reward": -1,
-                "terminate_on_hole": False,
-            },
-        )
-
 
 if __name__ == "__main__":
     # sweep_id = wandb.sweep(sweep=coord_search, project="AlphaZero")
