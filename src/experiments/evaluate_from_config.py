@@ -165,6 +165,8 @@ def agent_from_config(hparams: dict):
 
         threshold = hparams["threshold"]
 
+        planning_style = hparams["planning_style"]
+
         agent = AlphaZeroDetector(
             predictor=None,
             root_selection_policy=root_selection_policy,
@@ -174,6 +176,7 @@ def agent_from_config(hparams: dict):
             dir_alpha=dir_alpha,
             discount_factor=discount_factor,
             threshold=threshold,
+            planning_style=planning_style,
         )
 
     else:
@@ -291,9 +294,10 @@ def eval_single():
         "tree_evaluation_policy": "visit",
         "selection_policy": "PUCT",
         "runs": 1,
-        "planning_budget": 64,
+        "planning_budget": 512,
         "observation_embedding": "coordinate",
         "agent_type": "azdetection",
+        "planning_style": "value_search",
         "threshold": 0.001, # Only for azdetection, ignored otherwise
         "unroll_budget": 10, # Only for azdetection, ignored otherwise
         "eval_temp":0,
@@ -319,11 +323,11 @@ def eval_single():
             desc = [
                 "SFFFFFFF",
                 "FFFFFFFF",
-                "FFHHHFFF",
                 "FFFFFFFF",
                 "FFFFFFFF",
-                "HFHHHFFH",
-                "FFFFFFHF",
+                "FFFFFFFF",
+                "FFHHHHHH",
+                "FFFFFFFF",
                 "FFFFFFFG",
             ],
             is_slippery=False,

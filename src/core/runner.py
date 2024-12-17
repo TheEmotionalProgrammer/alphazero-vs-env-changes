@@ -200,7 +200,7 @@ def run_episode(
         if next_terminal or truncated:
             break
         
-        if original_env is not None:
+        if azdetection:
             tree = solver.search(env, planning_budget, new_obs, reward, original_env=original_env, n=unroll_steps) # Computes a planning tree using the given solver and available budget. Returns the root node of the tree.
 
         else:

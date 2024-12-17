@@ -30,6 +30,7 @@ class AlphaZeroDetector(AlphaZeroMCTS):
             dir_epsilon: float = 0.0,
             dir_alpha: float = 0.3,
             root_selection_policy: Policy | None = None,
+            planning_style: str = "value_search",
     ):
         super().__init__(
             model = model,
@@ -43,7 +44,7 @@ class AlphaZeroDetector(AlphaZeroMCTS):
         self.threshold = threshold
         self.trajectory = [] # List of nodes that have been expanded by either the search or unroll methods
         self.problem_idx = None
-        self.planning_style = "value_search"
+        self.planning_style = planning_style # Can be either "classic" or "value_search"
         
     def unroll(
             self,
