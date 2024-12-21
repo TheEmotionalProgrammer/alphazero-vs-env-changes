@@ -1,7 +1,7 @@
 from ast import Not
 from typing import Tuple
 import copy
-from math import floor, inf
+from math import floor
 import gym
 from gymnasium import Env
 import torch as th
@@ -9,6 +9,7 @@ from az.model import AlphaZeroModel
 from az.azmcts import AlphaZeroMCTS
 from core.node import Node
 from policies.policies import Policy
+from policies.selection_distributions import PolicyUCT
 import numpy as np
 from environments.frozenlake.frozen_lake import actions_dict
 
@@ -401,9 +402,27 @@ class AlphaZeroDetector(AlphaZeroMCTS):
                     self.backup(eval_node, eval_node.value_evaluation)
         
         elif self.planning_style == "connected":
+            
+            """
+            Unlike mini_trees, here we want to keep the unrolled trajectory as the starting planning tree.
+            Therefore, we connect the nodes of such trajectory before the obstacle.
+            Then, we plan with the given planning budget by selecting the nodes with the largest value.
+            This is achieved by using the PolicyUCT selection policy and setting the c parameter to zero.
+            This method should be combined with the mvc tree evaluation policy.
+            """
 
-            raise NotImplementedError("Connected planning style not implemented yet.")
+            assert isinstance(self.selection_policy, PolicyUCT)
+            assert self.selection_policy.c == 0
 
+            # Connect the trajectory nodes
+            for idx in range(1, safe_length):
+                node, parent_node = self.trajectory[idx][0], self.trajectory[idx-1][0]
+                node.parent = parent_node
+
+            root_node = self.trajectory[0][0]
+
+            super().build_tree(root_node, iterations)
+            
         else:
 
             raise NotImplementedError("Planning style not recognized.")

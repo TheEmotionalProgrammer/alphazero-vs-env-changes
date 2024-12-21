@@ -14,6 +14,7 @@ from experiments.eval_agent import eval_agent
 from core.mcts import DistanceMCTS, LakeDistanceMCTS, RandomRolloutMCTS
 import experiments.parameters as parameters
 from environments.observation_embeddings import ObservationEmbedding, embedding_dict
+from environments.frozenlake.fz_configs import *
 from az.azmcts import AlphaZeroMCTS
 from azdetection.change_detector import AlphaZeroDetector
 from az.model import (
@@ -30,6 +31,7 @@ from environments.register import register_all
 
 
 def agent_from_config(hparams: dict):
+
     env = gym.make(**hparams["env_params"])
 
     discount_factor = hparams["discount_factor"]
@@ -125,7 +127,6 @@ def agent_from_config(hparams: dict):
             hparams["dir_epsilon"] = 0.0
             hparams["dir_alpha"] = None
 
-
         dir_epsilon = hparams["dir_epsilon"]
         dir_alpha = hparams["dir_alpha"]
 
@@ -198,13 +199,18 @@ def eval_from_config(
         tags = []
     tags.append("evaluation")
 
-    # Initialize Weights & Biases
-    settings = wandb.Settings(job_name=job_name)
-    run = wandb.init(
-        project=project_name, entity=entity, settings=settings, config=config, tags=tags
-    )
-    assert run is not None
-    hparams = wandb.config
+    use_wandb = config["wandb_logs"]
+
+    if use_wandb:
+        # Initialize Weights & Biases
+        settings = wandb.Settings(job_name=job_name)
+        run = wandb.init(
+            project=project_name, entity=entity, settings=settings, config=config, tags=tags
+        )
+        assert run is not None
+        hparams = wandb.config
+    else:
+        hparams = config
 
     agent, train_env, tree_evaluation_policy, observation_embedding, planning_budget = (
         agent_from_config(hparams)
@@ -216,13 +222,7 @@ def eval_from_config(
 
     seeds = [None] * hparams["runs"]
 
-    if isinstance(hparams["test_env"], str) and hparams["test_env"] == "train_env": # Use the training environment as the test environment
-
-        test_env = copy.deepcopy(train_env)
-
-    elif isinstance(hparams["test_env"], dict): # Use the given test environment
-
-        test_env = gym.make(**hparams["test_env"])
+    test_env = gym.make(**hparams["test_env"])
 
     results = eval_agent(
         agent=agent,
@@ -252,127 +252,75 @@ def eval_from_config(
             if results[i, j]["terminals"] == 1:
                 break
         trajectories.append(re)
+
     eval_res = {
+        # wandb logs
         "Evaluation/Returns": wandb.Histogram(np.array((episode_returns))),
-        "Evaluation/Discounted_Returns": wandb.Histogram(
-            np.array((discounted_returns))
-        ),
+        "Evaluation/Discounted_Returns": wandb.Histogram(np.array((discounted_returns))),
         "Evaluation/Timesteps": wandb.Histogram(np.array((time_steps))),
-        # "Evaluation/Entropies": wandb.Histogram(
-        #     np.array(((th.sum(entropies, dim=-1) / time_steps)))
-        # ),
+        # "Evaluation/Entropies": wandb.Histogram(np.array(((th.sum(entropies, dim=-1) / time_steps)))),
+
+        # standard logs
         "Evaluation/Mean_Returns": episode_returns.mean().item(),
         "Evaluation/Mean_Discounted_Returns": discounted_returns.mean().item(),
-        # "Evaluation/Mean_Entropy": (th.sum(entropies, dim=-1) / time_steps)
-        # .mean()
-        # .item(),
+        # "Evaluation/Mean_Entropy": (th.sum(entropies, dim=-1) / time_steps).mean().item(),
         "trajectories": trajectories,
     }
-    run.log(data=eval_res)
-    run.log_code(root="./src")
-    # Finish the WandB run
-    run.finish()
 
+    if use_wandb:
+        run.log(data=eval_res)
+        run.log_code(root="./src")
+        # Finish the WandB run
+        run.finish()
+    
+    else:
+        print(f"Evaluation Mean Return: {eval_res['Evaluation/Mean_Returns']}")
+        print(f"Evaluation Mean Discounted Return: {eval_res['Evaluation/Mean_Discounted_Returns']}")
 
 def eval_single():
 
-    register_all()
+    register_all() # Register custom environments that we are going to use
 
     challenge = parameters.env_challenges[3] # Training environment
 
     config_modifications = {
+        
+        # Run configurations
+        "wandb_logs": False,
         "workers": min(6, multiprocessing.cpu_count()),
+        "runs": 1,
 
+        # Basic search parameters
         "tree_evaluation_policy": "visit",
         "selection_policy": "UCT",
-        "runs": 1,
-        "planning_budget": 128,
-        "observation_embedding": "coordinate",
-        "agent_type": "azmcts",
-    
-        "threshold": 0.03, # Only for azdetection, ignored otherwise
-        "unroll_budget": 10, # Only for azdetection, ignored otherwise
+        "planning_budget": 32,
 
-        "eval_temp":0,
-        "dir_epsilon": 0.0,
-        "dir_alpha": None,
+        # Search algorithm
+        "agent_type": "azdetection", 
 
-        "planning_style": "mini_trees",
-        "predictor": "original_env", 
+        # Stochasticity parameters
+        "eval_temp": 0, # Temperature in tree evaluation softmax, 0 means we are taking the stochastic argmax of the distribution
+        "dir_epsilon": 0.0, # Dirichlet noise parameter
+        "dir_alpha": None, # Dirichlet noise parameter
 
-        #"test_env": None, # If None, the training environment is used
+        # AZDetection detection parameters
+        "threshold": 0.03, # NOTE: this is going to be ignored if the predictor is original_env
+        "unroll_budget": 10, 
 
-        #"test_env": "train_env", # If "train_env", the training environment is used
+        # AZDetection replanning parameters
+        "planning_style": "value_search",
+        "predictor": "current_value", 
 
+        # Test environment with obstacles position specified in desc
         "test_env": dict(    
             id = "DefaultFrozenLake8x8-v1",
-            #id = "CustomFrozenLakeNoHoles8x8-v1",
-            
-            # desc = [ # MINI-SLALOM
-            #     "SFFFFFFF",
-            #     "FFFFFFFF",
-            #     "FFFFFFFF",
-            #     "HHHHFFFF",
-            #     "FFFFFFFF",
-            #     "FFFFFHHH",
-            #     "FFFFFFFF",
-            #     "FFFFFFFG",
-            # ],
-            # desc = [ # BLOCKS
-            #     "SFFFFFFF",
-            #     "FFFFFFFF",
-            #     "FFHHHFFF",
-            #     "FFFFFFFF",
-            #     "HHHFFFFF",
-            #     "FFFFFFFF",
-            #     "FFFFFHHH",
-            #     "FFFFFFFG",
-            # ],
-            # desc = [  # NARROW
-            #     "SFFFFFFF",
-            #     "FFFFFFFF",
-            #     "HHFHHHHH",
-            #     "HHFHHHHH",
-            #     "FFFFFFFF",
-            #     "FFFFFFHF",
-            #     "FFFFFFHF",
-            #     "FFFFFFHG",
-            # ],
-            # desc = [ # DEAD-END
-            #     "SFFFFFFF",
-            #     "FFFFFFFF",
-            #     "FFFFFFFF",
-            #     "FFFFFFFF",
-            #     "FFFFFFFF",
-            #     "FFHHHHHH",
-            #     "FFFFFFFF",
-            #     "FFFFFFFG",
-            # ],
-            # desc = [ # DEFAULT      
-            #     "SFFFFFFF",
-            #     "FFFFFFFF",
-            #     "FFFHFFFF",
-            #     "FFFFFHFF",
-            #     "FFFHFFFF",
-            #     "FHHFFFHF",
-            #     "FHFFHFHF",
-            #     "FFFHFFFG",
-            # ],
-            desc = [ # TRAP
-                "SFFFFFFF",
-                "FFFHFFFF",
-                "HHHHFFFF",
-                "FFFFFFFF",
-                "FFFFFFFF",
-                "FFFFFFFF",
-                "FFFFFFFF",
-                "FFFFFFFG",
-            ],
+            desc = TRAP,
             is_slippery=False,
             hole_reward=0,
             terminate_on_hole=False,
            
         ),
+        "observation_embedding": "coordinate", # When the observation is just a coordinate on a grid, can use coordinate
 
         "model_file": "/Users/isidorotamassia/THESIS/alphazero-vs-env-changes/runs/hyper/CustomFrozenLakeNoHoles8x8-v1_20241216-003012/checkpoint.pth",
     }
