@@ -1,4 +1,6 @@
 import copy
+import dis
+from importlib.metadata import distribution
 import multiprocessing
 
 from tensordict import TensorDict
@@ -10,8 +12,12 @@ from environments.observation_embeddings import ObservationEmbedding
 from policies.policies import PolicyDistribution, custom_softmax
 from environments.frozenlake.frozen_lake import actions_dict
 from core.node import Node
+
+
 def run_episode_process(args):
+
     """Wrapper function for multiprocessing that unpacks arguments and runs a single episode."""
+
     return run_episode(*args)
 
 def collect_trajectories(tasks, workers=1):
@@ -34,8 +40,8 @@ def run_episode(
     max_steps=1000, # maximum number of steps to take in the (real) environment
     seed=None,
     temperature=None,
-    azdetection=False,
-    original_env: gym.Env | None = None,
+    azdetection=False, # If True, the agent will use the unrolling to detect problems
+    original_env: gym.Env | None = None, # Used to keep track of the original environment state for detection purposes in an ideal context 
     unroll_steps=5,
     return_trees=False,
     ):
@@ -47,7 +53,7 @@ def run_episode(
     Outputs the trajectory and optionally the trees that were generated during the episode.
     """
 
-    assert isinstance(env.action_space, gym.spaces.Discrete)
+    assert isinstance(env.action_space, gym.spaces.Discrete) # For now, only supports discrete action spaces
     n = int(env.action_space.n)
 
     if seed is not None:
@@ -60,9 +66,10 @@ def run_episode(
 
     if original_env is not None:
         _, _ = original_env.reset(seed=seed) 
-        original_env.unwrapped.s = env.unwrapped.s
+        original_env.unwrapped.s = env.unwrapped.s # Set the initial state of the original environment to match the current environment
 
     observation_tensor: th.Tensor = observation_embedding.obs_to_tensor(observation, dtype=th.float32)
+
     trajectory = TensorDict(
         source={
             "observations": th.zeros(
@@ -79,14 +86,15 @@ def run_episode(
         }, 
         batch_size=[max_steps],
     )
+
     if return_trees:
         trees = []
 
-    if azdetection:
+    if azdetection: # Calls the search function of azdetection
 
         tree = solver.search(env,planning_budget, observation, 0.0, original_env = original_env, n=unroll_steps)
         
-    else:
+    else: # Calls the standard search function
 
         tree = solver.search(env,planning_budget, observation, 0.0)
 
@@ -94,48 +102,58 @@ def run_episode(
 
     while step < max_steps:
         
-        if azdetection and solver.planning_style == "value_search":
-            # Check if tree is a list
-            if isinstance(tree, list):
-                # If it is, then it is a list of actions that the agent have to take
-                for action in tree:
-                    
-                    new_obs, reward, terminated, truncated, _ = env.step(action)
-                    new_pos_row = new_obs // 8
-                    new_pos_col = new_obs % 8
-                    print(f"obs = ({new_pos_row}, {new_pos_col}), reward = {reward}, terminated = {terminated}, truncated = {truncated}")
-                    if original_env is not None:
-                        if new_obs != old_obs:
-                            _, _, _, _, _ = original_env.step(action)
-                    old_obs = new_obs
-                    assert not truncated
-                    next_terminal = terminated
+        if azdetection and solver.planning_style == "value_search" and isinstance(tree, list):
 
-                    trajectory["observations"][step] = observation_tensor
-                    trajectory["rewards"][step] = reward
-                    #trajectory["policy_distributions"][step] = policy_dist.probs
-                    trajectory["actions"][step] = action
-                    trajectory["mask"][step] = True
-                    trajectory["terminals"][step] = next_terminal
-                    #trajectory["root_values"][step] = th.tensor(root_value, dtype=th.float32)
-                    if next_terminal or truncated:
-                        break
-                    new_observation_tensor = observation_embedding.obs_to_tensor(new_obs, dtype=th.float32)
-                    observation_tensor = new_observation_tensor
-                    step += 1
+            """
+            If the agent is using the value search planning style and the search returned a list of actions,
+            then we want to just follow those actions.
+            """
+               
+            for action in tree:
                 
-                print("Here")
-                tree = Node (
-                    observation = new_obs,
-                    parent = None,
-                    env = env,
-                    terminal = terminated,
-                    reward = reward,
-                    action_space=env.action_space,
-                )
+                new_obs, reward, terminated, truncated, _ = env.step(action)
+                new_pos_row = new_obs // 8
+                new_pos_col = new_obs % 8
+                print(f"obs = ({new_pos_row}, {new_pos_col}), reward = {reward}, terminated = {terminated}, truncated = {truncated}")
 
-                tree.value_evaluation = solver.value_function(tree)
-                solver.backup(tree, tree.value_evaluation)
+                if original_env is not None:
+                    if new_obs != old_obs:
+                        _, _, _, _, _ = original_env.step(action)
+
+                old_obs = new_obs
+
+                assert not truncated
+                next_terminal = terminated
+
+                trajectory["observations"][step] = observation_tensor
+                trajectory["rewards"][step] = reward
+                #trajectory["policy_distributions"][step] = policy_dist.probs
+                trajectory["actions"][step] = action
+                trajectory["mask"][step] = True
+                trajectory["terminals"][step] = next_terminal
+                #trajectory["root_values"][step] = th.tensor(root_value, dtype=th.float32)
+                if next_terminal or truncated:
+                    break
+                new_observation_tensor = observation_embedding.obs_to_tensor(new_obs, dtype=th.float32)
+                observation_tensor = new_observation_tensor
+                step += 1 # Still need to increment the step counter 
+            
+            tree = Node ( # Create a new node to represent the current state after following the actions
+                observation = new_obs,
+                parent = None,
+                env = env,
+                terminal = terminated,
+                reward = reward,
+                action_space=env.action_space,
+            )
+
+            # Note that despite in principle we now act without planning for the next step, 
+            # in practice if the detection said now the path is clear we'll just follow the prior,
+            # so it wouldn't make sense to plan calling solver.search() here.
+
+            # We still compute the standard value eval to avoid breaking code but this shouldn't be needed
+            tree.value_evaluation = solver.value_function(tree)
+            solver.backup(tree, tree.value_evaluation)
                        
 
         root_value = tree.value_evaluation # Contains the value estimate of the root node computed by the planning step
@@ -147,42 +165,32 @@ def run_episode(
         if return_trees:
             trees.append(tree)
 
-        if not azdetection:
-            # apply extra softmax
-            action = th.distributions.Categorical(probs=custom_softmax(policy_dist.probs, temperature, None)).sample().item()
-            # res will now contain the observation, policy distribution, action, as well as the reward and terminal we got from executing the action
+        if not azdetection: # We sample the action from the eval policy distribution
+            distribution = th.distributions.Categorical(probs=custom_softmax(policy_dist.probs, temperature, None)) # apply extra softmax
+            action = distribution.sample().item() # Note that if the temperature of the softmax was zero, this becomes an argmax
 
-        else:
+        else: # If we are using azdetection, we need to check if a problem was detected
 
-            # Check if the unrolling has detected a problem
-
-            if solver.problem_idx is None:
-                
+            if solver.problem_idx is None: # If no problem was detected, we act following the prior (quick)
                 print("No problem detected, acting normally.")
-
                 action = th.argmax(solver.model.single_observation_forward(tree.observation)[1]).item()
             
-            else:
+            else: # If a problem was detected, we act following the policy distribution
+                distribution = th.distributions.Categorical(probs=custom_softmax(policy_dist.probs, temperature, None)) # apply extra softmax
+                action = distribution.sample().item() # Note that if the temperature of the softmax was zero, this becomes an argmax
 
-                #print(f"Problem detected at step {solver.problem_idx}, following the planning tree")
-                # apply extra softmax
-
-                action = th.distributions.Categorical(probs=custom_softmax(policy_dist.probs, temperature, None)).sample().item()
-                # res will now contain the observation, policy distribution, action, as well as the reward and terminal we got from executing the action
-
-            print(f"action = {actions_dict[action]}")
+            print(f"Env: action = {actions_dict[action]}")
 
         new_obs, reward, terminated, truncated, _ = env.step(action)
 
-        new_pos_row = new_obs // 8 # Convert the observation to a 2D position, hardcoded for now
+        # Convert the observation to a 2D position, hardcoded size of the grid for now
+        new_pos_row = new_obs // 8 
         new_pos_col = new_obs % 8
 
-        print(f"obs = ({new_pos_row}, {new_pos_col}), reward = {reward}, terminated = {terminated}, truncated = {truncated}")
+        print(f"Env: obs = ({new_pos_row}, {new_pos_col}), reward = {reward}, terminated = {terminated}, truncated = {truncated}")
 
         if original_env is not None:
-
             if new_obs != old_obs:
-            
                 _, _, _, _, _ = original_env.step(action)
 
         old_obs = new_obs
@@ -201,7 +209,7 @@ def run_episode(
             break
         
         if azdetection:
-            tree = solver.search(env, planning_budget, new_obs, reward, original_env=original_env, n=unroll_steps) # Computes a planning tree using the given solver and available budget. Returns the root node of the tree.
+            tree = solver.search(env, planning_budget, new_obs, reward, original_env=original_env, n=unroll_steps) 
 
         else:
             tree = solver.search(env, planning_budget, new_obs, reward)

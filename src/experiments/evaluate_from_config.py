@@ -160,15 +160,14 @@ def agent_from_config(hparams: dict):
         dir_epsilon = hparams["dir_epsilon"]
         dir_alpha = hparams["dir_alpha"]
 
-        if "threshold" not in hparams:
-            hparams["threshold"] = 0.05
-
         threshold = hparams["threshold"]
 
         planning_style = hparams["planning_style"]
 
+        predictor = hparams["predictor"]
+
         agent = AlphaZeroDetector(
-            predictor=None,
+            predictor=predictor,
             root_selection_policy=root_selection_policy,
             selection_policy=selection_policy,
             model=model,
@@ -217,17 +216,9 @@ def eval_from_config(
 
     seeds = [None] * hparams["runs"]
 
-
-    if hparams["test_env"] is None: # Use the training environment as the test environment
-
-        test_env = train_env
-        train_env = None
-        
-
-    elif isinstance(hparams["test_env"], str) and hparams["test_env"] == "train_env": # Use the training environment as the test environment
+    if isinstance(hparams["test_env"], str) and hparams["test_env"] == "train_env": # Use the training environment as the test environment
 
         test_env = copy.deepcopy(train_env)
-
 
     elif isinstance(hparams["test_env"], dict): # Use the given test environment
 
@@ -291,16 +282,23 @@ def eval_single():
 
     config_modifications = {
         "workers": min(6, multiprocessing.cpu_count()),
+
         "tree_evaluation_policy": "visit",
-        "selection_policy": "PUCT",
+        "selection_policy": "UCT",
         "runs": 1,
-        "planning_budget": 512,
+        "planning_budget": 128,
         "observation_embedding": "coordinate",
-        "agent_type": "azdetection",
-        "planning_style": "value_search",
-        "threshold": 0.001, # Only for azdetection, ignored otherwise
+        "agent_type": "azmcts",
+    
+        "threshold": 0.03, # Only for azdetection, ignored otherwise
         "unroll_budget": 10, # Only for azdetection, ignored otherwise
+
         "eval_temp":0,
+        "dir_epsilon": 0.0,
+        "dir_alpha": None,
+
+        "planning_style": "mini_trees",
+        "predictor": "original_env", 
 
         #"test_env": None, # If None, the training environment is used
 
@@ -310,23 +308,63 @@ def eval_single():
             id = "DefaultFrozenLake8x8-v1",
             #id = "CustomFrozenLakeNoHoles8x8-v1",
             
-            # desc=[
+            # desc = [ # MINI-SLALOM
+            #     "SFFFFFFF",
+            #     "FFFFFFFF",
+            #     "FFFFFFFF",
+            #     "HHHHFFFF",
+            #     "FFFFFFFF",
+            #     "FFFFFHHH",
+            #     "FFFFFFFF",
+            #     "FFFFFFFG",
+            # ],
+            # desc = [ # BLOCKS
+            #     "SFFFFFFF",
+            #     "FFFFFFFF",
+            #     "FFHHHFFF",
+            #     "FFFFFFFF",
+            #     "HHHFFFFF",
+            #     "FFFFFFFF",
+            #     "FFFFFHHH",
+            #     "FFFFFFFG",
+            # ],
+            # desc = [  # NARROW
+            #     "SFFFFFFF",
+            #     "FFFFFFFF",
+            #     "HHFHHHHH",
+            #     "HHFHHHHH",
+            #     "FFFFFFFF",
+            #     "FFFFFFHF",
+            #     "FFFFFFHF",
+            #     "FFFFFFHG",
+            # ],
+            # desc = [ # DEAD-END
             #     "SFFFFFFF",
             #     "FFFFFFFF",
             #     "FFFFFFFF",
             #     "FFFFFFFF",
             #     "FFFFFFFF",
-            #     "FFFFFFFF",
+            #     "FFHHHHHH",
             #     "FFFFFFFF",
             #     "FFFFFFFG",
             # ],
-            desc = [
+            # desc = [ # DEFAULT      
+            #     "SFFFFFFF",
+            #     "FFFFFFFF",
+            #     "FFFHFFFF",
+            #     "FFFFFHFF",
+            #     "FFFHFFFF",
+            #     "FHHFFFHF",
+            #     "FHFFHFHF",
+            #     "FFFHFFFG",
+            # ],
+            desc = [ # TRAP
                 "SFFFFFFF",
+                "FFFHFFFF",
+                "HHHHFFFF",
                 "FFFFFFFF",
                 "FFFFFFFF",
                 "FFFFFFFF",
-                "FFFFFFFF",
-                "FFHHHHHH",
                 "FFFFFFFF",
                 "FFFFFFFG",
             ],

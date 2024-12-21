@@ -208,10 +208,10 @@ def run_single():
     challenge = parameters.env_challenges[3]
     config_modifications = {
         "workers": min(6, multiprocessing.cpu_count()),
-        "tree_evaluation_policy": "mvc",
-        "planning_budget": 32,
-        "iterations": 40,
-        "selection_policy": "PolicyPUCT",
+        "tree_evaluation_policy": "visit",
+        "planning_budget": 64,
+        "iterations": 20,
+        "selection_policy": "PUCT",
         "observation_embedding": "coordinate",
         "n_steps_learning": 1,
     }

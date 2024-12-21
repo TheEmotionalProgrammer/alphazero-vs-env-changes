@@ -29,7 +29,7 @@ base_parameters = {
     "value_loss_weight": 0.7,
     "max_episode_length": 200,
     "episodes_per_iteration": 6,
-    "eval_temp": 0.0,
+    "eval_temp": 0,
     "test_env": "DefaultFrozenLake8x8-v1",
 }
 
