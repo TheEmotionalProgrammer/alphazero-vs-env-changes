@@ -102,7 +102,7 @@ def run_episode(
 
     while step < max_steps:
         
-        if azdetection and solver.planning_style == "value_search" and isinstance(tree, list):
+        if azdetection and solver.value_search and isinstance(tree, list):
 
             """
             If the agent is using the value search planning style and the search returned a list of actions,
@@ -114,7 +114,7 @@ def run_episode(
                 new_obs, reward, terminated, truncated, _ = env.step(action)
                 new_pos_row = new_obs // 8
                 new_pos_col = new_obs % 8
-                print(f"obs = ({new_pos_row}, {new_pos_col}), reward = {reward}, terminated = {terminated}, truncated = {truncated}")
+                #print(f"obs = ({new_pos_row}, {new_pos_col}), reward = {reward}, terminated = {terminated}, truncated = {truncated}")
 
                 if original_env is not None:
                     if new_obs != old_obs:
@@ -172,14 +172,14 @@ def run_episode(
         else: # If we are using azdetection, we need to check if a problem was detected
 
             if solver.problem_idx is None: # If no problem was detected, we act following the prior (quick)
-                print("No problem detected, acting normally.")
+                #print("No problem detected, acting normally.")
                 action = th.argmax(solver.model.single_observation_forward(tree.observation)[1]).item()
             
             else: # If a problem was detected, we act following the policy distribution
                 distribution = th.distributions.Categorical(probs=custom_softmax(policy_dist.probs, temperature, None)) # apply extra softmax
                 action = distribution.sample().item() # Note that if the temperature of the softmax was zero, this becomes an argmax
 
-            print(f"Env: action = {actions_dict[action]}")
+            #print(f"Env: action = {actions_dict[action]}")
 
         new_obs, reward, terminated, truncated, _ = env.step(action)
 
@@ -187,7 +187,7 @@ def run_episode(
         new_pos_row = new_obs // 8 
         new_pos_col = new_obs % 8
 
-        print(f"Env: obs = ({new_pos_row}, {new_pos_col}), reward = {reward}, terminated = {terminated}, truncated = {truncated}")
+        #print(f"Env: obs = ({new_pos_row}, {new_pos_col}), reward = {reward}, terminated = {terminated}, truncated = {truncated}")
 
         if original_env is not None:
             if new_obs != old_obs:

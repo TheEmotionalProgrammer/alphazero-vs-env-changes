@@ -16,6 +16,7 @@ class Node(Generic[ObservationType]):
     visits: int = 0
     subtree_sum: float = 0.0  # sum of reward and value of all children
     value_evaluation: float  # Expected future reward
+    whatif_value: float
     reward: float  # Reward received when stepping into this node
     action_space: gym.spaces.Discrete  
     observation: Optional[ObservationType]
@@ -23,6 +24,9 @@ class Node(Generic[ObservationType]):
     env: Optional[gym.Env]
     variance: float | None = None
     policy_value: float | None = None
+
+    backup_visits: int = 0 # number of visits to backup, estimated by the original policy
+    
 
     def __init__(
         self,
@@ -32,6 +36,7 @@ class Node(Generic[ObservationType]):
         action_space: gym.spaces.Discrete,
         observation: Optional[ObservationType],
         terminal: bool = False,
+        backup_visits: int = 0,
     ):
         
         self.children = {} # dictionary of children where key is action, value is the child node
@@ -41,6 +46,9 @@ class Node(Generic[ObservationType]):
         self.terminal = terminal
         self.observation = observation
         self.env = env
+
+        self.backup_visits = backup_visits
+        self.subtree_depth = 0 if terminal else 1
 
     def is_terminal(self) -> bool:
         return self.terminal

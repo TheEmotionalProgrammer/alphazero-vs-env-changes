@@ -1,6 +1,5 @@
 from collections import deque
 import copy
-from re import L
 from typing import Dict, List, Tuple
 import gymnasium as gym
 import numpy as np
@@ -75,6 +74,7 @@ class MCTS:
             if selected_node_for_expansion.is_terminal(): # If the node is terminal, set its value to 0 and backup
                 
                 selected_node_for_expansion.value_evaluation = 0.0
+
                 self.backup(selected_node_for_expansion, 0)
 
             else:
@@ -167,6 +167,7 @@ class MCTS:
             observation=observation,
         )
 
+
         node.children[action] = new_child # Add the new node to the children of the parent node
 
         return new_child
@@ -188,7 +189,7 @@ class MCTS:
             cumulative_reward += node.reward
             node.subtree_sum += cumulative_reward
             node.visits += new_visits
-            
+        
             # NEW: reset the prior policy and value evaluation (mark as needing update)
             node.variance = None
             node.policy_value = None

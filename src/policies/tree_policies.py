@@ -2,8 +2,10 @@ import torch as th
 
 from core.node import Node
 from policies.policies import PolicyDistribution, custom_softmax
-from policies.utility_functions import Q_theta_tensor, get_children_policy_values, get_children_policy_values_and_inverse_variance, get_children_inverse_variances, get_children_visits, get_transformed_default_values, puct_multiplier, value_evaluation_variance
+from policies.utility_functions import Q_theta_tensor, get_children_policy_values, get_children_policy_values_and_inverse_variance, get_children_inverse_variances, get_children_visits, get_transformed_default_values, get_transformed_mcts_t_values, puct_multiplier, value_evaluation_variance
 from policies.value_transforms import IdentityValueTransform, ValueTransform
+
+
 
 
 class VistationPolicy(PolicyDistribution):
@@ -11,6 +13,10 @@ class VistationPolicy(PolicyDistribution):
     def _probs(self, node: Node) -> th.Tensor:
         return get_children_visits(node)
 
+class QT_Policy(PolicyDistribution):
+    # Selects the action with the largest q value computed in the mcts-t way
+    def _probs(self, node: Node) -> th.Tensor:
+        return get_transformed_default_values(node, self.value_transform)
 
 class InverseVarianceTreeEvaluator(PolicyDistribution):
     """
@@ -251,6 +257,7 @@ class QSuprisePolicy(PolicyDistribution):
 
 tree_dict = {
     "visit": VistationPolicy,
+    "qt_max": QT_Policy,
     "inverse_variance": InverseVarianceTreeEvaluator,
     "mvc": MinimalVarianceConstraintPolicy,
     'mvc_dynbeta': MVCP_Dynamic_Beta,
@@ -260,6 +267,7 @@ tree_dict = {
 
 tree_eval_dict = lambda param, discount, c=1.0, temperature=None, value_transform=IdentityValueTransform: {
     "visit": VistationPolicy(temperature, value_transform=value_transform),
+    "qt_max": QT_Policy(temperature, value_transform=value_transform),
     "inverse_variance": InverseVarianceTreeEvaluator(discount_factor=discount, temperature=temperature, value_transform=value_transform),
     "mvc": MinimalVarianceConstraintPolicy(discount_factor=discount, beta=param, temperature=temperature, value_transform=value_transform),
     'mvc_dynbeta': MVCP_Dynamic_Beta(c=c, discount_factor=discount, temperature=temperature, value_transform=value_transform),
