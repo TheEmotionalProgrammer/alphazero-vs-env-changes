@@ -6,6 +6,7 @@ import datetime
 import multiprocessing
 import numpy as np
 import gymnasium as gym
+import argparse
 from torch.utils.tensorboard.writer import SummaryWriter
 import torch as th
 
@@ -35,7 +36,7 @@ from policies.value_transforms import value_transform_dict
 from environments.register import register_all
 
 def train_from_config(
-    project_name="AlphaZero", entity=None, job_name=None, config=None, performance=True, tags = None,
+    project_name="AlphaZero", entity=None, job_name=None, config=None, performance=True, tags = None, seed = None
 ):
     if tags is None:
         tags = []
@@ -191,7 +192,7 @@ def train_from_config(
     # # Exponential decay from start_temp to end_temp
     # temp_schedule = np.exp(np.linspace(np.log(start_temp), np.log(end_temp), iterations))
     temp_schedule = [None] * iterations
-    metrics = controller.iterate(temp_schedule=temp_schedule)
+    metrics = controller.iterate(temp_schedule=temp_schedule, seed=seed)
 
     env.close()
     run.log_code(root="./src")
@@ -209,9 +210,9 @@ def run_single():
     config_modifications = {
         "workers": min(6, multiprocessing.cpu_count()),
         "tree_evaluation_policy": "visit",
-        "planning_budget": 64,
-        "iterations": 20,
         "selection_policy": "PUCT",
+        "planning_budget": 64,
+        "iterations": 30,
         "observation_embedding": "coordinate",
         "n_steps_learning": 1,
     }
@@ -222,4 +223,12 @@ if __name__ == "__main__":
     # sweep_id = wandb.sweep(sweep=coord_search, project="AlphaZero")
 
     # wandb.agent(sweep_id, function=sweep_agent)
-    run_single()
+
+    # parse the train seed from command line
+
+    parser = argparse.ArgumentParser(description="Run AlphaZero with a specific seed.")
+    parser.add_argument("--train_seed", type=int, required=True, help="The random seed to use for training.")
+    args = parser.parse_args()
+
+
+    run_single(seed = args.train_seed)

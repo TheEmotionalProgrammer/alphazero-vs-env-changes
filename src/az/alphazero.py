@@ -95,7 +95,7 @@ class AlphaZeroController:
         self.ema_beta = ema_beta
         self.evaluation_interval = evaluation_interval
 
-    def iterate(self, temp_schedule: List[float]):
+    def iterate(self, temp_schedule: List[float], seed=None):
         """
         Perform iterations of self-play, learning, and evaluation.
 
@@ -113,7 +113,7 @@ class AlphaZeroController:
         for i, temperature in enumerate(temp_schedule):
             print(f"Iteration {i}")
             print("Self play...")
-            tensor_results = self.self_play(temperature=temperature)
+            tensor_results = self.self_play(temperature=temperature, seed=seed)
             self.replay_buffer.extend(tensor_results)
             total_return, ema = self.add_self_play_metrics(
                 tensor_results, total_return, ema, i
@@ -288,7 +288,7 @@ class AlphaZeroController:
         self.agent.dir_alpha = alpha
         return eval_res
 
-    def self_play(self, temperature=None):
+    def self_play(self, temperature=None, seed = None):
         """Play games in parallel and store the data in the replay buffer."""
         self.agent.model.eval()
         tasks = [
@@ -299,7 +299,7 @@ class AlphaZeroController:
                 self.agent.model.observation_embedding,
                 self.planning_budget,
                 self.max_episode_length,
-                None,
+                seed,
                 temperature,
             )
         ] * self.episodes_per_iteration

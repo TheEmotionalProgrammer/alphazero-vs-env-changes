@@ -378,9 +378,9 @@ def eval_budget_sweep(
         num_seeds (int): Number of seeds to run.
     """
     if config["agent_type"] == "azdetection":
-        run_name = (f"Algorithm_({config["agent_type"]})_EvalPol_({config["tree_evaluation_policy"]})_SelPol_({config["selection_policy"]})_Predictor_({config["predictor"]})_PlanningStyle_({config["planning_style"]})_ValueSearch_({config["value_search"]})")
+        run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_Predictor_({config['predictor']})_PlanningStyle_({config['planning_style']})_ValueSearch_({config['value_search']})"
     elif config["agent_type"] == "azmcts":
-        run_name = (f"Algorithm_({config["agent_type"]})_EvalPol_({config["tree_evaluation_policy"]})_SelPol_({config["selection_policy"]})")
+        run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})"
 
     if budgets is None:
         budgets = [

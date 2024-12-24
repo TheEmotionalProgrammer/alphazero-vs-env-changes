@@ -11,7 +11,7 @@ base_parameters = {
     "use_visit_count": True,
     "regularization_weight": 1e-6,
     "tree_evaluation_policy": "visit",
-    "eval_param": 1.0,
+    "eval_param": 10.0,
     "tree_temperature": None,
     "tree_value_transform": "identity",
     "hidden_dim": 64,
