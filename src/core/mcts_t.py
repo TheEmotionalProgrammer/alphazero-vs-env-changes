@@ -1,7 +1,5 @@
 from collections import deque
 import copy
-from imghdr import what
-from tracemalloc import start
 from typing import Dict, List, Tuple
 import gymnasium as gym
 import numpy as np

@@ -36,7 +36,7 @@ from policies.value_transforms import value_transform_dict
 from environments.register import register_all
 
 def train_from_config(
-    project_name="AlphaZero", entity=None, job_name=None, config=None, performance=True, tags = None, seed = None
+    project_name="AlphaZeroTraining", entity=None, job_name=None, config=None, performance=True, tags = None, seed = None
 ):
     if tags is None:
         tags = []
@@ -47,8 +47,11 @@ def train_from_config(
 
     # Initialize Weights & Biases
     settings = wandb.Settings(job_name=job_name)
+
+    run_name = f"AZTrain_env={config['env_description']}_iterations={config['iterations']}_budget={config['planning_budget']}_seed={seed}_{datetime.datetime.now().strftime('%Y%m%d-%H%M%S')}"
+
     run = wandb.init(
-        project=project_name, entity=entity, settings=settings, config=config, tags=tags
+        project=project_name, name= run_name,entity=entity, settings=settings, config=config, tags=tags
     )
     assert run is not None
     hparams = wandb.config
@@ -154,12 +157,9 @@ def train_from_config(
         storage=LazyTensorStorage(replay_buffer_size)
     )
 
-    run_name = (
-        f"{env.spec.id}_{datetime.datetime.now().strftime('%Y%m%d-%H%M%S')}"
-    )
     log_dir = f"./tensorboard_logs/hyper/{run_name}"
     writer = SummaryWriter(log_dir=log_dir)
-    run_dir = f"./runs/hyper/{run_name}"
+    run_dir = f"./hyper/{run_name}"
 
     controller = AlphaZeroController(
         env,
@@ -205,27 +205,26 @@ def sweep_agent():
     train_from_config(performance=True)
 
 
-def run_single():
+def run_single(seed=None):
     challenge = parameters.env_challenges[3]
     config_modifications = {
         "workers": min(6, multiprocessing.cpu_count()),
         "tree_evaluation_policy": "visit",
         "selection_policy": "PUCT",
         "planning_budget": 64,
-        "iterations": 30,
+        "iterations": 50,
         "observation_embedding": "coordinate",
         "n_steps_learning": 1,
     }
     run_config = {**parameters.base_parameters, **challenge, **config_modifications}
-    return train_from_config(config=run_config, performance=False)
+    return train_from_config(config=run_config, performance=False, seed=seed)
 
 if __name__ == "__main__":
     # sweep_id = wandb.sweep(sweep=coord_search, project="AlphaZero")
 
     # wandb.agent(sweep_id, function=sweep_agent)
 
-    # parse the train seed from command line
-
+    # Parse the train seed from command line
     parser = argparse.ArgumentParser(description="Run AlphaZero with a specific seed.")
     parser.add_argument("--train_seed", type=int, required=True, help="The random seed to use for training.")
     args = parser.parse_args()

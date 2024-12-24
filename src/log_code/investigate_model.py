@@ -50,7 +50,7 @@ def plot_value_network(outputs, nrows, ncols, title = "Value Network"):
     fig, ax = create_figure_and_axes()
     for i in range(nrows):
         for j in range(ncols):
-            ax.text(j, i, f"{grid[i, j]:.1f}", ha="center", va="center", color="blue")
+            ax.text(j, i, f"{grid[i, j]:.2f}", ha="center", va="center", color="blue")
     plot_image(fig, ax, grid, title)
     return fig
 
