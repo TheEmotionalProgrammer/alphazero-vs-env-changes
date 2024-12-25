@@ -1,5 +1,6 @@
 tensorboard_logs/
 runs/
+hyper/
 */outfiles
 wandb/
 mcts_tree.gv.pdf
