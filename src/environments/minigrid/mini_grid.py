@@ -5,7 +5,6 @@ from minigrid.core.mission import MissionSpace
 from minigrid.core.world_object import Door, Goal, Key, Wall, Lava
 from minigrid.minigrid_env import MiniGridEnv
 from minigrid.wrappers import ImgObsWrapper, FullyObsWrapper
-from sympy import Li, Min
 from .utilities.a_star_sp import heuristic, astar_pathfinding, compute_actions_from_path
 from .utilities.wrappers import SparseActionsWrapper, gym_wrapper
 from minigrid.manual_control import ManualControl

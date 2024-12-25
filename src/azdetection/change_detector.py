@@ -1,9 +1,7 @@
-from ast import BoolOp, Not
-from calendar import c
 from typing import Tuple
 import copy
 from math import floor
-import gym
+import gymnasium as gym
 from gymnasium import Env
 import torch as th
 from az.model import AlphaZeroModel
