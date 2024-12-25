@@ -1,12 +1,12 @@
 #!/bin/sh
 #
-#SBATCH --job-name="AZ-EVAL"
+#SBATCH --job-name="AZ-TRAIN"
 #SBATCH --partition=compute
-#SBATCH --time=12:00:00
+#SBATCH --time=2:00:00
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=1
-#SBATCH --mem-per-cpu=4G
-#SBATCH --account=Research-EEMCS-INSY
+#SBATCH --cpus-per-task=6
+#SBATCH --mem-per-cpu=16G
+#SBATCH --account=Education-EEMCS-MSc-CS
 
 module load 2024r1
 

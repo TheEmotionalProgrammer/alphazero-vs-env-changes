@@ -359,9 +359,8 @@ def eval_single():
     return eval_from_config(config=run_config)
 
 def eval_budget_sweep(
-    project_name="AlphaZero",
+    project_name="AlphaZeroEval",
     entity=None,
-    job_name="budget_sweep",
     config=None,
     budgets=None,
     num_seeds=None,
@@ -384,7 +383,7 @@ def eval_budget_sweep(
 
     if budgets is None:
         budgets = [
-            8, 16, 32, 64             
+            8, 16, 32, 64, 128             
         ]  # Default budgets to sweep
 
     use_wandb = config["wandb_logs"]
@@ -462,41 +461,6 @@ def eval_budget_sweep(
     if use_wandb:
         run.finish()
 
-
-def custom_eval_sweep():
-    challenge = parameters.env_challenges[3]
-    config_modifications = {
-        "workers": 6,
-        "runs": 100,
-        "agent_type": "distance",
-        }
-    series_configs = [
-        {"tree_evaluation_policy": "visit", "selection_policy": "UCT"},
-        {'tree_evaluation_policy': 'mvc', 'selection_policy': 'UCT'},
-        {'tree_evaluation_policy': 'mvc', 'selection_policy': 'PolicyUCT'},
-    ]
-    # series_configs = [
-    #     {"puct_c": x} for x in [1e-2, 1e0, 1e2]
-    # ]
-
-    run_config = {**parameters.base_parameters, **challenge, **config_modifications}
-
-    budget_configs = [{"planning_budget": 2**i} for i in range(4, 8)]
-    configs = [
-        {**run_config, **variable_config, **series_config}
-        for variable_config in budget_configs
-        for series_config in series_configs
-    ]
-    print(f"Number of runs: {len(configs)}")
-
-    time_name = time.strftime("%Y-%m-%d-%H-%M-%S")
-
-    tags = ["eval_sweep", time_name]
-
-    for config in tqdm(configs):
-        eval_from_config(config=config, tags=tags)
-
-
 if __name__ == "__main__":
 
     challenge = parameters.env_challenges[3] # Training environment
@@ -505,18 +469,18 @@ if __name__ == "__main__":
         
         # Run configurations
         "wandb_logs": True,
-        "workers": min(6, multiprocessing.cpu_count()),
+        "workers": 6,
         "runs": 1,
 
         # Basic search parameters
         "tree_evaluation_policy": "visit",
-        "selection_policy": "PUCT",
+        "selection_policy": "UCT",
         "planning_budget": 64,
         #"puct_c": 0.0,
 
         # Search algorithm
-        "agent_type": "azdetection", 
-        "depth_estimation": False,
+        "agent_type": "azmcts", # Classic azmcts or novel azdetection
+        "depth_estimation": False, # Whether to use tree depth estimation by Moerland et al.
 
         # Stochasticity parameters
         "eval_temp": 0, # Temperature in tree evaluation softmax, 0 means we are taking the stochastic argmax of the distribution
@@ -535,7 +499,7 @@ if __name__ == "__main__":
         # Test environment with obstacles position specified in desc
         "test_env": dict(    
             id = "DefaultFrozenLake8x8-v1",
-            desc = BLOCKS,
+            desc = NARROW,
             is_slippery=False,
             hole_reward=0,
             terminate_on_hole=False,
@@ -543,11 +507,11 @@ if __name__ == "__main__":
         ),
         "observation_embedding": "coordinate", # When the observation is just a coordinate on a grid, can use coordinate
 
-        "model_file": "/Users/isidorotamassia/THESIS/alphazero-vs-env-changes/runs/hyper/CustomFrozenLakeNoHoles8x8-v1_20241216-003012/checkpoint.pth",
+        "model_file": "/scratch/itamassia/alphazero-vs-env-changes/hyper/AZTrain_env=CustomFrozenLakeNoHoles8x8-v1_iterations=50_budget=64_seed=1_20241224-180758/checkpoint.pth",
     }
 
     run_config = {**parameters.base_parameters, **challenge, **config_modifications}
     # sweep_id = wandb.sweep(sweep=coord_search, project="AlphaZero")
 
     # wandb.agent(sweep_id, function=sweep_agent)
-    eval_budget_sweep(config=run_config, num_seeds = 10)
+    eval_budget_sweep(config=run_config, num_seeds = 50)
