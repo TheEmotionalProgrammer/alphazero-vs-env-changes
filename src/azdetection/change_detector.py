@@ -363,7 +363,7 @@ class AlphaZeroDetector(AlphaZeroMCTS):
 
                 counter = root_node.visits # Avoids immediate stopping when we are reusing an old trajectory
 
-                while root_node.visits - counter < iterations//safe_length:
+                while root_node.visits - counter < max(iterations//safe_length, 1):
                                         
                     candidate_actions = taken_actions.copy() if self.value_search else None # We reset the candidate actions to the ones takes so far
 
