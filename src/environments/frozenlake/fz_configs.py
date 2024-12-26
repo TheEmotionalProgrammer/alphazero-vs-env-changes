@@ -53,6 +53,17 @@ NARROW = [
         "FFFFFFHG"
 ]
 
+NARROW_SIMPLIFIED = [
+        "SFFFFFFF",
+        "FFFFFFFF",
+        "HHFHHHHH",
+        "HHFHHHHH",
+        "FFFFFFFF",
+        "FFFFFFFF",
+        "FFFFFFFF",
+        "FFFFFFFG"
+]
+
 DEAD_END = [
         "SFFFFFFF",
         "FFFFFFFF",
