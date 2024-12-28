@@ -151,7 +151,6 @@ def get_children_visits(node: Node) -> th.Tensor:
     visits = th.zeros(int(node.action_space.n), dtype=th.float32)
     for action, child in node.children.items():
         visits[action] = child.visits
-        #print(child.visits)
 
     return visits
 
