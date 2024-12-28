@@ -327,7 +327,7 @@ def eval_single():
         "depth_estimation": False,
 
         # Stochasticity parameters
-        "eval_temp": 0, # Temperature in tree evaluation softmax, 0 means we are taking the stochastic argmax of the distribution
+        "eval_temp": 0.0, # temperature in tree evaluation softmax, 0 means we are taking the stochastic argmax of the distribution
         "dir_epsilon": 0.0, # Dirichlet noise parameter
         "dir_alpha": None, # Dirichlet noise parameter
 
@@ -343,7 +343,7 @@ def eval_single():
         # Test environment with obstacles position specified in desc
         "test_env": dict(    
             id = "DefaultFrozenLake8x8-v1",
-            desc = NARROW,
+            desc = MINI_SLALOM,
             is_slippery=False,
             hole_reward=0,
             terminate_on_hole=False,
@@ -474,12 +474,12 @@ if __name__ == "__main__":
 
         # Basic search parameters
         "tree_evaluation_policy": "visit",
-        "selection_policy": "UCT",
+        "selection_policy": "PUCT",
         "planning_budget": 64,
         #"puct_c": 0.0,
 
         # Search algorithm
-        "agent_type": "azmcts", # Classic azmcts or novel azdetection
+        "agent_type": "azdetection", # Classic azmcts or novel azdetection
         "depth_estimation": False, # Whether to use tree depth estimation by Moerland et al.
 
         # Stochasticity parameters
@@ -499,7 +499,7 @@ if __name__ == "__main__":
         # Test environment with obstacles position specified in desc
         "test_env": dict(    
             id = "DefaultFrozenLake8x8-v1",
-            desc = NARROW,
+            desc = DEFAULT,
             is_slippery=False,
             hole_reward=0,
             terminate_on_hole=False,
@@ -514,4 +514,5 @@ if __name__ == "__main__":
     # sweep_id = wandb.sweep(sweep=coord_search, project="AlphaZero")
 
     # wandb.agent(sweep_id, function=sweep_agent)
-    eval_budget_sweep(config=run_config, num_seeds = 50)
+    #eval_budget_sweep(config=run_config, num_seeds = 50)
+    eval_single()
