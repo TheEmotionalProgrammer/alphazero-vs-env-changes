@@ -377,9 +377,9 @@ def eval_budget_sweep(
         num_seeds (int): Number of seeds to run.
     """
     if config["agent_type"] == "azdetection":
-        run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_Predictor_({config['predictor']})_PlanningStyle_({config['planning_style']})_ValueSearch_({config['value_search']})"
+        run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_Predictor_({config['predictor']})_PlanningStyle_({config['planning_style']})_ValueSearch_({config['value_search']})_{config['map_name']}"
     elif config["agent_type"] == "azmcts":
-        run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})"
+        run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_{config['map_name']}"
 
     if budgets is None:
         budgets = [
@@ -475,6 +475,7 @@ if __name__ == "__main__":
         # Basic search parameters
         "tree_evaluation_policy": "visit",
         "selection_policy": "PUCT",
+        "selection_policy": "PUCT",
         "planning_budget": 64,
         #"puct_c": 0.0,
 
@@ -493,9 +494,9 @@ if __name__ == "__main__":
 
         # AZDetection replanning parameters
         "planning_style": "mini_trees",
-        "value_search": True,
+        "value_search": False,
         "predictor": "current_value", # The predictor to use for the detection
-
+        "map_name": "NARROW_SIMPLIFIED",
         # Test environment with obstacles position specified in desc
         "test_env": dict(    
             id = "DefaultFrozenLake8x8-v1",
