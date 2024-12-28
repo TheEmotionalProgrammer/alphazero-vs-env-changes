@@ -1,7 +1,7 @@
 from typing import Tuple
 import copy
 from math import floor
-import gym
+import gymnasium as gym
 from gymnasium import Env
 import torch as th
 from az.model import AlphaZeroModel
@@ -65,11 +65,13 @@ class AlphaZeroDetector(AlphaZeroMCTS):
         At every step, the cumulative value estimate is compared to the prediction to detect any changes.
         The policy is always unrolled from the current root node.
         """
-
-        if len(self.trajectory) > 1 and self.trajectory[1][0].observation == obs and self.problem_idx is not None:
+        nodes_traj = [node.observation for node, action in self.trajectory]
+        if len(self.trajectory) > 1 and obs in nodes_traj and self.problem_idx is not None:
             print("Reusing Trajectory: ")
-            self.trajectory = self.trajectory[1:] # We reuse the trajectory from the second node onwards
-            self.problem_idx -= 1
+            start_idx = nodes_traj.index(obs)
+            self.trajectory = self.trajectory[start_idx:] # We reuse the trajectory from the second node onwards
+            self.problem_idx -= start_idx
+
             if self.planning_style == "connected":
                 self.trajectory[0][0].parent = None # We set the parent of the root node to None
 
@@ -350,6 +352,7 @@ class AlphaZeroDetector(AlphaZeroMCTS):
             If it doesn't, the agent will take the sequence of actions that lead to that node in the real environment
             If it does, the agent will keep searching for a node with a higher value estimate
             """
+            start_val = 0
 
             for idx in range(safe_length):
                 
@@ -360,6 +363,9 @@ class AlphaZeroDetector(AlphaZeroMCTS):
 
                 root_node.value_evaluation = self.value_function(root_node)
                 self.backup(root_node, root_node.value_evaluation)
+
+                if idx == 0:
+                    start_val = root_node.value_evaluation
 
                 counter = root_node.visits # Avoids immediate stopping when we are reusing an old trajectory
 
@@ -374,7 +380,8 @@ class AlphaZeroDetector(AlphaZeroMCTS):
 
                     if selected_node_for_expansion.is_terminal(): # If the node is terminal, set its value to 0 and backup
 
-                        if self.value_search and selected_node_for_expansion.reward > self.trajectory[self.problem_idx][0].value_evaluation:
+                        #if self.value_search and selected_node_for_expansion.reward > self.trajectory[self.problem_idx][0].value_evaluation:
+                        if self.value_search and selected_node_for_expansion.reward > start_val:
                             self.problem_idx = None
                             return candidate_actions
                             
@@ -386,8 +393,9 @@ class AlphaZeroDetector(AlphaZeroMCTS):
                         eval_node = self.expand(selected_node_for_expansion, selected_action)
                         eval_node.value_evaluation = self.value_function(eval_node)
 
-                        if self.value_search and eval_node.value_evaluation > self.trajectory[self.problem_idx][0].value_evaluation:
-                            
+                        #if self.value_search and eval_node.value_evaluation > self.trajectory[self.problem_idx][0].value_evaluation:
+                        if self.value_search and eval_node.value_evaluation > start_val:
+
                             # We create copies of the envs to avoid any interference with the standard ongoing planning
                             eval_node_env = copy.deepcopy(eval_node.env)
                             original_env_copy = copy.deepcopy(original_env)
@@ -395,8 +403,8 @@ class AlphaZeroDetector(AlphaZeroMCTS):
                             reward = eval_node.reward
 
                             if (
-                                not self.detached_unroll(eval_node_env, n, obs, reward, original_env_copy) and
-                                self.trajectory[self.problem_idx][0].observation != eval_node.observation
+                                not self.detached_unroll(eval_node_env, n, obs, reward, original_env_copy) 
+                                #and self.trajectory[self.problem_idx][0].observation != eval_node.observation
                             ): # If the unroll does not encounter the problem
 
                                 self.problem_idx = None # The problem has been solved
@@ -421,6 +429,7 @@ class AlphaZeroDetector(AlphaZeroMCTS):
             self.backup(self.trajectory[self.problem_idx][0], self.trajectory[self.problem_idx][0].value_evaluation)
 
             root_node = self.trajectory[0][0]
+            start_val = root_node.value_evaluation
             
             counter = root_node.visits
 
@@ -435,7 +444,7 @@ class AlphaZeroDetector(AlphaZeroMCTS):
 
                 if selected_node_for_expansion.is_terminal(): # If the node is terminal, set its value to 0 and backup
 
-                    if self.value_search and selected_node_for_expansion.reward > self.trajectory[self.problem_idx][0].value_evaluation:
+                    if self.value_search and selected_node_for_expansion.reward > start_val:
                         self.problem_idx = None
                         return candidate_actions
                     
@@ -448,7 +457,7 @@ class AlphaZeroDetector(AlphaZeroMCTS):
                     value = self.value_function(eval_node) # Estimate the value of the node
                     eval_node.value_evaluation = value # Set the value of the node
 
-                    if self.value_search and eval_node.value_evaluation > self.trajectory[self.problem_idx][0].value_evaluation:
+                    if self.value_search and eval_node.value_evaluation > start_val:
                             
                             eval_node_env = copy.deepcopy(eval_node.env)
                             original_env_copy = copy.deepcopy(original_env)
@@ -456,8 +465,7 @@ class AlphaZeroDetector(AlphaZeroMCTS):
                             reward = eval_node.reward
 
                             if (
-                                not self.detached_unroll(eval_node_env, n, obs, reward, original_env_copy) and
-                                self.trajectory[self.problem_idx][0].observation != eval_node.observation
+                                not self.detached_unroll(eval_node_env, n, obs, reward, original_env_copy) 
                             ): # If the unroll does not encounter the problem
 
                                 self.problem_idx = None # The problem has been solved

@@ -1,6 +1,4 @@
-import copy
-import dis
-from importlib.metadata import distribution
+
 import multiprocessing
 
 from tensordict import TensorDict
@@ -176,8 +174,15 @@ def run_episode(
                 action = th.argmax(solver.model.single_observation_forward(tree.observation)[1]).item()
             
             else: # If a problem was detected, we act following the policy distribution
+
                 distribution = th.distributions.Categorical(probs=custom_softmax(policy_dist.probs, temperature, None)) # apply extra softmax
-                action = distribution.sample().item() # Note that if the temperature of the softmax was zero, this becomes an argmax
+
+                # Check if the probs are all equal, if so, we act according to the prior
+                if th.all(th.eq(distribution.probs, distribution.probs[0])):
+                    print("All probs are equal, acting according to the prior.")
+                    action = th.argmax(solver.model.single_observation_forward(tree.observation)[1]).item()
+                else:
+                    action = distribution.sample().item() # Note that if the temperature of the softmax was zero, this becomes an argmax
 
             print(f"Env: action = {actions_dict[action]}")
 
