@@ -6,10 +6,13 @@ from policies.utility_functions import Q_theta_tensor, get_children_policy_value
 from policies.value_transforms import IdentityValueTransform, ValueTransform
 
 
-
-
 class VistationPolicy(PolicyDistribution):
-    # the default tree evaluator selects the action with the most visits
+
+    """
+    Visitation Counts Evaluator. 
+    The action is chosen based on the number of visits to the children nodes performed during planning.
+    """
+    
     def _probs(self, node: Node) -> th.Tensor:
         return get_children_visits(node)
 
@@ -32,10 +35,16 @@ class InverseVarianceTreeEvaluator(PolicyDistribution):
 
 
 class MinimalVarianceConstraintPolicy(PolicyDistribution):
+
     """
-    Selects the action with the highest inverse variance of the q value.
-    Should return the same as the default tree evaluator
+    Selects the action with the highest inverse variance of the Q value.
+
+    Input:
+    - beta: Beta parameter in the mvc formula.
+    - discount_factor: Usual env gamma discount factor.
+
     """
+
     def __init__(self, beta: float, discount_factor = 1.0, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.beta = beta
@@ -48,14 +57,14 @@ class MinimalVarianceConstraintPolicy(PolicyDistribution):
 
         beta = self.get_beta(node)
 
+        # We compute Q and 1/V[Q] of the children
         normalized_vals, inv_vars = get_children_policy_values_and_inverse_variance(node, self, self.discount_factor, self.value_transform)
-        # for action in node.children:
-        #     probs[action] = th.exp(beta * (normalized_vals[action] - normalized_vals.max())) * inv_vars[action]
+
+        # We handle nan values and compute the final mvc distribution
         logits = beta * th.nan_to_num(normalized_vals)
         probs = inv_vars * th.exp(logits - logits.max())
+
         return probs
-
-
 
 
 class MinimalVarianceConstraintPolicyMath(PolicyDistribution):

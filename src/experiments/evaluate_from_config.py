@@ -1,4 +1,3 @@
-from pdb import run
 import sys
 
 sys.path.append("src/")
@@ -13,9 +12,7 @@ import wandb
 from log_code.metrics import calc_metrics
 from experiments.eval_agent import eval_agent
 from core.mcts import DistanceMCTS, LakeDistanceMCTS, RandomRolloutMCTS
-import experiments.parameters as parameters
 from environments.observation_embeddings import ObservationEmbedding, embedding_dict
-from environments.frozenlake.fz_configs import *
 from az.azmcts import AlphaZeroMCTS, AlphaZeroMCTS_T
 from azdetection.change_detector import AlphaZeroDetector
 from az.model import (
@@ -30,18 +27,15 @@ import torch as th
 import copy
 from environments.register import register_all
 
+import argparse
+from parameters import base_parameters, env_challenges, fz_env_descriptions
+
 
 def agent_from_config(hparams: dict):
 
     env = gym.make(**hparams["env_params"])
 
     discount_factor = hparams["discount_factor"]
-
-    if "tree_temperature" not in hparams:
-        hparams["tree_temperature"] = None
-
-    if "tree_value_transform" not in hparams or hparams["tree_value_transform"] is None:
-        hparams["tree_value_transform"] = "identity"
 
     tree_evaluation_policy = tree_eval_dict(
         hparams["eval_param"],
@@ -50,11 +44,6 @@ def agent_from_config(hparams: dict):
         hparams["tree_temperature"],
         value_transform=value_transform_dict[hparams["tree_value_transform"]],
     )[hparams["tree_evaluation_policy"]]
-    if (
-        "selection_value_transform" not in hparams
-        or hparams["selection_value_transform"] is None
-    ):
-        hparams["selection_value_transform"] = "identity"
 
     selection_policy = selection_dict_fn(
         hparams["puct_c"],
@@ -90,8 +79,6 @@ def agent_from_config(hparams: dict):
     observation_embedding: ObservationEmbedding = embedding_dict[
         hparams["observation_embedding"]
     ](env.observation_space, hparams["ncols"] if "ncols" in hparams else None)
-    if "observation_embedding" not in hparams:
-        hparams["observation_embedding"] = "default"
 
     if hparams["agent_type"] == "random_rollout":
         if "rollout_budget" not in hparams:
@@ -175,10 +162,6 @@ def agent_from_config(hparams: dict):
 
         model.eval()
 
-        if "dir_epsilon" not in hparams:
-            hparams["dir_epsilon"] = 0.0
-            hparams["dir_alpha"] = None
-
         print("Direpslion: ", hparams["dir_epsilon"])
 
         dir_epsilon = hparams["dir_epsilon"]
@@ -206,6 +189,7 @@ def agent_from_config(hparams: dict):
         )
 
     else:
+
         raise ValueError(f"Unknown agent type {hparams['agent_type']}")
 
         
@@ -303,61 +287,6 @@ def eval_from_config(
         print(f"Evaluation Mean Return: {eval_res['Evaluation/Mean_Returns']}")
         print(f"Evaluation Mean Discounted Return: {eval_res['Evaluation/Mean_Discounted_Returns']}")
 
-def eval_single():
-
-    register_all() # Register custom environments that we are going to use
-
-    challenge = parameters.env_challenges[3] # Training environment
-
-    config_modifications = {
-        
-        # Run configurations
-        "wandb_logs": False,
-        "workers": min(6, multiprocessing.cpu_count()),
-        "runs": 1,
-
-        # Basic search parameters
-        "tree_evaluation_policy": "mvc",
-        "selection_policy": "PolicyUCT",
-        "planning_budget": 64,
-        "puct_c": 0.0,
-
-        # Search algorithm
-        "agent_type": "azdetection", 
-        "depth_estimation": False,
-
-        # Stochasticity parameters
-        "eval_temp": 0.0, # temperature in tree evaluation softmax, 0 means we are taking the stochastic argmax of the distribution
-        "dir_epsilon": 0.0, # Dirichlet noise parameter
-        "dir_alpha": None, # Dirichlet noise parameter
-
-        # AZDetection detection parameters
-        "threshold": 0.03, # NOTE: this is going to be ignored if the predictor is original_env
-        "unroll_budget": 10, 
-
-        # AZDetection replanning parameters
-        "planning_style": "connected",
-        "value_search": True,
-        "predictor": "current_value", # The predictor to use for the detection
-
-        # Test environment with obstacles position specified in desc
-        "test_env": dict(    
-            id = "DefaultFrozenLake8x8-v1",
-            desc = MINI_SLALOM,
-            is_slippery=False,
-            hole_reward=0,
-            terminate_on_hole=False,
-           
-        ),
-        "observation_embedding": "coordinate", # When the observation is just a coordinate on a grid, can use coordinate
-
-        "model_file": "/Users/isidorotamassia/THESIS/alphazero-vs-env-changes/runs/hyper/CustomFrozenLakeNoHoles8x8-v1_20241216-003012/checkpoint.pth",
-    }
-
-    run_config = {**parameters.base_parameters, **challenge, **config_modifications}
-
-    return eval_from_config(config=run_config)
-
 def eval_budget_sweep(
     project_name="AlphaZeroEval",
     entity=None,
@@ -452,68 +381,96 @@ def eval_budget_sweep(
                 wandb.log({"Planning_Budget": budget, f"Mean_Discounted_Return_{seed}": mean_discounted_return})
                 wandb.log({"Planning_Budget": budget, f"Mean_Return_{seed}": mean_return})
                 wandb.log({"Planning_Budget": budget, f"Mean_Episode_Length_{seed}": mean_time_steps})
-
-        # # Print or log the final results for discounted return, return and episode length
-        # print("Budget Sweep Results:")
-        # for budget, mean_discounted_return, mean_return, mean_time_steps in budget_results:
-        #     print(f"Planning Budget: {budget}, Mean Discounted Return: {mean_discounted_return}, Mean Return: {mean_return}, Mean Episode Length: {mean_time_steps}")
         
     if use_wandb:
         run.finish()
 
 if __name__ == "__main__":
 
-    challenge = parameters.env_challenges[3] # Training environment
+    parser = argparse.ArgumentParser(description="AlphaZero Evaluation Configuration")
 
+    # Run configurations
+    parser.add_argument("--wandb_logs", type=bool, default=False, help="Enable wandb logging")
+    parser.add_argument("--workers", type=int, default=6, help="Number of workers")
+    parser.add_argument("--runs", type=int, default=1, help="Number of runs")
+
+    # Basic search parameters
+    parser.add_argument("--tree_evaluation_policy", type=str, default="mvc", help="Tree evaluation policy")
+    parser.add_argument("--selection_policy", type=str, default="PolicyUCT", help="Selection policy")
+    parser.add_argument("--planning_budget", type=int, default=16, help="Planning budget")
+    parser.add_argument("--puct_c", type=float, default=0.0, help="PUCT parameter")
+
+    # Search algorithm
+    parser.add_argument("--agent_type", type=str, default="azmcts", help="Agent type")
+    parser.add_argument("--depth_estimation", type=bool, default=False, help="Use tree depth estimation")
+
+    # Stochasticity parameters
+    parser.add_argument("--eval_temp", type=float, default=0.0, help="Temperature in tree evaluation softmax")
+    parser.add_argument("--dir_epsilon", type=float, default=0.0, help="Dirichlet noise parameter epsilon")
+    parser.add_argument("--dir_alpha", type=float, default=None, help="Dirichlet noise parameter alpha")
+
+    # AZDetection detection parameters
+    parser.add_argument("--threshold", type=float, default=0.03, help="Detection threshold")
+    parser.add_argument("--unroll_budget", type=int, default=10, help="Unroll budget")
+
+    # AZDetection replanning parameters
+    parser.add_argument("--planning_style", type=str, default="connected", help="Planning style")
+    parser.add_argument("--value_search", type=bool, default=False, help="Enable value search")
+    parser.add_argument("--predictor", type=str, default="current_value", help="Predictor to use for detection")
+
+    # Test environment
+    parser.add_argument("--test_env_id", type=str, default="DefaultFrozenLake8x8-v1", help="Test environment ID")
+    parser.add_argument("--test_env_desc", type=str, default="DEFAULT", help="Environment description")
+    parser.add_argument("--test_env_is_slippery", type=bool, default=False, help="Environment slippery flag")
+    parser.add_argument("--test_env_hole_reward", type=int, default=0, help="Hole reward")
+    parser.add_argument("--test_env_terminate_on_hole", type=bool, default=False, help="Terminate on hole")
+
+    # Observation embedding
+    parser.add_argument("--observation_embedding", type=str, default="coordinate", help="Observation embedding type")
+
+    # Model file
+    parser.add_argument("--model_file", type=str, default=f"hyper/AZTrain_env=CustomFrozenLakeNoHoles8x8-v1_iterations=50_budget=64_seed=2/checkpoint.pth", help="Path to model file")
+    parser.add_argument("--train_seed", type=int, default=0, help="The random seed to use for training.")
+
+    # Parse arguments
+    args = parser.parse_args()
+
+    challenge = env_challenges["CustomFrozenLakeNoHoles8x8-v1"]  # Training environment
+
+    # Construct the config
     config_modifications = {
-        
-        # Run configurations
-        "wandb_logs": True,
-        "workers": 6,
-        "runs": 1,
-
-        # Basic search parameters
-        "tree_evaluation_policy": "visit",
-        "selection_policy": "PUCT",
-        "selection_policy": "PUCT",
-        "planning_budget": 64,
-        #"puct_c": 0.0,
-
-        # Search algorithm
-        "agent_type": "azdetection", # Classic azmcts or novel azdetection
-        "depth_estimation": False, # Whether to use tree depth estimation by Moerland et al.
-
-        # Stochasticity parameters
-        "eval_temp": 0, # Temperature in tree evaluation softmax, 0 means we are taking the stochastic argmax of the distribution
-        "dir_epsilon": 0.0, # Dirichlet noise parameter
-        "dir_alpha": None, # Dirichlet noise parameter
-
-        # AZDetection detection parameters
-        "threshold": 0.03, # NOTE: this is going to be ignored if the predictor is original_env
-        "unroll_budget": 10, 
-
-        # AZDetection replanning parameters
-        "planning_style": "mini_trees",
-        "value_search": False,
-        "predictor": "current_value", # The predictor to use for the detection
-        "map_name": "NARROW_SIMPLIFIED",
-        # Test environment with obstacles position specified in desc
-        "test_env": dict(    
-            id = "DefaultFrozenLake8x8-v1",
-            desc = DEFAULT,
-            is_slippery=False,
-            hole_reward=0,
-            terminate_on_hole=False,
-           
-        ),
-        "observation_embedding": "coordinate", # When the observation is just a coordinate on a grid, can use coordinate
-
-        "model_file": "/scratch/itamassia/alphazero-vs-env-changes/hyper/AZTrain_env=CustomFrozenLakeNoHoles8x8-v1_iterations=50_budget=64_seed=1_20241224-180758/checkpoint.pth",
+        "wandb_logs": args.wandb_logs,
+        "workers": args.workers,
+        "runs": args.runs,
+        "tree_evaluation_policy": args.tree_evaluation_policy,
+        "selection_policy": args.selection_policy,
+        "planning_budget": args.planning_budget,
+        "puct_c": args.puct_c,
+        "agent_type": args.agent_type,
+        "depth_estimation": args.depth_estimation,
+        "eval_temp": args.eval_temp,
+        "dir_epsilon": args.dir_epsilon,
+        "dir_alpha": args.dir_alpha,
+        "threshold": args.threshold,
+        "unroll_budget": args.unroll_budget,
+        "planning_style": args.planning_style,
+        "value_search": args.value_search,
+        "predictor": args.predictor,
+        "map_name": args.test_env_desc,
+        "test_env": {
+            "id": args.test_env_id,
+            "desc": fz_env_descriptions[args.test_env_desc],
+            "is_slippery": args.test_env_is_slippery,
+            "hole_reward": args.test_env_hole_reward,
+            "terminate_on_hole": args.test_env_terminate_on_hole,
+        },
+        "observation_embedding": args.observation_embedding,
+        "model_file": args.model_file,
     }
 
-    run_config = {**parameters.base_parameters, **challenge, **config_modifications}
-    # sweep_id = wandb.sweep(sweep=coord_search, project="AlphaZero")
+    run_config = {**base_parameters, **challenge, **config_modifications}
 
-    # wandb.agent(sweep_id, function=sweep_agent)
-    #eval_budget_sweep(config=run_config, num_seeds = 50)
-    eval_single()
+    # Execute the evaluation
+
+    #eval_budget_sweep(config=run_config, num_seeds=50)
+    eval_from_config(config=run_config)

@@ -5,20 +5,23 @@ from policies.policies import PolicyDistribution
 from policies.value_transforms import IdentityValueTransform, ValueTransform
 
 
-# TODO: can improve this implementation
 def policy_value(
     node: Node,
-    policy: PolicyDistribution | th.distributions.Categorical,
+    policy: PolicyDistribution | th.distributions.Categorical, 
     discount_factor: float,
 ):
-    # return the q value the node with the given policy
-    # with the default tree evaluator, this should return the same as the default value
+    """
+    Computes the Q estimates yielded by the evaluation policy that we are currently using.
+    For example, the default visit count evaluator induces the arithmetic mean Q estimate.
+    """
 
+    # If the node is terminal, its value is just the reward.
     if node.terminal:
         val = th.tensor(node.reward, dtype=th.float32)
         node.policy_value = val
         return val
 
+    # If the value has already been computed, return it.
     if node.policy_value:
         return node.policy_value
 
@@ -32,13 +35,17 @@ def policy_value(
     own_propability = probabilities[-1]  # type: ignore
     child_propabilities = probabilities[:-1]  # type: ignore
     child_values = th.zeros_like(child_propabilities, dtype=th.float32)
-    for action, child in node.children.items():
-        child_values[action] = policy_value(child, policy, discount_factor)
 
+    # We recursively compute the value estimates of the children 
+    for action, child in node.children.items():
+        child_values[action] = policy_value(child, policy, discount_factor) 
+
+    # Once we have computed the value estimates of all the children, we apply the standard 1-step Q-estimate
     val = node.reward + discount_factor * (
         own_propability * node.value_evaluation
         + (child_propabilities * child_values).sum()
     )
+
     node.policy_value = val
     return val
 

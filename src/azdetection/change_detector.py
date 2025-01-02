@@ -33,6 +33,7 @@ class AlphaZeroDetector(AlphaZeroMCTS):
             predictor: str = "current_value",
             planning_style: str = "value_search",
             value_search: bool = False,
+            value_estimate: str = "nn", # or "perfect" 
 
     ):
         super().__init__(
@@ -229,6 +230,8 @@ class AlphaZeroDetector(AlphaZeroMCTS):
 
         _, policy = self.model.single_observation_forward(node.observation)
 
+        node.prior_policy = policy
+
         for i in range(n):
                 
                 value_estimate = value_estimate + (self.discount_factor**i) * node.reward
@@ -380,8 +383,8 @@ class AlphaZeroDetector(AlphaZeroMCTS):
 
                     if selected_node_for_expansion.is_terminal(): # If the node is terminal, set its value to 0 and backup
 
-                        #if self.value_search and selected_node_for_expansion.reward > self.trajectory[self.problem_idx][0].value_evaluation:
-                        if self.value_search and selected_node_for_expansion.reward > start_val:
+                        if self.value_search and selected_node_for_expansion.reward > self.trajectory[self.problem_idx][0].value_evaluation:
+                        #if self.value_search and selected_node_for_expansion.reward > start_val: # Potentially better but slower
                             self.problem_idx = None
                             return candidate_actions
                             
@@ -393,8 +396,8 @@ class AlphaZeroDetector(AlphaZeroMCTS):
                         eval_node = self.expand(selected_node_for_expansion, selected_action)
                         eval_node.value_evaluation = self.value_function(eval_node)
 
-                        #if self.value_search and eval_node.value_evaluation > self.trajectory[self.problem_idx][0].value_evaluation:
-                        if self.value_search and eval_node.value_evaluation > start_val:
+                        if self.value_search and eval_node.value_evaluation > self.trajectory[self.problem_idx][0].value_evaluation:
+                        #if self.value_search and eval_node.value_evaluation > start_val: # Potentially better but slower
 
                             # We create copies of the envs to avoid any interference with the standard ongoing planning
                             eval_node_env = copy.deepcopy(eval_node.env)
@@ -444,7 +447,8 @@ class AlphaZeroDetector(AlphaZeroMCTS):
 
                 if selected_node_for_expansion.is_terminal(): # If the node is terminal, set its value to 0 and backup
 
-                    if self.value_search and selected_node_for_expansion.reward > start_val:
+                    #if self.value_search and selected_node_for_expansion.reward > start_val:
+                    if self.value_search and selected_node_for_expansion.reward > self.trajectory[self.problem_idx][0].value_evaluation:
                         self.problem_idx = None
                         return candidate_actions
                     
@@ -457,7 +461,8 @@ class AlphaZeroDetector(AlphaZeroMCTS):
                     value = self.value_function(eval_node) # Estimate the value of the node
                     eval_node.value_evaluation = value # Set the value of the node
 
-                    if self.value_search and eval_node.value_evaluation > start_val:
+                    #if self.value_search and eval_node.value_evaluation > start_val:
+                    if self.value_search and eval_node.value_evaluation > self.trajectory[self.problem_idx][0].value_evaluation:
                             
                             eval_node_env = copy.deepcopy(eval_node.env)
                             original_env_copy = copy.deepcopy(original_env)

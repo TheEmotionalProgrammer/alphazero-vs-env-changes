@@ -30,54 +30,11 @@ base_parameters = {
     "max_episode_length": 200,
     "episodes_per_iteration": 6,
     "eval_temp": 0,
-    "test_env": "DefaultFrozenLake8x8-v1",
 }
 
-lake_config = {
-    "max_episode_length": 100,
-    "iterations": 30,
-    "observation_embedding": "coordinate",
-    "puct_c": 1.0,
-    "eval_param": 10.0,
-    "n_steps_learning": 1,
-}
+env_challenges = {
 
-env_challenges = [
-    {
-        **lake_config,
-        "env_description": "FrozenLake-v1-4x4",
-        "ncols": 4,
-        "env_params": dict(
-            id="FrozenLake-v1",
-            desc=[
-            "SFFF",
-            "FHFH",
-            "FFFH",
-            "HFFG"
-            ],
-            is_slippery=False,
-            max_episode_steps=1000000000,
-            hole_reward=-1.0,
-        ),
-        "discount_factor": (small_lake_discount_factor := 0.9),
-
-        "optimal_value": 1.0 * small_lake_discount_factor ** 5,
-        "worst_value": -1.0,
-        "training_epochs": 2,
-    },
-    {
-        "env_description": "MiniGrid-12x12-v0",
-        "iterations": 20,
-        "env_params": dict(id="MiniGrid-12x12-v0", max_steps=1000000000),
-        "optimal_value": 1.0 * 0.99 ** 8,
-        "worst_value": 0.0,
-        "observation_embedding": "minigrid",
-        "width": 12,
-        "height": 12,
-        "puct_c": 1.0,
-        "eval_param": 1.0,
-    },
-    {
+    "CustomFrozenLakeNoHoles4x4-v1": {
         "env_description": "CustomFrozenLakeNoHoles4x4-v1",
         "max_episode_length": 100,
         "iterations": 30,
@@ -87,19 +44,19 @@ env_challenges = [
         "discount_factor": 0.9,
         "ncols": 4,
     },
-    {
+
+    "CustomFrozenLakeNoHoles8x8-v1": {
         "env_description": "CustomFrozenLakeNoHoles8x8-v1",
         "max_episode_length": 100,
-        "iterations": 30,
         "env_params": dict(id="CustomFrozenLakeNoHoles8x8-v1", max_episode_steps=1000000000),
         "optimal_value": 1.0 * 0.95 ** 13,
         "worst_value": 0.0,
         "discount_factor": 0.95,
-        "n_steps_learning": 2,
         "eval_param": 10.0,
         "ncols": 8,
     },
-    {
+
+    "DefaultFrozenLake4x4-v1": {
         "env_description": "DefaultFrozenLake4x4-v1",
         "max_episode_length": 100,
         "iterations": 30,
@@ -109,18 +66,127 @@ env_challenges = [
         "discount_factor": 0.9,
         "ncols": 4,
     },
-    {
+
+    "DefaultFrozenLake8x8-v1": {
         "env_description": "DefaultFrozenLake8x8-v1",
         "max_episode_length": 100,
-        "iterations": 30,
         "env_params": dict(id="DefaultFrozenLake8x8-v1", max_episode_steps=1000000000),
         "optimal_value": 1.0 * 0.95 ** 13,
         "worst_value": 0,
         "discount_factor": 0.95,
-        "n_steps_learning": 2,
         "ncols": 8,
-    }
+    },
+}
 
+fz_env_descriptions = {
     
+    "NO_OBSTACLES": [
+        "SFFFFFFF",
+        "FFFFFFFF",
+        "FFFFFFFF",
+        "FFFFFFFF",
+        "FFFFFFFF",
+        "FFFFFFFF",
+        "FFFFFFFF",
+        "FFFFFFFG"
+    ],
+
+    "DEFAULT": [
+        "SFFFFFFF",
+        "FFFFFFFF",
+        "FFFHFFFF",
+        "FFFFFHFF",
+        "FFFHFFFF",
+        "FHHFFFHF",
+        "FHFFHFHF",
+        "FFFHFFFG"
+    ],
+
+    "MINI_SLALOM": [
+        "SFFFFFFF",
+        "FFFFFFFF",
+        "FFFFFFFF",
+        "HHHHFFFF",
+        "FFFFFFFF",
+        "FFFFFHHH",
+        "FFFFFFFF",
+        "FFFFFFFG"
+    ],
+
+    "MINI_BLOCKS": [
+        "SFFFFFFF",
+        "FFFFFFFF",
+        "FFHHFFF",
+        "FFFFFHHF",
+        "HHFFFFFF",
+        "FFFFFFFF",
+        "FFFFFHHF",
+        "FFFFFFFG"
+    ],
+
+    "BLOCKS": [
+        "SFFFFFFF",
+        "FFFFFFFF",
+        "FFHHHFFF",
+        "FFFFFFFF",
+        "HHHFFFFF",
+        "FFFFFFFF",
+        "FFFFFHHH",
+        "FFFFFFFG"
+    ],
+
+    "NARROW": [
+        "SFFFFFFF",
+        "FFFFFFFF",
+        "HHFHHHHH",
+        "HHFHHHHH",
+        "FFFFFFFF",
+        "FFFFFFHF",
+        "FFFFFFHF",
+        "FFFFFFHG"
+    ],
+
+    "NARROW_SIMPLIFIED": [
+        "SFFFFFFF",
+        "FFFFFFFF",
+        "HHFHHHHH",
+        "HHFHHHHH",
+        "FFFFFFFF",
+        "FFFFFFFF",
+        "FFFFFFFF",
+        "FFFFFFFG"
+    ],
+
+    "DEAD_END": [
+        "SFFFFFFF",
+        "FFFFFFFF",
+        "FFFFFFFF",
+        "FFFFFFFF",
+        "FFHHHHHH",
+        "FFFFFFFF",
+        "FFFFFFFF",
+        "FFFFFFFG"
+    ],
+
+    "INVERSE_DEAD_END": [
+        "SFFFFFFF",
+        "FFFFFFFF",
+        "FFFFFFFF",
+        "FFFFFFFF",
+        "HHHHHHFF",
+        "FFFFFFFF",
+        "FFFFFFFF",
+        "FFFFFFFG"
+    ],
     
-]
+    "TRAP": [
+        "SFFFFFFF",
+        "FFFHFFFF",
+        "HHHHFFFF",
+        "FFFFFFFF",
+        "FFFFFFFF",
+        "FFFFFFFF",
+        "FFFFFFFF",
+        "FFFFFFFG"
+    ]
+}

@@ -134,6 +134,7 @@ def run_episode(
                     break
                 new_observation_tensor = observation_embedding.obs_to_tensor(new_obs, dtype=th.float32)
                 observation_tensor = new_observation_tensor
+
                 step += 1 # Still need to increment the step counter 
             
             tree = Node ( # Create a new node to represent the current state after following the actions
@@ -156,7 +157,7 @@ def run_episode(
 
         root_value = tree.value_evaluation # Contains the value estimate of the root node computed by the planning step
 
-        tree.reset_var_val()
+        tree.reset_var_val() # The value and variance (mvc) estimates of the whole subtree are reset.
 
         policy_dist = tree_evaluation_policy.softmaxed_distribution(tree) # Evaluates the tree using the given evaluation policy (e.g., visitation counts)
 
@@ -171,7 +172,8 @@ def run_episode(
 
             if solver.problem_idx is None: # If no problem was detected, we act following the prior (quick)
                 print("No problem detected, acting normally.")
-                action = th.argmax(solver.model.single_observation_forward(tree.observation)[1]).item()
+                action = th.argmax(tree.prior_policy).item()
+
             
             else: # If a problem was detected, we act following the policy distribution
 
@@ -179,8 +181,13 @@ def run_episode(
 
                 # Check if the probs are all equal, if so, we act according to the prior
                 if th.all(th.eq(distribution.probs, distribution.probs[0])):
+
+                # Check if more than 1 prob is non-zero
+                #if th.sum(th.where(distribution.probs > 0, 1, 0)) > 1:
+                    
                     print("All probs are equal, acting according to the prior.")
-                    action = th.argmax(solver.model.single_observation_forward(tree.observation)[1]).item()
+                    action = th.argmax(tree.prior_policy).item()
+                    
                 else:
                     action = distribution.sample().item() # Note that if the temperature of the softmax was zero, this becomes an argmax
 

@@ -35,6 +35,8 @@ from policies.value_transforms import value_transform_dict
 
 from environments.register import register_all
 
+from parameters import base_parameters, env_challenges
+
 def train_from_config(
     project_name="AlphaZeroTraining", entity=None, job_name=None, config=None, performance=True, tags = None, seed = None
 ):
@@ -206,28 +208,39 @@ def sweep_agent():
 
 
 def run_single(seed=None):
-    challenge = parameters.env_challenges[3]
-    config_modifications = {
-        "workers": min(6, multiprocessing.cpu_count()),
-        "tree_evaluation_policy": "visit",
-        "selection_policy": "PUCT",
-        "planning_budget": 64,
-        "iterations": 50,
-        "observation_embedding": "coordinate",
-        "n_steps_learning": 1,
-    }
-    run_config = {**parameters.base_parameters, **challenge, **config_modifications}
+
     return train_from_config(config=run_config, performance=False, seed=seed)
 
 if __name__ == "__main__":
-    # sweep_id = wandb.sweep(sweep=coord_search, project="AlphaZero")
-
-    # wandb.agent(sweep_id, function=sweep_agent)
-
+    
     # Parse the train seed from command line
-    parser = argparse.ArgumentParser(description="Run AlphaZero with a specific seed.")
+    parser = argparse.ArgumentParser(description="AlphaZero Training with a specific seed.")
+    parser.add_argument("--workers", type=int, default=min(6, multiprocessing.cpu_count()), help="Number of workers")
+    parser.add_argument("--tree_evaluation_policy", type=str, default="visit", help="Tree evaluation policy")
+    parser.add_argument("--selection_policy", type=str, default="PUCT", help="Selection policy")
+    parser.add_argument("--planning_budget", type=int, default=64, help="Planning budget")
+    parser.add_argument("--iterations", type=int, default=50, help="Number of iterations")
+    parser.add_argument("--observation_embedding", type=str, default="coordinate", help="Observation embedding type")
+    parser.add_argument("--n_steps_learning", type=int, default=1, help="Number of steps for learning")
     parser.add_argument("--train_seed", type=int, required=True, help="The random seed to use for training.")
+
     args = parser.parse_args()
 
+    # Construct run configuration
 
-    run_single(seed = args.train_seed)
+    challenge = env_challenges["CustomFrozenLakeNoHoles8x8-v1"]
+    
+    config_modifications = {
+        "workers": args.workers,
+        "tree_evaluation_policy": args.tree_evaluation_policy,
+        "selection_policy": args.selection_policy,
+        "planning_budget": args.planning_budget,
+        "iterations": args.iterations,
+        "observation_embedding": args.observation_embedding,
+        "n_steps_learning": args.n_steps_learning,
+    }
+
+    run_config = {**base_parameters, **challenge, **config_modifications}
+
+
+    train_from_config(config=run_config, performance=False, seed=args.train_seed)

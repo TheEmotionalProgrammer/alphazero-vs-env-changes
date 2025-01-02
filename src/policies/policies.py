@@ -10,6 +10,7 @@ def custom_softmax(
     temperature: float | None = None,
     action_mask: th.Tensor | None = None,
 ) -> th.Tensor:
+    
     """Applies softmax to the input tensor with a temperature parameter.
 
     Args:

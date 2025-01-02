@@ -72,6 +72,11 @@ class Node(Generic[ObservationType]):
         return self.subtree_sum / self.visits
 
     def is_fully_expanded(self) -> bool:
+
+        """
+        Returns True if all possible actions have been expanded.
+        """
+
         return len(self.children) == self.action_space.n
 
     def sample_unexplored_action(self) -> int:
@@ -138,9 +143,11 @@ class Node(Generic[ObservationType]):
 
 
     def state_visitation_counts(self) -> Counter:
+
         """
         Returns a counter of the number of times each state has been visited
         """
+
         counter = Counter()
         # add the current node
         counter[self.observation] = self.visits if self.is_terminal() else 1
@@ -151,23 +158,42 @@ class Node(Generic[ObservationType]):
         return counter
 
     def get_children(self):
-        # return a list of all children
+
+        """
+        Returns the list of children of the node.
+        """
+
         l: List[Node | None] = [None] * self.action_space.n
         for key, child in self.children.items():
             l[key] = child
         return l
 
     def reset_policy_value(self):
+        
+        """
+        Reset policy estimates of the node and the whole subtree.
+        """
+
         self.policy_value = None
         for child in self.children.values():
             child.reset_policy_value()
 
     def reset_variance(self):
+        
+        """
+        Reset variance estimates of the node and the whole subtree.
+        """
+    
         self.variance = None
         for child in self.children.values():
             child.reset_variance()
 
     def reset_var_val(self):
+
+        """
+        Reset value and variance estimates of the node and the whole subtree.
+        """
+
         self.variance = None
         self.policy_value = None
         for child in self.children.values():
