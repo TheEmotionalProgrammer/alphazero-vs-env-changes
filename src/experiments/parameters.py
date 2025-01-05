@@ -116,7 +116,7 @@ fz_env_descriptions = {
     "MINI_BLOCKS": [
         "SFFFFFFF",
         "FFFFFFFF",
-        "FFHHFFF",
+        "FFHHFFFF",
         "FFFFFHHF",
         "HHFFFFFF",
         "FFFFFFFF",

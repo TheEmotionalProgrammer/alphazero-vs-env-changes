@@ -93,7 +93,7 @@ register(
     id="DefaultFrozenLake8x8-v1",
     entry_point=__name__ + ":CustomFrozenLakeEnv",
     kwargs={
-        "map_name": "8x8",
+        "map_name": None,
         "is_slippery": False,
         "hole_reward": -1,
         "terminate_on_hole": False,

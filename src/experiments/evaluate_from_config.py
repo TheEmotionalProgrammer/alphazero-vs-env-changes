@@ -226,6 +226,9 @@ def eval_from_config(
         agent_from_config(hparams)
     )
 
+    print(train_env.unwrapped.desc)
+    print(train_env.unwrapped.hole_reward)
+
     if "workers" not in hparams or hparams["workers"] is None:
         hparams["workers"] = multiprocessing.cpu_count()
     workers = hparams["workers"]
@@ -233,6 +236,9 @@ def eval_from_config(
     seeds = [None] * hparams["runs"]
 
     test_env = gym.make(**hparams["test_env"])
+
+    print(test_env.unwrapped.desc)
+    print(test_env.unwrapped.hole_reward)
 
     results = eval_agent(
         agent=agent,
@@ -395,13 +401,13 @@ if __name__ == "__main__":
     parser.add_argument("--runs", type=int, default=1, help="Number of runs")
 
     # Basic search parameters
-    parser.add_argument("--tree_evaluation_policy", type=str, default="mvc", help="Tree evaluation policy")
-    parser.add_argument("--selection_policy", type=str, default="PolicyUCT", help="Selection policy")
-    parser.add_argument("--planning_budget", type=int, default=16, help="Planning budget")
-    parser.add_argument("--puct_c", type=float, default=0.0, help="PUCT parameter")
+    parser.add_argument("--tree_evaluation_policy", type=str, default="visit", help="Tree evaluation policy")
+    parser.add_argument("--selection_policy", type=str, default="PUCT", help="Selection policy")
+    parser.add_argument("--planning_budget", type=int, default=128, help="Planning budget")
+    parser.add_argument("--puct_c", type=float, default=1.0, help="PUCT parameter")
 
     # Search algorithm
-    parser.add_argument("--agent_type", type=str, default="azmcts", help="Agent type")
+    parser.add_argument("--agent_type", type=str, default="azdetection", help="Agent type")
     parser.add_argument("--depth_estimation", type=bool, default=False, help="Use tree depth estimation")
 
     # Stochasticity parameters
@@ -414,13 +420,13 @@ if __name__ == "__main__":
     parser.add_argument("--unroll_budget", type=int, default=10, help="Unroll budget")
 
     # AZDetection replanning parameters
-    parser.add_argument("--planning_style", type=str, default="connected", help="Planning style")
-    parser.add_argument("--value_search", type=bool, default=False, help="Enable value search")
-    parser.add_argument("--predictor", type=str, default="current_value", help="Predictor to use for detection")
+    parser.add_argument("--planning_style", type=str, default="mini_trees", help="Planning style")
+    parser.add_argument("--value_search", type=bool, default=True, help="Enable value search")
+    parser.add_argument("--predictor", type=str, default="original_env", help="Predictor to use for detection")
 
     # Test environment
     parser.add_argument("--test_env_id", type=str, default="DefaultFrozenLake8x8-v1", help="Test environment ID")
-    parser.add_argument("--test_env_desc", type=str, default="DEFAULT", help="Environment description")
+    parser.add_argument("--test_env_desc", type=str, default="DEAD_END", help="Environment description")
     parser.add_argument("--test_env_is_slippery", type=bool, default=False, help="Environment slippery flag")
     parser.add_argument("--test_env_hole_reward", type=int, default=0, help="Hole reward")
     parser.add_argument("--test_env_terminate_on_hole", type=bool, default=False, help="Terminate on hole")

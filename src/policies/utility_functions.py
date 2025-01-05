@@ -1,4 +1,3 @@
-from sympy import comp
 import torch as th
 from core.node import Node
 from policies.policies import PolicyDistribution
@@ -22,7 +21,7 @@ def policy_value(
         return val
 
     # If the value has already been computed, return it.
-    if node.policy_value:
+    if node.policy_value is not None:
         return node.policy_value
 
     if isinstance(policy, th.distributions.Categorical):
@@ -34,13 +33,14 @@ def policy_value(
     assert probabilities.shape[-1] == int(node.action_space.n) + 1
     own_propability = probabilities[-1]  # type: ignore
     child_propabilities = probabilities[:-1]  # type: ignore
-    child_values = th.zeros_like(child_propabilities, dtype=th.float32)
-
+    child_values = th.zeros_like(child_propabilities, dtype=th.float32) # For all the unexpanded children, the value is 0
+    #print("child_values_before", child_values)
     # We recursively compute the value estimates of the children 
     for action, child in node.children.items():
         child_values[action] = policy_value(child, policy, discount_factor) 
 
-    # Once we have computed the value estimates of all the children, we apply the standard 1-step Q-estimate
+    #print("child_values", child_values)
+    #print(node.value_evaluation)
     val = node.reward + discount_factor * (
         own_propability * node.value_evaluation
         + (child_propabilities * child_values).sum()
@@ -85,6 +85,7 @@ def independent_policy_value_variance(
     own_propability_squared = probabilities_squared[-1]
     child_propabilities_squared = probabilities_squared[:-1]
     child_variances = th.zeros_like(child_propabilities_squared, dtype=th.float32)
+
     for action, child in node.children.items():
         child_variances[action] = independent_policy_value_variance(
             child, policy, discount_factor
@@ -109,6 +110,7 @@ def get_children_policy_values(
     for action, child in parent.children.items():
         vals[action] = policy_value(child, policy, discount_factor)
     vals = transform.normalize(vals)
+
     return vals
 
 

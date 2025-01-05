@@ -48,6 +48,7 @@ class UCT(SelectionPolicy):
     def _probs(self, node: Node) -> th.Tensor:
         
         child_visits = get_children_visits(node)
+        #print("child_visits", child_visits)
 
         # if any child_visit is 0, we return 1 for all children with 0 visits
         if th.any(child_visits == 0):

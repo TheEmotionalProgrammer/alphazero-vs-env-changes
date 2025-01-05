@@ -174,7 +174,6 @@ def run_episode(
                 print("No problem detected, acting normally.")
                 action = th.argmax(tree.prior_policy).item()
 
-            
             else: # If a problem was detected, we act following the policy distribution
 
                 distribution = th.distributions.Categorical(probs=custom_softmax(policy_dist.probs, temperature, None)) # apply extra softmax
