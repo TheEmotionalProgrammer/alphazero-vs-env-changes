@@ -47,4 +47,4 @@ def visualize_frozenlake(desc):
 
 
 # Visualize a specific environment
-visualize_frozenlake(fz_env_descriptions["NARROW_SIMPLIFIED"])
+visualize_frozenlake(fz_env_descriptions["BLOCKS"])

@@ -1,6 +1,6 @@
 from typing import Tuple
 import copy
-from math import floor
+from math import floor, ceil
 import gymnasium as gym
 from gymnasium import Env
 import torch as th
@@ -68,6 +68,9 @@ class AlphaZeroDetector(AlphaZeroMCTS):
         The policy is always unrolled from the current root node.
         """
 
+        #create coordinate lambda function that maps the observation to a 2D position
+        coords = lambda observ: (observ // 8, observ % 8)
+
         nodes_traj = [node.observation for node, action in self.trajectory]
 
         if len(self.trajectory) >= 1 and obs in nodes_traj and self.problem_idx is not None:
@@ -109,8 +112,6 @@ class AlphaZeroDetector(AlphaZeroMCTS):
 
         value_estimate = 0.0
 
-        print("obs", f"({node.observation // 8}, {node.observation % 8})")
-
         if self.planning_style == "mini_trees":
 
             val, policy = self.model.single_observation_forward(node.observation)
@@ -118,12 +119,21 @@ class AlphaZeroDetector(AlphaZeroMCTS):
             node.value_evaluation = val
             node.prior_policy = policy
         
-        else: # connected or q-directed
+        elif self.planning_style == "connected":
                 
             node.value_evaluation = self.value_function(node)
             self.backup(node, node.value_evaluation)
 
             val, policy = node.value_evaluation, node.prior_policy
+
+        elif self.planning_style == "q-directed":
+            node.value_evaluation = self.value_function(node)
+            # node.policy_value = th.tensor(node.value_evaluation)
+            # node.visits += 1
+            self.backup(node, node.value_evaluation)
+            val, policy = node.value_evaluation, node.prior_policy
+
+        print(f"Value estimate: {val}, Prediction: {val}", "obs", f"({coords(node.observation)[0]}, {coords(node.observation)[1]})")
 
         for i in range(n):
 
@@ -155,12 +165,27 @@ class AlphaZeroDetector(AlphaZeroMCTS):
 
                 val, policy = self.model.single_observation_forward(node.observation)
 
-            else: # connected or q-directed
+            elif self.planning_style == "connected": # connected or q-directed
 
                 eval_node = self.expand(node, action)
                 eval_node.value_evaluation = self.value_function(eval_node)
 
                 node = eval_node
+                self.backup(node, node.value_evaluation)
+
+                if node.is_terminal():
+                    break
+
+                val, policy = node.value_evaluation, node.prior_policy
+            
+            elif self.planning_style == "q-directed":
+
+                eval_node = self.expand(node, action)
+                eval_node.value_evaluation = self.value_function(eval_node)
+
+                node = eval_node
+                # node.visits += 1
+                # node.policy_value = th.tensor(node.value_evaluation)
                 self.backup(node, node.value_evaluation)
 
                 if node.is_terminal():
@@ -177,20 +202,26 @@ class AlphaZeroDetector(AlphaZeroMCTS):
             )
 
             # Add a very small delta to avoid division by zero
-
             i_pred = i_pred + 1e-9
             i_est = i_est + 1e-9
-
-            #create coordinate lambda function that maps the observation to a 2D position
-            coords = lambda observ: (observ // 8, observ % 8)
             
             print(f"Value estimate: {i_est}, Prediction: {i_pred}", "obs", f"({coords(node.observation)[0]}, {coords(node.observation)[1]})")
 
             if i_est/i_pred < 1 - self.threshold:
 
-                # We compute the safe number of steps estimation with this formula
-                safe_index = floor(i + 1 - (np.log(1-self.threshold)/np.log(self.discount_factor))) 
+                # We compute the safe number of steps estimation with this formula:
+                # t = taken_steps - log(1-threshold)/log(discount_factor)
+                # NOTE: at i in the for loop, we have taken i+1 steps
+                safe_index = floor(i+1 - (np.log(1-self.threshold)/np.log(self.discount_factor)))
 
+                if self.predictor == "current_value": # Log Error correction 
+                    safe_index -= np.log(i+1)
+
+                safe_index = max(safe_index, 0)
+                # This is the number of steps we can take without encountering the problem
+                # In this example situation: ()-()-()-x-()... it would be 2. Note that this also 
+                # corresponds to the last safe state in the trajectory (since indexing starts from 0).
+           
                 problem_index = min(safe_index + 1, n-1) # We add 1 to include the first problematic node in the trajectory
 
                 if problem_index == len(self.trajectory):
@@ -530,19 +561,19 @@ class AlphaZeroDetector(AlphaZeroMCTS):
                         taken_actions.append(action)
 
                     node.policy_value = policy_value(node, self.selection_policy.policy, self.discount_factor)
-                    #print(node.policy_value)
+                    print(node.policy_value)
 
-                    if not node.is_fully_expanded():
-                        chosen_node = node
-                        candidate_actions = taken_actions[:-1] if self.value_search else None
-                        break
+                    # if not node.is_fully_expanded():
+                    #     chosen_node = node
+                    #     candidate_actions = taken_actions[:-1] if self.value_search else None
+                    #     break
                     
                     if node.policy_value > max_val:
                         max_val = node.policy_value
                         chosen_node = node
                         candidate_actions = taken_actions[:-1] if self.value_search else None
 
-                #print("Chosen node value:", chosen_node.policy_value)
+                print("Chosen node value:", chosen_node.policy_value)
 
                 parent = chosen_node.parent
                 chosen_node.parent = None
