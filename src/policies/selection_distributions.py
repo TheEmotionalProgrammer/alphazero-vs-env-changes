@@ -85,10 +85,16 @@ class T_UCT(PolicyUCT):
     def __init__(self, c: float, *args,  **kwargs):
         super().__init__(c, *args, **kwargs)
 
+    def Q(self, node: Node) -> th.Tensor:
+        return get_transformed_mcts_t_values(node, self.discount_factor, self.value_transform)
+
     def _probs(self, node: Node) -> th.Tensor:
 
         child_visits = get_children_visits(node)
         child_subtree_depths = get_children_subtree_depth(node)
+
+        # print("child_visits", child_visits)
+        # print("child_subtree_depths", child_subtree_depths)
 
         # if any child_visit is 0
         if th.any(child_visits == 0):
@@ -96,7 +102,7 @@ class T_UCT(PolicyUCT):
             return child_visits == 0
         #print(child_subtree_depths)
         #print("child_est_visits", child_subtree_depths)
-        return self.Q(node) + self.c * child_subtree_depths * th.sqrt(th.tensor(node.visits)) / (child_visits + 1)
+        return self.Q(node) + self.c * child_subtree_depths * th.sqrt(th.log(th.tensor(node.visits))) / (child_visits + 1)
 
 class PUCT(UCT):
 

@@ -2,6 +2,11 @@ import gymnasium as gym
 from gymnasium.envs.toy_text.frozen_lake import FrozenLakeEnv
 from gymnasium.envs.registration import register
 from gymnasium.envs.toy_text.utils import categorical_sample
+from matplotlib import pyplot as plt
+import sys
+
+sys.path.append("src/")
+from log_code.gen_renderings import save_gif_imageio
 
 actions_dict = {
     0: "Left",
@@ -13,9 +18,9 @@ actions_dict = {
 
 class CustomFrozenLakeEnv(FrozenLakeEnv):
     def __init__(
-        self, desc=None, map_name="4x4", is_slippery=False,  hole_reward=0, terminate_on_hole=False
+        self, desc=None, map_name="4x4", is_slippery=False,  hole_reward=0, terminate_on_hole=False, render_mode=None
     ):
-        super().__init__(desc=desc, map_name=map_name, hole_reward=hole_reward, is_slippery=is_slippery, render_mode=None)
+        super().__init__(desc=desc, map_name=map_name, hole_reward=hole_reward, is_slippery=is_slippery, render_mode=render_mode)
         self.terminate_on_hole = terminate_on_hole  # Decide if falling into a hole ends the episode
 
     def step(self, action):
@@ -102,18 +107,27 @@ register(
 
 # Example usage with rendering
 if __name__ == "__main__":
-    env = gym.make("DefaultFrozenLake8x8-v1", terminate_on_hole=False)  # Set terminate_on_hole=False to test
+    frames = []
+    env = gym.make("DefaultFrozenLake8x8-v1", terminate_on_hole=False, render_mode = "rgb_array")  # Set terminate_on_hole=False to test
+
     obs, info = env.reset()
+
+    if env.unwrapped.render_mode == "rgb_array":
+        frames.append(env.render())
 
     print("Custom FrozenLake Environment with Configurable Hole Behavior")
     terminated = False
     truncated = False
 
     while not (terminated or truncated):
-        action = env.action_space.sample()  # Randomly select an action
+        action = env.action_space.sample()
         obs, reward, terminated, truncated, info = env.step(action)
+        if env.unwrapped.render_mode == "rgb_array":
+            frames.append(env.render())
         print(f"Action: {action}, Reward: {reward}, State: {obs}, Terminated: {terminated}")
 
-    env.render()
+    if env.unwrapped.render_mode == "rgb_array":
+        save_gif_imageio(frames, output_path="output.gif", fps=5)
+
     print("Episode finished!")
     env.close()

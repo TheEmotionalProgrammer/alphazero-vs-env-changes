@@ -30,6 +30,7 @@ from environments.register import register_all
 import argparse
 from parameters import base_parameters, env_challenges, fz_env_descriptions
 
+from log_code.gen_renderings import save_gif_imageio
 
 def agent_from_config(hparams: dict):
 
@@ -253,7 +254,13 @@ def eval_from_config(
         workers=workers,
         azdetection= (hparams["agent_type"] == "azdetection"),
         unroll_budget= hparams["unroll_budget"],
+        render=hparams["render"],
     )
+    print(len(results))
+
+    # if hparams["render_mode"] == "rgb_array":
+    #     save_gif_imageio(frames, output_path="output.gif")
+        
     episode_returns, discounted_returns, time_steps, entropies = calc_metrics(
         results, agent.discount_factor, test_env.action_space.n
     )
@@ -402,13 +409,13 @@ if __name__ == "__main__":
 
     # Basic search parameters
     parser.add_argument("--tree_evaluation_policy", type=str, default="mvc", help="Tree evaluation policy")
-    parser.add_argument("--selection_policy", type=str, default="PolicyUCT", help="Selection policy")
-    parser.add_argument("--planning_budget", type=int, default=32, help="Planning budget")
-    parser.add_argument("--puct_c", type=float, default=0.0, help="PUCT parameter")
+    parser.add_argument("--selection_policy", type=str, default="T_UCT", help="Selection policy")
+    parser.add_argument("--planning_budget", type=int, default=16, help="Planning budget")
+    parser.add_argument("--puct_c", type=float, default=1.0, help="PUCT parameter")
 
     # Search algorithm
-    parser.add_argument("--agent_type", type=str, default="azdetection", help="Agent type")
-    parser.add_argument("--depth_estimation", type=bool, default=False, help="Use tree depth estimation")
+    parser.add_argument("--agent_type", type=str, default="azmcts", help="Agent type")
+    parser.add_argument("--depth_estimation", type=bool, default=True, help="Use tree depth estimation")
 
     # Stochasticity parameters
     parser.add_argument("--eval_temp", type=float, default=0.0, help="Temperature in tree evaluation softmax")
@@ -420,23 +427,26 @@ if __name__ == "__main__":
     parser.add_argument("--unroll_budget", type=int, default=10, help="Unroll budget")
 
     # AZDetection replanning parameters
-    parser.add_argument("--planning_style", type=str, default="q-directed", help="Planning style")
-    parser.add_argument("--value_search", type=bool, default=False, help="Enable value search")
-    parser.add_argument("--predictor", type=str, default="original_env", help="Predictor to use for detection")
+    parser.add_argument("--planning_style", type=str, default="mini_trees", help="Planning style")
+    parser.add_argument("--value_search", type=bool, default=True, help="Enable value search")
+    parser.add_argument("--predictor", type=str, default="current_value", help="Predictor to use for detection")
 
     # Test environment
     parser.add_argument("--test_env_id", type=str, default="DefaultFrozenLake8x8-v1", help="Test environment ID")
     parser.add_argument("--test_env_desc", type=str, default="DEFAULT", help="Environment description")
     parser.add_argument("--test_env_is_slippery", type=bool, default=False, help="Environment slippery flag")
-    parser.add_argument("--test_env_hole_reward", type=int, default=0, help="Hole reward")
+    parser.add_argument("--test_env_hole_reward", type=int, default=0.0, help="Hole reward")
     parser.add_argument("--test_env_terminate_on_hole", type=bool, default=False, help="Terminate on hole")
 
     # Observation embedding
     parser.add_argument("--observation_embedding", type=str, default="coordinate", help="Observation embedding type")
 
     # Model file
-    parser.add_argument("--model_file", type=str, default=f"hyper/AZTrain_env=CustomFrozenLakeNoHoles8x8-v1_iterations=50_budget=64_seed=4/checkpoint.pth", help="Path to model file")
+    parser.add_argument("--model_file", type=str, default=f"hyper/AZTrain_env=CustomFrozenLakeNoHoles8x8-v1_iterations=50_budget=64_seed=0/checkpoint.pth", help="Path to model file")
     parser.add_argument("--train_seed", type=int, default=0, help="The random seed to use for training.")
+
+    # Rendering
+    parser.add_argument("--render", type=bool, default=True, help="Render the environment")
 
     # Parse arguments
     args = parser.parse_args()
@@ -472,6 +482,7 @@ if __name__ == "__main__":
         },
         "observation_embedding": args.observation_embedding,
         "model_file": args.model_file,
+        "render": args.render,
     }
 
     run_config = {**base_parameters, **challenge, **config_modifications}

@@ -113,6 +113,17 @@ fz_env_descriptions = {
         "FFFFFFFG"
     ],
 
+    "SLALOM": [
+        "SFFFFFFF",
+        "FFFFFFFF",
+        "HHHHFFFF",
+        "FFFFFFFF",
+        "FFFFFFFF",
+        "FFFFHHHH",
+        "FFFFFFFF",
+        "FFFFFFFG"
+    ],
+
     "MINI_BLOCKS": [
         "SFFFFFFF",
         "FFFFFFFF",

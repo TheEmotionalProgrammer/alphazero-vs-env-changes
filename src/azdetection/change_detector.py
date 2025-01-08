@@ -212,10 +212,12 @@ class AlphaZeroDetector(AlphaZeroMCTS):
                 # We compute the safe number of steps estimation with this formula:
                 # t = taken_steps - log(1-threshold)/log(discount_factor)
                 # NOTE: at i in the for loop, we have taken i+1 steps
-                safe_index = floor(i+1 - (np.log(1-self.threshold)/np.log(self.discount_factor)))
+                safe_index = i+1 - (np.log(1-self.threshold)/np.log(self.discount_factor))
 
                 if self.predictor == "current_value": # Log Error correction 
                     safe_index -= np.log(i+1)
+
+                safe_index = floor(safe_index)
 
                 safe_index = max(safe_index, 0)
                 # This is the number of steps we can take without encountering the problem

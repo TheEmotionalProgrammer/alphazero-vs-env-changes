@@ -10,7 +10,9 @@ from environments.observation_embeddings import ObservationEmbedding
 from policies.policies import PolicyDistribution, custom_softmax
 from environments.frozenlake.frozen_lake import actions_dict
 from core.node import Node
+import copy
 
+from log_code.gen_renderings import save_gif_imageio
 
 def run_episode_process(args):
 
@@ -41,6 +43,7 @@ def run_episode(
     azdetection=False, # If True, the agent will use the unrolling to detect problems
     original_env: gym.Env | None = None, # Used to keep track of the original environment state for detection purposes in an ideal context 
     unroll_steps=5,
+    render=False,
     return_trees=False,
     ):
 
@@ -59,6 +62,11 @@ def run_episode(
         np.random.seed(seed)
 
     observation, info = env.reset(seed=seed)
+
+    if render:
+        vis_env = copy.deepcopy(env) # Used to visualize the environment in the case of the frozenlake
+        vis_env.unwrapped.render_mode = "rgb_array"
+        frames = [vis_env.render()]
 
     old_obs = observation
 
@@ -87,7 +95,7 @@ def run_episode(
 
     if return_trees:
         trees = []
-
+    
     if azdetection: # Calls the search function of azdetection
 
         tree = solver.search(env,planning_budget, observation, 0.0, original_env = original_env, n=unroll_steps)
@@ -110,6 +118,11 @@ def run_episode(
             for action in tree:
                 
                 new_obs, reward, terminated, truncated, _ = env.step(action)
+
+                if render:
+                    vis_env.step(action)
+                    frames.append(vis_env.render())
+
                 new_pos_row = new_obs // 8
                 new_pos_col = new_obs % 8
                 print(f"obs = ({new_pos_row}, {new_pos_col}), reward = {reward}, terminated = {terminated}, truncated = {truncated}")
@@ -194,6 +207,10 @@ def run_episode(
 
         new_obs, reward, terminated, truncated, _ = env.step(action)
 
+        if render:
+            vis_env.step(action)
+            frames.append(vis_env.render())
+
         # Convert the observation to a 2D position, hardcoded size of the grid for now
         new_pos_row = new_obs // 8 
         new_pos_col = new_obs % 8
@@ -237,5 +254,8 @@ def run_episode(
 
     if return_trees:
         return trajectory, trees
+    
+    if render:
+        save_gif_imageio(frames, output_path=f"gifs/output.gif", fps=5)
 
     return trajectory

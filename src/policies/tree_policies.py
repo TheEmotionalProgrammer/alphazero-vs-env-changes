@@ -15,11 +15,21 @@ class VistationPolicy(PolicyDistribution):
     
     def _probs(self, node: Node) -> th.Tensor:
         return get_children_visits(node)
+    
+class TUCTValuePolicy(PolicyDistribution):
+    """
+    Determinstic policy that selects the action with the highest value
+    """
+    def __init__(self, discount_factor = 1.0, **kwargs):
 
-class QT_Policy(PolicyDistribution):
-    # Selects the action with the largest q value computed in the mcts-t way
+        super().__init__(**kwargs)
+        self.discount_factor = discount_factor
+        self.temperature = 0.0
+ 
     def _probs(self, node: Node) -> th.Tensor:
-        return get_transformed_default_values(node, self.value_transform)
+        vals = get_transformed_mcts_t_values(node, self.discount_factor, self.value_transform)
+        return vals
+
 
 class InverseVarianceTreeEvaluator(PolicyDistribution):
     """
@@ -179,9 +189,10 @@ class MVTOPolicy(PolicyDistribution):
 
 class ValuePolicy(PolicyDistribution):
     def __init__(self, discount_factor = 1.0, **kwargs):
-        assert "temperature" in kwargs and kwargs["temperature"] is not None, "temperature must be set"
+
         super().__init__(**kwargs)
         self.discount_factor = discount_factor
+        self.temperature = 0.0
 
     """
     Determinstic policy that selects the action with the highest value
@@ -266,7 +277,7 @@ class QSuprisePolicy(PolicyDistribution):
 
 tree_dict = {
     "visit": VistationPolicy,
-    "qt_max": QT_Policy,
+    "qt_max": ValuePolicy,
     "inverse_variance": InverseVarianceTreeEvaluator,
     "mvc": MinimalVarianceConstraintPolicy,
     'mvc_dynbeta': MVCP_Dynamic_Beta,
@@ -276,7 +287,7 @@ tree_dict = {
 
 tree_eval_dict = lambda param, discount, c=1.0, temperature=None, value_transform=IdentityValueTransform: {
     "visit": VistationPolicy(temperature, value_transform=value_transform),
-    "qt_max": QT_Policy(temperature, value_transform=value_transform),
+    "qt_max": ValuePolicy(discount_factor=discount, temperature=temperature, value_transform=value_transform),
     "inverse_variance": InverseVarianceTreeEvaluator(discount_factor=discount, temperature=temperature, value_transform=value_transform),
     "mvc": MinimalVarianceConstraintPolicy(discount_factor=discount, beta=param, temperature=temperature, value_transform=value_transform),
     'mvc_dynbeta': MVCP_Dynamic_Beta(c=c, discount_factor=discount, temperature=temperature, value_transform=value_transform),
@@ -286,4 +297,5 @@ tree_eval_dict = lambda param, discount, c=1.0, temperature=None, value_transfor
     'bellman_prior_std': BellmanPriorStdPolicy(sigma=param, temperature=temperature, value_transform=value_transform),
     'mvcp': MinimalVarianceConstraintPolicyPrior(discount_factor=discount, beta=param, temperature=temperature, value_transform=value_transform),
     'surprise': QSuprisePolicy(beta=param, discount_factor=discount, temperature=temperature, value_transform=value_transform),
+    'tuct': TUCTValuePolicy(discount_factor=discount, value_transform=value_transform),
 }

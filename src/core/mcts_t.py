@@ -142,7 +142,8 @@ class MCTS_T(MCTS):
             if node is not None and node.observation == start_node.observation:
                 #print("Counter loop detected")
                 start_node.subtree_depth = 0
-                start_node.value_evaluation = 0
+                start_node.policy_value = 0
+                
 
     def traverse(
         self, from_node: Node
