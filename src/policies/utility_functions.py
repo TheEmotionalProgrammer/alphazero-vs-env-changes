@@ -164,7 +164,7 @@ def get_children_visits(node: Node) -> th.Tensor:
     return visits
 
 def get_children_subtree_depth(node: Node) -> th.Tensor:
-    estimates = th.zeros(int(node.action_space.n), dtype=th.float32)
+    estimates = th.ones(int(node.action_space.n), dtype=th.float32)
     for action, child in node.children.items():
         estimates[action] = child.subtree_depth
 

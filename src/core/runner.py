@@ -165,6 +165,8 @@ def run_episode(
 
             # We still compute the standard value eval to avoid breaking code but this shouldn't be needed
             tree.value_evaluation = solver.value_function(tree)
+
+            tree.backup_visits = 1 # For mcts-t only
             solver.backup(tree, tree.value_evaluation)
                        
 
@@ -178,7 +180,10 @@ def run_episode(
             trees.append(tree)
 
         if not azdetection: # We sample the action from the eval policy distribution
+        
             distribution = th.distributions.Categorical(probs=custom_softmax(policy_dist.probs, temperature, None)) # apply extra softmax
+
+            #print(distribution.probs)   
             action = distribution.sample().item() # Note that if the temperature of the softmax was zero, this becomes an argmax
 
         else: # If we are using azdetection, we need to check if a problem was detected

@@ -28,6 +28,7 @@ class MCTS_T(MCTS):
     ):
         
         super().__init__(selection_policy, discount_factor, root_selection_policy)
+        
         if estimate_policy is not None:
             self.estimate_policy = estimate_policy
         else:
@@ -157,29 +158,29 @@ class MCTS_T(MCTS):
 
         action = self.root_selection_policy.sample(node) # Select which node to step into
         whatif_action = self.estimate_policy.sample(node)
+
+        if whatif_action in node.children:
+            whatif_node = node.step(whatif_action)
+            whatif_node.backup_visits += 1
         
         if action not in node.children: # If the selection policy returns None, this indicates that the current node should be expanded
             return node, action
         
         node = node.step(action)  # Step into the chosen node
         
-        if whatif_action in node.children:
-            whatif_node = node.step(whatif_action)
-            whatif_node.backup_visits += 1
-
         while not node.is_terminal():
             
             action = self.selection_policy.sample(node) # Select which node to step into
             whatif_action = self.estimate_policy.sample(node)
 
+            if whatif_action in node.children:
+                whatif_node = node.step(whatif_action)
+                whatif_node.backup_visits += 1
+
             if action not in node.children: # This means the node is not expanded, so we stop traversing the tree
                 break
 
             node = node.step(action) # Step into the chosen node
-
-            if whatif_action in node.children:
-                whatif_node = node.step(whatif_action)
-                whatif_node.backup_visits += 1
             
         return node, action
         
@@ -221,7 +222,6 @@ class MCTS_T(MCTS):
             observation=observation,
             backup_visits=1
         )
-
 
         node.children[action] = new_child # Add the new node to the children of the parent node
 

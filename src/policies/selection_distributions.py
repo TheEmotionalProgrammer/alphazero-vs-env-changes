@@ -77,13 +77,14 @@ class PolicyUCT(UCT):
     def Q(self, node: Node) -> float:
         return get_children_policy_values(node, self.policy, self.discount_factor, self.value_transform)
 
-class T_UCT(PolicyUCT):
+class T_UCT(UCT):
     """
     Selection policy based on subtree depth estimates and visitation counts.
     """
 
-    def __init__(self, c: float, *args,  **kwargs):
+    def __init__(self, c: float, discount_factor: float = 1.0 , *args,  **kwargs):
         super().__init__(c, *args, **kwargs)
+        self.discount_factor = discount_factor
 
     def Q(self, node: Node) -> th.Tensor:
         return get_transformed_mcts_t_values(node, self.discount_factor, self.value_transform)
@@ -134,6 +135,6 @@ selection_dict_fn = lambda c, policy, discount, value_transform: {
     "UCT": UCT(c, temperature=0.0, value_transform=value_transform),
     "PUCT": PUCT(c, temperature=0.0, value_transform=value_transform),
     "PolicyUCT": PolicyUCT(c, policy=policy, discount_factor=discount,temperature=0.0, value_transform=value_transform),
-    "T_UCT": T_UCT(c, policy=policy, discount_factor=discount,temperature=0.0, value_transform=value_transform),
+    "T_UCT": T_UCT(c, discount_factor=discount,temperature=0.0, value_transform=value_transform),
     "PolicyPUCT": PolicyPUCT(c, policy=policy, discount_factor=discount,temperature=0.0, value_transform=value_transform),
 }

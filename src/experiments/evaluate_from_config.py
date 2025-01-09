@@ -14,7 +14,7 @@ from experiments.eval_agent import eval_agent
 from core.mcts import DistanceMCTS, LakeDistanceMCTS, RandomRolloutMCTS
 from environments.observation_embeddings import ObservationEmbedding, embedding_dict
 from az.azmcts import AlphaZeroMCTS, AlphaZeroMCTS_T
-from azdetection.change_detector import AlphaZeroDetector
+from azdetection.change_detector import AlphaZeroDetector, AlphaZeroDetector_T
 from az.model import (
     AlphaZeroModel,
     models_dict
@@ -176,18 +176,35 @@ def agent_from_config(hparams: dict):
 
         predictor = hparams["predictor"]
 
-        agent = AlphaZeroDetector(
-            predictor=predictor,
-            root_selection_policy=root_selection_policy,
-            selection_policy=selection_policy,
-            model=model,
-            dir_epsilon=dir_epsilon,
-            dir_alpha=dir_alpha,
-            discount_factor=discount_factor,
-            threshold=threshold,
-            planning_style=planning_style,
-            value_search=value_search,
-        )
+        if hparams["depth_estimation"]:
+
+            agent = AlphaZeroDetector_T(
+                predictor=predictor,
+                root_selection_policy=root_selection_policy,
+                selection_policy=selection_policy,
+                model=model,
+                dir_epsilon=dir_epsilon,
+                dir_alpha=dir_alpha,
+                discount_factor=discount_factor,
+                threshold=threshold,
+                planning_style=planning_style,
+                value_search=value_search,
+                estimation_policy=estimation_policy
+            )
+
+        else:
+            agent = AlphaZeroDetector(
+                predictor=predictor,
+                root_selection_policy=root_selection_policy,
+                selection_policy=selection_policy,
+                model=model,
+                dir_epsilon=dir_epsilon,
+                dir_alpha=dir_alpha,
+                discount_factor=discount_factor,
+                threshold=threshold,
+                planning_style=planning_style,
+                value_search=value_search,
+            )
 
     else:
 
@@ -234,7 +251,7 @@ def eval_from_config(
         hparams["workers"] = multiprocessing.cpu_count()
     workers = hparams["workers"]
 
-    seeds = [None] * hparams["runs"]
+    seeds = [0] * hparams["runs"]
 
     test_env = gym.make(**hparams["test_env"])
 
@@ -257,9 +274,6 @@ def eval_from_config(
         render=hparams["render"],
     )
     print(len(results))
-
-    # if hparams["render_mode"] == "rgb_array":
-    #     save_gif_imageio(frames, output_path="output.gif")
         
     episode_returns, discounted_returns, time_steps, entropies = calc_metrics(
         results, agent.discount_factor, test_env.action_space.n
@@ -305,7 +319,8 @@ def eval_budget_sweep(
     entity=None,
     config=None,
     budgets=None,
-    num_seeds=None,
+    num_train_seeds=None,
+    num_eval_seeds=None,
 ):
     """
     Evaluate the agent with increasing planning budgets and log the results.
@@ -348,52 +363,58 @@ def eval_budget_sweep(
 
     # Store results for plotting
     budget_results = []
-    
-    for seed in range(num_seeds):
 
-        for budget in budgets:
-            # Make a copy of the base configuration to avoid modifying the original
-            config_copy = dict(hparams)
-            config_copy["planning_budget"] = budget
-            
-            print(f"Running evaluation for planning_budget={budget}")
+    for model_seed in range(num_train_seeds):
 
-            # Evaluate the agent
-            agent, train_env, tree_evaluation_policy, observation_embedding, planning_budget = agent_from_config(config_copy)
-            test_env = gym.make(**config_copy["test_env"])
-            #seeds = [None] * config_copy["runs"]
-            seeds = [seed]
-            
-            results = eval_agent(
-                agent=agent,
-                env=test_env,
-                original_env=train_env,
-                tree_evaluation_policy=tree_evaluation_policy,
-                observation_embedding=observation_embedding,
-                planning_budget=planning_budget,
-                max_episode_length=config_copy["max_episode_length"],
-                seeds=seeds,
-                temperature=config_copy["eval_temp"],
-                workers=config_copy["workers"],
-                azdetection=(config_copy["agent_type"] == "azdetection"),
-                unroll_budget=config_copy["unroll_budget"],
-            )
+        model_file = f"hyper/AZTrain_env=CustomFrozenLakeNoHoles8x8-v1_iterations=50_budget=64_seed={model_seed}/checkpoint.pth"
 
-            # Calculate metrics
-            episode_returns, discounted_returns, time_steps, _ = calc_metrics(
-                results, agent.discount_factor, test_env.action_space.n
-            )
+        for seed in range(num_eval_seeds):
 
-            # Compute mean discounted return
-            mean_discounted_return = discounted_returns.mean().item()
-            mean_return = episode_returns.mean().item()
-            mean_time_steps = time_steps.mean().item()
-            budget_results.append((budget, mean_discounted_return, mean_return, mean_time_steps))
+            for budget in budgets:
+                # Make a copy of the base configuration to avoid modifying the original
+                config_copy = dict(hparams)
 
-            if use_wandb:
-                wandb.log({"Planning_Budget": budget, f"Mean_Discounted_Return_{seed}": mean_discounted_return})
-                wandb.log({"Planning_Budget": budget, f"Mean_Return_{seed}": mean_return})
-                wandb.log({"Planning_Budget": budget, f"Mean_Episode_Length_{seed}": mean_time_steps})
+                config_copy["model_file"] = model_file
+                config_copy["planning_budget"] = budget
+                
+                print(f"Running evaluation for planning_budget={budget}")
+
+                # Evaluate the agent
+                agent, train_env, tree_evaluation_policy, observation_embedding, planning_budget = agent_from_config(config_copy)
+                test_env = gym.make(**config_copy["test_env"])
+                #seeds = [None] * config_copy["runs"]
+                seeds = [seed]
+                
+                results = eval_agent(
+                    agent=agent,
+                    env=test_env,
+                    original_env=train_env,
+                    tree_evaluation_policy=tree_evaluation_policy,
+                    observation_embedding=observation_embedding,
+                    planning_budget=planning_budget,
+                    max_episode_length=config_copy["max_episode_length"],
+                    seeds=seeds,
+                    temperature=config_copy["eval_temp"],
+                    workers=config_copy["workers"],
+                    azdetection=(config_copy["agent_type"] == "azdetection"),
+                    unroll_budget=config_copy["unroll_budget"],
+                )
+
+                # Calculate metrics
+                episode_returns, discounted_returns, time_steps, _ = calc_metrics(
+                    results, agent.discount_factor, test_env.action_space.n
+                )
+
+                # Compute mean discounted return
+                mean_discounted_return = discounted_returns.mean().item()
+                mean_return = episode_returns.mean().item()
+                mean_time_steps = time_steps.mean().item()
+                budget_results.append((budget, mean_discounted_return, mean_return, mean_time_steps))
+
+                if use_wandb:
+                    wandb.log({"Planning_Budget": budget, f"Mean_Discounted_Return_trainseed={model_seed}_evalseed={seed}": mean_discounted_return})
+                    wandb.log({"Planning_Budget": budget, f"Mean_Return_trainseed={model_seed}_evalseed={seed}": mean_return})
+                    wandb.log({"Planning_Budget": budget, f"Mean_Episode_Length_trainseed={model_seed}_evalseed={seed}": mean_time_steps})
         
     if use_wandb:
         run.finish()
@@ -403,19 +424,19 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="AlphaZero Evaluation Configuration")
 
     # Run configurations
-    parser.add_argument("--wandb_logs", type=bool, default=False, help="Enable wandb logging")
+    parser.add_argument("--wandb_logs", type=bool, default=True, help="Enable wandb logging")
     parser.add_argument("--workers", type=int, default=6, help="Number of workers")
     parser.add_argument("--runs", type=int, default=1, help="Number of runs")
 
     # Basic search parameters
-    parser.add_argument("--tree_evaluation_policy", type=str, default="mvc", help="Tree evaluation policy")
-    parser.add_argument("--selection_policy", type=str, default="T_UCT", help="Selection policy")
+    parser.add_argument("--tree_evaluation_policy", type=str, default="visit", help="Tree evaluation policy")
+    parser.add_argument("--selection_policy", type=str, default="PUCT", help="Selection policy")
     parser.add_argument("--planning_budget", type=int, default=16, help="Planning budget")
     parser.add_argument("--puct_c", type=float, default=1.0, help="PUCT parameter")
 
     # Search algorithm
     parser.add_argument("--agent_type", type=str, default="azmcts", help="Agent type")
-    parser.add_argument("--depth_estimation", type=bool, default=True, help="Use tree depth estimation")
+    parser.add_argument("--depth_estimation", type=bool, default=False, help="Use tree depth estimation")
 
     # Stochasticity parameters
     parser.add_argument("--eval_temp", type=float, default=0.0, help="Temperature in tree evaluation softmax")
@@ -427,9 +448,9 @@ if __name__ == "__main__":
     parser.add_argument("--unroll_budget", type=int, default=10, help="Unroll budget")
 
     # AZDetection replanning parameters
-    parser.add_argument("--planning_style", type=str, default="mini_trees", help="Planning style")
+    parser.add_argument("--planning_style", type=str, default="connected", help="Planning style")
     parser.add_argument("--value_search", type=bool, default=True, help="Enable value search")
-    parser.add_argument("--predictor", type=str, default="current_value", help="Predictor to use for detection")
+    parser.add_argument("--predictor", type=str, default="original_env", help="Predictor to use for detection")
 
     # Test environment
     parser.add_argument("--test_env_id", type=str, default="DefaultFrozenLake8x8-v1", help="Test environment ID")
@@ -442,11 +463,15 @@ if __name__ == "__main__":
     parser.add_argument("--observation_embedding", type=str, default="coordinate", help="Observation embedding type")
 
     # Model file
-    parser.add_argument("--model_file", type=str, default=f"hyper/AZTrain_env=CustomFrozenLakeNoHoles8x8-v1_iterations=50_budget=64_seed=0/checkpoint.pth", help="Path to model file")
-    parser.add_argument("--train_seed", type=int, default=0, help="The random seed to use for training.")
+    parser.add_argument("--model_file", type=str, default=f"hyper/AZTrain_env=CustomFrozenLakeNoHoles8x8-v1_iterations=50_budget=64_seed=1/checkpoint.pth", help="Path to model file")
+
+    parser.add_argument("--train_seeds", type=int, default=10, help="The number of random seeds to use for training.")
+    parser.add_argument("--eval_seeds", type=int, default=10, help="The number of random seeds to use for evaluation.")
 
     # Rendering
-    parser.add_argument("--render", type=bool, default=True, help="Render the environment")
+    parser.add_argument("--render", type=bool, default=False, help="Render the environment")
+
+    parser.add_argument("--run_full_eval", type=bool, default= False, help="Run type")
 
     # Parse arguments
     args = parser.parse_args()
@@ -489,5 +514,7 @@ if __name__ == "__main__":
 
     # Execute the evaluation
 
-    #eval_budget_sweep(config=run_config, num_seeds=50)
-    eval_from_config(config=run_config)
+    if args.run_full_eval:
+        eval_budget_sweep(config=run_config, num_train_seeds=args.train_seeds, num_eval_seeds=args.eval_seeds)
+    else:
+        eval_from_config(config=run_config)
