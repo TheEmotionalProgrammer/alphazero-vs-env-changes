@@ -1,3 +1,5 @@
+slurm*
+
 tensorboard_logs/
 runs/
 hyper/
