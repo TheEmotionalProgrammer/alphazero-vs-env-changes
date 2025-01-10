@@ -72,20 +72,24 @@ class AlphaZeroDetector(AlphaZeroMCTS):
         #create coordinate lambda function that maps the observation to a 2D position
         coords = lambda observ: (observ // 8, observ % 8)
 
-        nodes_traj = [node.observation for node, action in self.trajectory]
+        len_traj = len(self.trajectory)
 
-        if len(self.trajectory) >= 1 and obs in nodes_traj and self.problem_idx is not None:
-            print("Reusing Trajectory: ")
-            start_idx = nodes_traj.index(obs)
-            self.trajectory = self.trajectory[start_idx:] 
-            self.problem_idx -= start_idx
-
-            if self.planning_style != "mini_trees":
-                self.trajectory[0][0].parent = None # We set the parent of the root node to None
-
-            print([(self.trajectory[i][0].observation // 8, self.trajectory[i][0].observation % 8) for i in range(len(self.trajectory))])
-            
-            return
+        if len_traj >= 1 and self.problem_idx is not None:
+            if obs == self.trajectory[0][0].observation:
+                print("Reusing Trajectory: ")
+                if self.planning_style != "mini_trees":
+                    self.trajectory[0][0].parent = None # We set the parent of the root node to None
+                print([(self.trajectory[i][0].observation // 8, self.trajectory[i][0].observation % 8) for i in range(len(self.trajectory))])
+                return
+            elif len_traj > 1 and obs == self.trajectory[1][0].observation:
+                print("Reusing Trajectory: ")
+                start_idx = 1
+                self.trajectory = self.trajectory[start_idx:] 
+                self.problem_idx -= start_idx
+                if self.planning_style != "mini_trees":
+                    self.trajectory[0][0].parent = None
+                print([(self.trajectory[i][0].observation // 8, self.trajectory[i][0].observation % 8) for i in range(len(self.trajectory))])
+                return
         
         self.trajectory = []
         self.problem_idx = None

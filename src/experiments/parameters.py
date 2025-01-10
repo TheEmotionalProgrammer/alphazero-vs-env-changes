@@ -199,5 +199,17 @@ fz_env_descriptions = {
         "FFFFFFFF",
         "FFFFFFFF",
         "FFFFFFFG"
-    ]
+    ],
+
+    "COLUMN": [
+        "SFFFFFFF",
+        "FFFFFFFF",
+        "FFHHFFFF",
+        "FFHHFFFF",
+        "FFHHFFFF",
+        "FFHHFFFF",
+        "FFHHFFFF",
+        "FFFFFFFG"
+    ],
+
 }
