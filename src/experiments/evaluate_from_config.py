@@ -251,7 +251,7 @@ def eval_from_config(
         hparams["workers"] = multiprocessing.cpu_count()
     workers = hparams["workers"]
 
-    seeds = [0] * hparams["runs"]
+    seeds = [None] * hparams["runs"]
 
     test_env = gym.make(**hparams["test_env"])
 
@@ -340,7 +340,7 @@ def eval_budget_sweep(
 
     if budgets is None:
         budgets = [
-            8, 16, 32, 64, 128             
+            64 #8, 16, 32, 64, 128             
         ]  # Default budgets to sweep
 
     use_wandb = config["wandb_logs"]
@@ -415,28 +415,44 @@ def eval_budget_sweep(
                     wandb.log({"Planning_Budget": budget, f"Mean_Discounted_Return_trainseed={model_seed}_evalseed={seed}": mean_discounted_return})
                     wandb.log({"Planning_Budget": budget, f"Mean_Return_trainseed={model_seed}_evalseed={seed}": mean_return})
                     wandb.log({"Planning_Budget": budget, f"Mean_Episode_Length_trainseed={model_seed}_evalseed={seed}": mean_time_steps})
+
+                else:
+                    print(f"Mean Discounted Return: {mean_discounted_return}")
+                    print(f"Mean Return: {mean_return}")
+                    print(f"Mean Episode Length: {mean_time_steps}")
         
     if use_wandb:
         run.finish()
+    else:
+        # Print the mean of the results for each budget
+        for budget in budgets:
+            budget_results = np.array(budget_results)
+            mean_discounted_return = np.mean(budget_results[budget_results[:, 0] == budget, 1])
+            mean_return = np.mean(budget_results[budget_results[:, 0] == budget, 2])
+            mean_time_steps = np.mean(budget_results[budget_results[:, 0] == budget, 3])
+            print(f"Planning Budget: {budget}")
+            print(f"Mean Discounted Return: {mean_discounted_return}")
+            print(f"Mean Return: {mean_return}")
+            print(f"Mean Episode Length: {mean_time_steps}")
 
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="AlphaZero Evaluation Configuration")
 
     # Run configurations
-    parser.add_argument("--wandb_logs", type=bool, default=True, help="Enable wandb logging")
+    parser.add_argument("--wandb_logs", type=bool, default=False, help="Enable wandb logging")
     parser.add_argument("--workers", type=int, default=6, help="Number of workers")
     parser.add_argument("--runs", type=int, default=1, help="Number of runs")
 
     # Basic search parameters
     parser.add_argument("--tree_evaluation_policy", type=str, default="visit", help="Tree evaluation policy")
     parser.add_argument("--selection_policy", type=str, default="PUCT", help="Selection policy")
-    parser.add_argument("--planning_budget", type=int, default=16, help="Planning budget")
+    parser.add_argument("--planning_budget", type=int, default=64, help="Planning budget")
     parser.add_argument("--puct_c", type=float, default=1.0, help="PUCT parameter")
 
     # Search algorithm
-    parser.add_argument("--agent_type", type=str, default="azmcts", help="Agent type")
-    parser.add_argument("--depth_estimation", type=bool, default=False, help="Use tree depth estimation")
+    parser.add_argument("--agent_type", type=str, default="azdetection", help="Agent type")
+    parser.add_argument("--depth_estimation", type=bool, default=True, help="Use tree depth estimation")
 
     # Stochasticity parameters
     parser.add_argument("--eval_temp", type=float, default=0.0, help="Temperature in tree evaluation softmax")
@@ -448,13 +464,13 @@ if __name__ == "__main__":
     parser.add_argument("--unroll_budget", type=int, default=10, help="Unroll budget")
 
     # AZDetection replanning parameters
-    parser.add_argument("--planning_style", type=str, default="connected", help="Planning style")
+    parser.add_argument("--planning_style", type=str, default="mini_trees", help="Planning style")
     parser.add_argument("--value_search", type=bool, default=True, help="Enable value search")
-    parser.add_argument("--predictor", type=str, default="original_env", help="Predictor to use for detection")
+    parser.add_argument("--predictor", type=str, default="current_value", help="Predictor to use for detection")
 
     # Test environment
     parser.add_argument("--test_env_id", type=str, default="DefaultFrozenLake8x8-v1", help="Test environment ID")
-    parser.add_argument("--test_env_desc", type=str, default="DEFAULT", help="Environment description")
+    parser.add_argument("--test_env_desc", type=str, default="NARROW_SIMPLIFIED", help="Environment description")
     parser.add_argument("--test_env_is_slippery", type=bool, default=False, help="Environment slippery flag")
     parser.add_argument("--test_env_hole_reward", type=int, default=0.0, help="Hole reward")
     parser.add_argument("--test_env_terminate_on_hole", type=bool, default=False, help="Terminate on hole")
@@ -463,15 +479,15 @@ if __name__ == "__main__":
     parser.add_argument("--observation_embedding", type=str, default="coordinate", help="Observation embedding type")
 
     # Model file
-    parser.add_argument("--model_file", type=str, default=f"hyper/AZTrain_env=CustomFrozenLakeNoHoles8x8-v1_iterations=50_budget=64_seed=1/checkpoint.pth", help="Path to model file")
+    parser.add_argument("--model_file", type=str, default=f"hyper/AZTrain_env=CustomFrozenLakeNoHoles8x8-v1_iterations=50_budget=64_seed=3/checkpoint.pth", help="Path to model file")
 
     parser.add_argument("--train_seeds", type=int, default=10, help="The number of random seeds to use for training.")
-    parser.add_argument("--eval_seeds", type=int, default=10, help="The number of random seeds to use for evaluation.")
+    parser.add_argument("--eval_seeds", type=int, default=1, help="The number of random seeds to use for evaluation.")
 
     # Rendering
     parser.add_argument("--render", type=bool, default=False, help="Render the environment")
 
-    parser.add_argument("--run_full_eval", type=bool, default= False, help="Run type")
+    parser.add_argument("--run_full_eval", type=bool, default= True, help="Run type")
 
     # Parse arguments
     args = parser.parse_args()
