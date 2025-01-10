@@ -366,7 +366,7 @@ def eval_budget_sweep(
 
     for model_seed in range(num_train_seeds):
 
-        model_file = f"hyper/AZTrain_env=CustomFrozenLakeNoHoles8x8-v1_iterations=50_budget=64_seed={model_seed}/checkpoint.pth"
+        model_file = f"/scratch/itamassia/alphazero-vs-env-changes/hyper/AZTrain_env=CustomFrozenLakeNoHoles8x8-v1_iterations=50_budget=64_seed={model_seed}/checkpoint.pth"
 
         for seed in range(num_eval_seeds):
 
@@ -429,8 +429,8 @@ if __name__ == "__main__":
     parser.add_argument("--runs", type=int, default=1, help="Number of runs")
 
     # Basic search parameters
-    parser.add_argument("--tree_evaluation_policy", type=str, default="visit", help="Tree evaluation policy")
-    parser.add_argument("--selection_policy", type=str, default="PUCT", help="Selection policy")
+    parser.add_argument("--tree_evaluation_policy", type=str, default="mvc", help="Tree evaluation policy")
+    parser.add_argument("--selection_policy", type=str, default="PolicyUCT", help="Selection policy")
     parser.add_argument("--planning_budget", type=int, default=16, help="Planning budget")
     parser.add_argument("--puct_c", type=float, default=1.0, help="PUCT parameter")
 
@@ -454,7 +454,7 @@ if __name__ == "__main__":
 
     # Test environment
     parser.add_argument("--test_env_id", type=str, default="DefaultFrozenLake8x8-v1", help="Test environment ID")
-    parser.add_argument("--test_env_desc", type=str, default="DEFAULT", help="Environment description")
+    parser.add_argument("--test_env_desc", type=str, default="INVERSE_DEAD_END", help="Environment description")
     parser.add_argument("--test_env_is_slippery", type=bool, default=False, help="Environment slippery flag")
     parser.add_argument("--test_env_hole_reward", type=int, default=0.0, help="Hole reward")
     parser.add_argument("--test_env_terminate_on_hole", type=bool, default=False, help="Terminate on hole")
@@ -471,7 +471,7 @@ if __name__ == "__main__":
     # Rendering
     parser.add_argument("--render", type=bool, default=False, help="Render the environment")
 
-    parser.add_argument("--run_full_eval", type=bool, default= False, help="Run type")
+    parser.add_argument("--run_full_eval", type=bool, default= True, help="Run type")
 
     # Parse arguments
     args = parser.parse_args()

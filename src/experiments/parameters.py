@@ -105,8 +105,8 @@ fz_env_descriptions = {
     "MINI_SLALOM": [
         "SFFFFFFF",
         "FFFFFFFF",
-        "FFFFFFFF",
         "HHHHFFFF",
+        "FFFFFFFF",
         "FFFFFFFF",
         "FFFFFHHH",
         "FFFFFFFF",

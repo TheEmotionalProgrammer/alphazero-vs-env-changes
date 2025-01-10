@@ -2,7 +2,7 @@
 #
 #SBATCH --job-name="AZ-TRAIN"
 #SBATCH --partition=compute
-#SBATCH --time=2:00:00
+#SBATCH --time=6:00:00
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=6
 #SBATCH --mem-per-cpu=16G
@@ -14,5 +14,5 @@ module load python
 
 source venv/bin/activate
 
-srun python src/experiments/evaluate_from_config.py
+srun python src/experiments/evaluate_from_config.py --selection_policy="PolicyPUCT" --tree_evaluation_policy="mvc" --test_env_desc="INVERSE_DEAD_END"
 
