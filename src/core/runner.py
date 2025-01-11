@@ -114,7 +114,7 @@ def run_episode(
             If the agent is using the value search planning style and the search returned a list of actions,
             then we want to just follow those actions.
             """
-               
+            close = False 
             for action in tree:
                 
                 new_obs, reward, terminated, truncated, _ = env.step(action)
@@ -144,12 +144,19 @@ def run_episode(
                 trajectory["terminals"][step] = next_terminal
                 #trajectory["root_values"][step] = th.tensor(root_value, dtype=th.float32)
                 if next_terminal or truncated:
+                    close = True
                     break
                 new_observation_tensor = observation_embedding.obs_to_tensor(new_obs, dtype=th.float32)
                 observation_tensor = new_observation_tensor
 
                 step += 1 # Still need to increment the step counter 
+                if step >= max_steps:
+                    close=True
+                    break
             
+            if close:
+                break
+
             tree = Node ( # Create a new node to represent the current state after following the actions
                 observation = new_obs,
                 parent = None,
@@ -238,6 +245,7 @@ def run_episode(
         trajectory["mask"][step] = True
         trajectory["terminals"][step] = next_terminal
         trajectory["root_values"][step] = th.tensor(root_value, dtype=th.float32)
+        
         if next_terminal or truncated:
             break
         
