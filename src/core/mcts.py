@@ -7,7 +7,8 @@ from core.node import Node
 import torch as th
 from environments.observation_embeddings import CoordinateEmbedding, ObservationEmbedding
 from policies.policies import Policy
-
+from policies.utility_functions import get_children_policy_values_and_inverse_variance, reward_variance, value_evaluation_variance, get_children_policy_values, get_children_variances, get_children_inverse_variances, independent_policy_value_variance
+from policies.value_transforms import IdentityValueTransform
 
 class MCTS:
 
@@ -189,10 +190,46 @@ class MCTS:
             cumulative_reward += node.reward
             node.subtree_sum += cumulative_reward
             node.visits += new_visits
+
+            # Check if the selection policy has an attribute called policy
+
+            eval_policy = self.selection_policy.policy
         
-            # NEW: reset the prior policy and value evaluation (mark as needing update)
-            node.variance = None
-            node.policy_value = None
+            if node.terminal:
+                node.policy_value =  th.tensor(node.reward, dtype=th.float32)
+                node.variance = 1/ node.visits
+                node = node.parent
+                continue
+
+            if isinstance(eval_policy, th.distributions.Categorical):
+                pi = eval_policy
+            else:
+                pi = eval_policy.softmaxed_distribution(node, include_self=True)
+
+            probabilities = pi.probs  
+            probabilities_squared = probabilities**2  # type: ignore
+
+            own_propability = probabilities[-1]  # type: ignore
+            child_propabilities = probabilities[:-1]  # type: ignore
+
+            own_propability_squared = probabilities_squared[-1]
+            child_propabilities_squared = probabilities_squared[:-1]
+
+            child_values, child_variances = get_children_policy_values(node, eval_policy, self.discount_factor), get_children_variances(node, eval_policy, self.discount_factor)
+            #print("Child values", child_values)
+            node.policy_value = node.reward + self.discount_factor * (
+                own_propability * node.value_evaluation
+                + (child_propabilities * child_values).sum()
+            )
+
+            node.variance = reward_variance(node) + self.discount_factor**2 * (
+                own_propability_squared * value_evaluation_variance(node)
+                + (child_propabilities_squared * child_variances).sum()
+            )
+
+            # print("Node policy value", node.policy_value)
+            # print("Node variance", node.variance)
+            
             node = node.parent
 
 class RandomRolloutMCTS(MCTS):

@@ -75,7 +75,10 @@ class PolicyUCT(UCT):
         self.discount_factor = discount_factor
 
     def Q(self, node: Node) -> float:
-        return get_children_policy_values(node, self.policy, self.discount_factor, self.value_transform)
+        vals = th.ones(int(node.action_space.n), dtype=th.float32) * -th.inf
+        for action, child in node.children.items():
+            vals[action] = child.policy_value
+        return vals
 
 class T_UCT(UCT):
     """
