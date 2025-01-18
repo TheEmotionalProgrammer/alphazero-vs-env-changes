@@ -18,10 +18,11 @@ actions_dict = {
 
 class CustomFrozenLakeEnv(FrozenLakeEnv):
     def __init__(
-        self, desc=None, map_name="4x4", is_slippery=False,  hole_reward=0, terminate_on_hole=False, render_mode=None
+        self, desc=None, map_name="4x4", is_slippery=False,  hole_reward=0, terminate_on_hole=False, render_mode=None, deviation_type = "bump"
     ):
         super().__init__(desc=desc, map_name=map_name, hole_reward=hole_reward, is_slippery=is_slippery, render_mode=render_mode)
         self.terminate_on_hole = terminate_on_hole  # Decide if falling into a hole ends the episode
+        self.deviation_type = deviation_type
 
     def step(self, action):
         # Take the standard step in the environment
@@ -29,11 +30,32 @@ class CustomFrozenLakeEnv(FrozenLakeEnv):
         i = categorical_sample([t[0] for t in transitions], self.np_random)
         p, s, r, t = transitions[i]
 
-        # Check if the new state is a hole
         if self.desc[s // self.ncol][s % self.ncol] == b'H':
             r = self.hole_reward  # Apply the custom hole penalty
             if not self.terminate_on_hole:
-                s = self.s  # Stay in the same position
+                if self.deviation_type == "bump":
+                    s = self.s  # Stay in the same position
+                elif self.deviation_type in ["clockwise", "counter_clockwise"]:
+                    # Define correct mappings for clockwise and counterclockwise deviations
+                    if self.deviation_type == "clockwise":
+                        action_map = {0: 3, 3: 2, 2: 1, 1: 0}  # Correct clockwise mapping
+                    elif self.deviation_type == "counter_clockwise":
+                        action_map = {0: 1, 1: 2, 2: 3, 3: 0}  # Correct counterclockwise mapping
+                    
+                    # Update the action based on the deviation
+                    new_action = action_map[action]
+
+                    # Try stepping in the new direction
+                    transitions = self.P[self.s][new_action]
+                    i = categorical_sample([t[0] for t in transitions], self.np_random)
+                    p, s, r, t = transitions[i]  # Update state, reward, and terminal status
+
+                    if self.desc[s // self.ncol][s % self.ncol] == b'H': # If would you encounter an obstacle again, just stay in the same position
+                        r = self.hole_reward
+                        s = self.s  # Stay in the same position
+                else:
+                    raise ValueError(f"Invalid deviation type: {self.deviation_type}")
+
                 t = False  # Do not terminate the episode
 
         self.s = s
