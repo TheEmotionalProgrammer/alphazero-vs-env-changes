@@ -50,6 +50,7 @@ class AlphaZeroDetector(AlphaZeroMCTS):
         self.threshold = 0.001 if predictor == "original_env" else threshold # If we use the original env predictor, we can set the threshold arbitrarily low
         self.trajectory = [] # List of tuples (node, action) that represent the trajectory sampled by unrolling the prior policy during detection
         self.problem_idx = None # Index of the problematic node in the trajectory, i.e. first node whose value estimate is disregarded
+        self.last_value_estimate = None 
         self.planning_style = planning_style # The planning style to use when the problem is detected
         self.predictor = predictor # The predictor to use for the n-step prediction
         self.value_search = value_search # If True, the agent will use the value search 
@@ -245,8 +246,290 @@ class AlphaZeroDetector(AlphaZeroMCTS):
                 print("Trajectory:", [(coords(node.observation)[0], coords(node.observation)[1], None if action is None else actions_dict[action]) for node, action in self.trajectory])
 
                 return
-             
+
+    def accumulate_unroll(self, env: gym.Env, n: int, obs, reward: float, original_env: None | gym.Env):
+
+        #create coordinate lambda function that maps the observation to a 2D position
+        coords = lambda observ: (observ // 8, observ % 8)
+        ziopera = False
+
+        if self.trajectory == []:
+            
+            # We have started unrolling from scratch, so we have to create the first node
+
+            self.trajectory = []
+            self.problem_idx = None
+            start = 0
         
+            root_node = Node(
+                env=copy.deepcopy(env),
+                parent=None,
+                reward=reward,
+                action_space=env.action_space,
+                observation=obs,
+            )
+            
+            original_root_node = (
+                None if original_env is None else 
+                Node(
+                    env=copy.deepcopy(original_env),
+                    parent=None,
+                    reward=0,
+                    action_space=original_env.action_space,
+                    observation=obs,
+                )
+            )
+
+            node = root_node
+
+            value_estimate = 0.0
+
+            if self.planning_style == "mini_trees":
+
+                val, policy = self.model.single_observation_forward(node.observation)
+
+                node.value_evaluation = val
+                node.prior_policy = policy
+            
+            elif self.planning_style == "connected":
+                    
+                node.value_evaluation = self.value_function(node)
+                self.backup(node, node.value_evaluation)
+
+                val, policy = node.value_evaluation, node.prior_policy
+
+            elif self.planning_style == "q-directed":
+                node.value_evaluation = self.value_function(node)
+                # node.policy_value = th.tensor(node.value_evaluation)
+                # node.visits += 1
+                self.backup(node, node.value_evaluation)
+                val, policy = node.value_evaluation, node.prior_policy
+
+            root_estimate = self.n_step_prediction(None, 0, original_root_node) if self.predictor == "original_env" else node.value_evaluation
+
+            print(f"Value estimate: {val}, Prediction: {val}", "obs", f"({coords(node.observation)[0]}, {coords(node.observation)[1]})")
+
+        if self.trajectory != [] and self.problem_idx is None:
+            #print the current trajectory
+            print("Current Trajectory: ")
+            print([(self.trajectory[i][0].observation // 8, self.trajectory[i][0].observation % 8) for i in range(len(self.trajectory))])
+            # We have already started unrolling and have not encountered a problem yet.
+            # We can use the previous trajectory to continue unrolling, starting from the last node.
+
+            ziopera = True
+            node = self.trajectory[-1][0]
+            val = node.value_evaluation
+            policy = node.prior_policy
+
+            start = len(self.trajectory)-1
+
+            root_estimate = self.trajectory[0][0].value_evaluation
+
+            original_root_node = Node(
+                env=copy.deepcopy(original_env),
+                parent=None,
+                reward=0,
+                action_space=original_env.action_space,
+                observation=self.trajectory[0][0].observation,
+            )
+
+            original_root_node.env.unwrapped.s = self.trajectory[0][0].env.unwrapped.s # Set the state of the original environment to the state of the current environment
+
+            value_estimate = self.last_value_estimate # should take the final computation of the last trajectory
+     
+        elif self.trajectory != [] and self.problem_idx is not None:
+
+            len_traj = len(self.trajectory)
+
+            if len_traj >= 1 and self.problem_idx is not None:
+                if obs == self.trajectory[0][0].observation:
+                    print("Reusing Trajectory: ")
+                    if self.planning_style != "mini_trees":
+                        self.trajectory[0][0].parent = None # We set the parent of the root node to None
+                    print([(self.trajectory[i][0].observation // 8, self.trajectory[i][0].observation % 8) for i in range(len(self.trajectory))])
+                    return
+                elif len_traj > 1 and obs == self.trajectory[1][0].observation:
+                    print("Reusing Trajectory: ")
+                    start_idx = 1
+                    self.trajectory = self.trajectory[start_idx:] 
+                    self.problem_idx -= start_idx
+                    if self.planning_style != "mini_trees":
+                        self.trajectory[0][0].parent = None
+                    print([(self.trajectory[i][0].observation // 8, self.trajectory[i][0].observation % 8) for i in range(len(self.trajectory))])
+                    return
+            
+            # We have started unrolling from scratch, so we have to create the first node
+
+            self.trajectory = []
+            self.problem_idx = None
+            start = 0
+        
+            root_node = Node(
+                env=copy.deepcopy(env),
+                parent=None,
+                reward=reward,
+                action_space=env.action_space,
+                observation=obs,
+            )
+            
+            original_root_node = (
+                None if original_env is None else 
+                Node(
+                    env=copy.deepcopy(original_env),
+                    parent=None,
+                    reward=0,
+                    action_space=original_env.action_space,
+                    observation=obs,
+                )
+            )
+
+            node = root_node
+
+            value_estimate = 0.0
+
+            if self.planning_style == "mini_trees":
+
+                val, policy = self.model.single_observation_forward(node.observation)
+
+                node.value_evaluation = val
+                node.prior_policy = policy
+            
+            elif self.planning_style == "connected":
+                    
+                node.value_evaluation = self.value_function(node)
+                self.backup(node, node.value_evaluation)
+
+                val, policy = node.value_evaluation, node.prior_policy
+
+            elif self.planning_style == "q-directed":
+                node.value_evaluation = self.value_function(node)
+                # node.policy_value = th.tensor(node.value_evaluation)
+                # node.visits += 1
+                self.backup(node, node.value_evaluation)
+                val, policy = node.value_evaluation, node.prior_policy
+
+            root_estimate = self.n_step_prediction(None, 0, original_root_node) if self.predictor == "original_env" else node.value_evaluation
+
+            print(f"Value estimate: {val}, Prediction: {val}", "obs", f"({coords(node.observation)[0]}, {coords(node.observation)[1]})")
+        
+        new_end = start + n
+
+        for i in range(start, new_end):
+
+            value_estimate = value_estimate + (self.discount_factor**i) * node.reward
+
+            self.last_value_estimate = value_estimate
+
+            action = th.argmax(policy).item()
+
+            if not ziopera or i != start:
+                self.trajectory.append((node, action))
+                ziopera = True
+
+            if self.planning_style == "mini_trees":
+
+                child_env = copy.deepcopy(node.env)
+
+                observation, reward, terminated, truncated, _ = child_env.step(action)
+
+                child_node = Node(
+                    env=child_env,
+                    parent=None,
+                    reward=reward,
+                    action_space=child_env.action_space,
+                    observation=observation,
+                    terminal=terminated,
+                )
+
+                node = child_node
+
+                if node.is_terminal():
+                    break
+
+                val, policy = self.model.single_observation_forward(node.observation)
+
+            elif self.planning_style == "connected": # connected or q-directed
+
+                eval_node = self.expand(node, action)
+                eval_node.value_evaluation = self.value_function(eval_node)
+
+                node = eval_node
+                self.backup(node, node.value_evaluation)
+
+                if node.is_terminal():
+                    break
+
+                val, policy = node.value_evaluation, node.prior_policy
+            
+            elif self.planning_style == "q-directed":
+
+                eval_node = self.expand(node, action)
+                eval_node.value_evaluation = self.value_function(eval_node)
+
+                node = eval_node
+                # node.visits += 1
+                # node.policy_value = th.tensor(node.value_evaluation)
+                self.backup(node, node.value_evaluation)
+
+                if node.is_terminal():
+                    break
+
+                val, policy = node.value_evaluation, node.prior_policy
+
+
+            i_est = value_estimate + (self.discount_factor**(i+1)) * val
+            
+            i_pred = (
+                self.n_step_prediction(None, i+1, original_root_node) if self.predictor == "original_env" else
+                root_estimate
+            )
+
+            # Add a very small delta to avoid division by zero
+            i_pred = i_pred + 1e-9
+            i_est = i_est + 1e-9
+            
+            print(f"Value estimate: {i_est}, Prediction: {i_pred}", "obs", f"({coords(node.observation)[0]}, {coords(node.observation)[1]})")
+
+            if i_est/i_pred < 1 - self.threshold:
+
+                # We compute the safe number of steps estimation with this formula:
+                # t = taken_steps - log(1-threshold)/log(discount_factor)
+                # NOTE: at i in the for loop, we have taken i+1 steps
+                safe_index = i+1 - (np.log(1-self.threshold)/np.log(self.discount_factor))
+
+                if self.predictor == "current_value": # Log Error correction 
+                    safe_index -= np.log(i+1)
+
+                safe_index = floor(safe_index)
+
+                safe_index = max(safe_index, 0)
+                # This is the number of steps we can take without encountering the problem
+                # In this example situation: ()-()-()-x-()... it would be 2. Note that this also 
+                # corresponds to the last safe state in the trajectory (since indexing starts from 0).
+        
+                problem_index = min(safe_index + 1, new_end-1) # We add 1 to include the first problematic node in the trajectory
+
+                if problem_index == len(self.trajectory):
+                    self.trajectory.append((node, None))
+
+                problem_obs = self.trajectory[problem_index][0].observation # Observation of the first node whose value estimate is disregarded
+                print(f"Problem detected at state ({coords(problem_obs)[0]}, {coords(problem_obs)[1]}), after {problem_index} steps ")
+
+                self.problem_idx = problem_index
+                self.trajectory = self.trajectory[:problem_index+1] # +1 to include the problematic node
+
+                #self.trajectory[problem_index][0].reward = -1 # Set the reward of the problematic node to 0
+
+                print("Trajectory:", [(coords(node.observation)[0], coords(node.observation)[1], None if action is None else actions_dict[action]) for node, action in self.trajectory])
+
+                return
+            
+            if i == new_end-1:
+                # append the last node to the trajectory
+                action = th.argmax(policy).item()
+                self.trajectory.append((node, action))
+                
+
     def detached_unroll(self, env: gym.Env, n: int, obs, reward: float, original_env: None | gym.Env) -> bool:
 
         """
@@ -387,10 +670,16 @@ class AlphaZeroDetector(AlphaZeroMCTS):
         
     def search(self, env: Env, iterations: int, obs, reward: float, original_env: Env | None, n: float = 5) -> Node:
 
-        self.unroll(env, n, obs, reward, original_env) # We always unroll the prior before planning in azdetection
+        self.accumulate_unroll(env, n, obs, reward, original_env) # We always unroll the prior before planning in azdetection
 
         if self.problem_idx is None: # If no problem was detected we don't need to plan since we'll just follow the prior
-            node = self.trajectory[0][0]
+            node = Node(
+                env=copy.deepcopy(env),
+                parent=None,
+                reward=reward,
+                action_space=env.action_space,
+                observation=obs,
+            )
             node.value_evaluation = self.value_function(node)
             self.backup(node, node.value_evaluation)
             return node
