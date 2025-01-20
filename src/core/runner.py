@@ -125,7 +125,7 @@ def run_episode(
 
                 new_pos_row = new_obs // 8
                 new_pos_col = new_obs % 8
-                print(f"obs = ({new_pos_row}, {new_pos_col}), reward = {reward}, terminated = {terminated}, truncated = {truncated}")
+                #print(f"obs = ({new_pos_row}, {new_pos_col}), reward = {reward}, terminated = {terminated}, truncated = {truncated}")
 
                 if original_env is not None:
                     if new_obs != old_obs:
@@ -215,7 +215,7 @@ def run_episode(
                 else:
                     action = distribution.sample().item() # Note that if the temperature of the softmax was zero, this becomes an argmax
 
-            print(f"Env: action = {actions_dict[action]}")
+            #print(f"Env: action = {actions_dict[action]}")
 
         new_obs, reward, terminated, truncated, _ = env.step(action)
 
@@ -227,7 +227,7 @@ def run_episode(
         new_pos_row = new_obs // 8 
         new_pos_col = new_obs % 8
 
-        print(f"Env: obs = ({new_pos_row}, {new_pos_col}), reward = {reward}, terminated = {terminated}, truncated = {truncated}")
+        #print(f"Env: obs = ({new_pos_row}, {new_pos_col}), reward = {reward}, terminated = {terminated}, truncated = {truncated}")
 
         if original_env is not None:
             if new_obs != old_obs:

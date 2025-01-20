@@ -468,7 +468,6 @@ if __name__ == "__main__":
     parser.add_argument("--planning_style", type=str, default="connected", help="Planning style")
     parser.add_argument("--value_search", type=bool, default=True, help="Enable value search")
     parser.add_argument("--predictor", type=str, default="original_env", help="Predictor to use for detection")
-    parser.add_argument("--predictor", type=str, default="original_env", help="Predictor to use for detection")
 
     # Test environment
     parser.add_argument("--test_env_id", type=str, default="DefaultFrozenLake8x8-v1", help="Test environment ID")

@@ -56,6 +56,31 @@ env_challenges = {
         "ncols": 8,
     },
 
+    "CustomFrozenLakeNoHoles16x16-v1": {
+        "env_description": "CustomFrozenLakeNoHoles16x16-v1",
+        "max_episode_length": 300,
+        "env_params": dict(id="CustomFrozenLakeNoHoles16x16-v1", max_episode_steps=1000000000),
+        "optimal_value": 1.0 * 0.95 ** 25,
+        "worst_value": 0.0,
+        "discount_factor": 0.95,
+        "eval_param": 10.0,
+        "ncols": 16,
+        "learning_rate": 5e-3,
+    },
+
+    "CustomFrozenLakeNoHoles20x20-v1": {
+        "env_description": "CustomFrozenLakeNoHoles20x20-v1",
+        "max_episode_length": 400,
+        "env_params": dict(id="CustomFrozenLakeNoHoles20x20-v1", max_episode_steps=1000000000),
+        "optimal_value": 1.0 * 0.95 ** 29,
+        "worst_value": 0.0,
+        "discount_factor": 0.95,
+        "eval_param": 10.0,
+        "ncols": 20,
+
+    },
+
+
     "DefaultFrozenLake4x4-v1": {
         "env_description": "DefaultFrozenLake4x4-v1",
         "max_episode_length": 100,

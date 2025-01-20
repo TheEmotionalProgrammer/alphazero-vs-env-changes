@@ -61,26 +61,88 @@ def register_all():
         },
     )
 
+    gym.register( # 16x16 empty grid
+    id="CustomFrozenLakeNoHoles16x16-v1",
+    entry_point="environments.frozenlake.frozen_lake:CustomFrozenLakeEnv",
+    kwargs={
+        "desc": [
+            "SFFFFFFFFFFFFFFF",
+            "FFFFFFFFFFFFFFFF",
+            "FFFFFFFFFFFFFFFF",
+            "FFFFFFFFFFFFFFFF",
+            "FFFFFFFFFFFFFFFF",
+            "FFFFFFFFFFFFFFFF",
+            "FFFFFFFFFFFFFFFF",
+            "FFFFFFFFFFFFFFFF",
+            "FFFFFFFFFFFFFFFF",
+            "FFFFFFFFFFFFFFFF",
+            "FFFFFFFFFFFFFFFF",
+            "FFFFFFFFFFFFFFFF",
+            "FFFFFFFFFFFFFFFF",
+            "FFFFFFFFFFFFFFFF",
+            "FFFFFFFFFFFFFFFF",
+            "FFFFFFFFFFFFFFFG"
+            ],
+        "map_name": None,
+        "is_slippery": False,
+        "terminate_on_hole": False,
+        "hole_reward": 0,
+    },
+)
 
+gym.register( # 20x20 empty grid
+    id="CustomFrozenLakeNoHoles20x20-v1",
+    entry_point="environments.frozenlake.frozen_lake:CustomFrozenLakeEnv",
+    kwargs={
+        "desc": [
+            "SFFFFFFFFFFFFFFFFFFFFF",
+            "FFFFFFFFFFFFFFFFFFFFFF",
+            "FFFFFFFFFFFFFFFFFFFFFF",
+            "FFFFFFFFFFFFFFFFFFFFFF",
+            "FFFFFFFFFFFFFFFFFFFFFF",
+            "FFFFFFFFFFFFFFFFFFFFFF",
+            "FFFFFFFFFFFFFFFFFFFFFF",
+            "FFFFFFFFFFFFFFFFFFFFFF",
+            "FFFFFFFFFFFFFFFFFFFFFF",
+            "FFFFFFFFFFFFFFFFFFFFFF",
+            "FFFFFFFFFFFFFFFFFFFFFF",
+            "FFFFFFFFFFFFFFFFFFFFFF",
+            "FFFFFFFFFFFFFFFFFFFFFF",
+            "FFFFFFFFFFFFFFFFFFFFFF",
+            "FFFFFFFFFFFFFFFFFFFFFF",
+            "FFFFFFFFFFFFFFFFFFFFFF",
+            "FFFFFFFFFFFFFFFFFFFFFF",
+            "FFFFFFFFFFFFFFFFFFFFFF",
+            "FFFFFFFFFFFFFFFFFFFFFF",
+            "FFFFFFFFFFFFFFFFFFFFFG"
+            ],
+            
+        "map_name": None,
+        "is_slippery": False,
+        "terminate_on_hole": False,
+        "hole_reward": 0,
+    },
+)
+
+gym.register(
+    id="DefaultFrozenLake4x4-v1",
+    entry_point="environments.frozenlake.frozen_lake:CustomFrozenLakeEnv",
+    kwargs={
+        "map_name": "4x4",
+        "is_slippery": False,
+        "hole_reward": 0,
+        "terminate_on_hole": False,
+    },
+)
+
+if "DefaultFrozenLake8x8-v1" not in gym.registry:
     gym.register(
-        id="DefaultFrozenLake4x4-v1",
+        id="DefaultFrozenLake8x8-v1",
         entry_point="environments.frozenlake.frozen_lake:CustomFrozenLakeEnv",
         kwargs={
-            "map_name": "4x4",
+            "map_name": "8x8",
             "is_slippery": False,
             "hole_reward": 0,
             "terminate_on_hole": False,
         },
     )
-
-    if "DefaultFrozenLake8x8-v1" not in gym.registry:
-        gym.register(
-            id="DefaultFrozenLake8x8-v1",
-            entry_point="environments.frozenlake.frozen_lake:CustomFrozenLakeEnv",
-            kwargs={
-                "map_name": "8x8",
-                "is_slippery": False,
-                "hole_reward": 0,
-                "terminate_on_hole": False,
-            },
-        )

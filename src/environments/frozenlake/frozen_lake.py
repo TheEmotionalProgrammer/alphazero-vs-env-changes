@@ -67,7 +67,10 @@ class CustomFrozenLakeEnv(FrozenLakeEnv):
         return (int(s), r, t, False, {"prob": p})
 
 
-register(
+# Example usage with rendering
+if __name__ == "__main__":
+
+    register(
     id="CustomFrozenLakeNoHoles4x4-v1",
     entry_point=__name__ + ":CustomFrozenLakeEnv",
     kwargs={
@@ -81,56 +84,115 @@ register(
         "is_slippery": False,
         "terminate_on_hole": False,
     },
-)
+    )
 
-register(
-    id="CustomFrozenLakeNoHoles8x8-v1",
-    entry_point=__name__ + ":CustomFrozenLakeEnv",
-    kwargs={
-        "desc": [
-            "SFFFFFFF",
-            "FFFFFFFF",
-            "FFFFFFFF",
-            "FFFFFFFF",
-            "FFFFFFFF",
-            "FFFFFFFF",
-            "FFFFFFFF",
-            "FFFFFFFG"
-            ],
-        "map_name": None,
-        "is_slippery": False,
-        "terminate_on_hole": False,
-    },
-)
+    register(
+        id="CustomFrozenLakeNoHoles8x8-v1",
+        entry_point=__name__ + ":CustomFrozenLakeEnv",
+        kwargs={
+            "desc": [
+                "SFFFFFFF",
+                "FFFFFFFF",
+                "FFFFFFFF",
+                "FFFFFFFF",
+                "FFFFFFFF",
+                "FFFFFFFF",
+                "FFFFFFFF",
+                "FFFFFFFG"
+                ],
+            "map_name": None,
+            "is_slippery": False,
+            "terminate_on_hole": False,
+        },
+    )
 
-# Register the custom environment
-register(
-    id="DefaultFrozenLake4x4-v1",
-    entry_point=__name__ + ":CustomFrozenLakeEnv",
-    kwargs={
-        "map_name": "4x4",
-        "is_slippery": False,
-        "hole_reward": -1,
-        "terminate_on_hole": False,
-    },
-)
+    # Register the custom environment
+    register(
+        id="DefaultFrozenLake4x4-v1",
+        entry_point=__name__ + ":CustomFrozenLakeEnv",
+        kwargs={
+            "map_name": "4x4",
+            "is_slippery": False,
+            "hole_reward": -1,
+            "terminate_on_hole": False,
+        },
+    )
 
-# Register an 8x8 version of the custom environment
-register(
-    id="DefaultFrozenLake8x8-v1",
-    entry_point=__name__ + ":CustomFrozenLakeEnv",
-    kwargs={
-        "map_name": None,
-        "is_slippery": False,
-        "hole_reward": -1,
-        "terminate_on_hole": False,
-    },
-)
+    # Register an 8x8 version of the custom environment
+    register(
+        id="DefaultFrozenLake8x8-v1",
+        entry_point=__name__ + ":CustomFrozenLakeEnv",
+        kwargs={
+            "map_name": None,
+            "is_slippery": False,
+            "hole_reward": -1,
+            "terminate_on_hole": False,
+        },
+    )
 
-# Example usage with rendering
-if __name__ == "__main__":
+    register( # 16x16 empty grid
+        id="CustomFrozenLakeNoHoles16x16-v1",
+        entry_point=__name__ + ":CustomFrozenLakeEnv",
+        kwargs={
+            "desc": [
+                "SFFFFFFFFFFFFFFF",
+                "FFFFFFFFFFFFFFFF",
+                "FFFFFFFFFFFFFFFF",
+                "FFFFFFFFFFFFFFFF",
+                "FFFFFFFFFFFFFFFF",
+                "FFFFFFFFFFFFFFFF",
+                "FFFFFFFFFFFFFFFF",
+                "FFFFFFFFFFFFFFFF",
+                "FFFFFFFFFFFFFFFF",
+                "FFFFFFFFFFFFFFFF",
+                "FFFFFFFFFFFFFFFF",
+                "FFFFFFFFFFFFFFFF",
+                "FFFFFFFFFFFFFFFF",
+                "FFFFFFFFFFFFFFFF",
+                "FFFFFFFFFFFFFFFF",
+                "FFFFFFFFFFFFFFFG"
+                ],
+            "map_name": None,
+            "is_slippery": False,
+            "terminate_on_hole": False,
+        },
+    )
+
+    register( # 20x20 empty grid
+        id="CustomFrozenLakeNoHoles20x20-v1",
+        entry_point=__name__ + ":CustomFrozenLakeEnv",
+        kwargs={
+            "desc": [
+                "SFFFFFFFFFFFFFFFFFFFFF",
+                "FFFFFFFFFFFFFFFFFFFFFF",
+                "FFFFFFFFFFFFFFFFFFFFFF",
+                "FFFFFFFFFFFFFFFFFFFFFF",
+                "FFFFFFFFFFFFFFFFFFFFFF",
+                "FFFFFFFFFFFFFFFFFFFFFF",
+                "FFFFFFFFFFFFFFFFFFFFFF",
+                "FFFFFFFFFFFFFFFFFFFFFF",
+                "FFFFFFFFFFFFFFFFFFFFFF",
+                "FFFFFFFFFFFFFFFFFFFFFF",
+                "FFFFFFFFFFFFFFFFFFFFFF",
+                "FFFFFFFFFFFFFFFFFFFFFF",
+                "FFFFFFFFFFFFFFFFFFFFFF",
+                "FFFFFFFFFFFFFFFFFFFFFF",
+                "FFFFFFFFFFFFFFFFFFFFFF",
+                "FFFFFFFFFFFFFFFFFFFFFF",
+                "FFFFFFFFFFFFFFFFFFFFFF",
+                "FFFFFFFFFFFFFFFFFFFFFF",
+                "FFFFFFFFFFFFFFFFFFFFFF",
+                "FFFFFFFFFFFFFFFFFFFFFG"
+                ],
+                
+            "map_name": None,
+            "is_slippery": False,
+            "terminate_on_hole": False,
+        },
+    )
+
     frames = []
-    env = gym.make("DefaultFrozenLake8x8-v1", terminate_on_hole=False, render_mode = "rgb_array")  # Set terminate_on_hole=False to test
+    env = gym.make("CustomFrozenLakeNoHoles16x16-v1", terminate_on_hole=False, render_mode = "rgb_array")  # Set terminate_on_hole=False to test
 
     obs, info = env.reset()
 
