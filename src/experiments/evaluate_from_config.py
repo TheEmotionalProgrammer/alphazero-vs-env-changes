@@ -31,6 +31,7 @@ import argparse
 from parameters import base_parameters, env_challenges, fz_env_descriptions
 
 from log_code.gen_renderings import save_gif_imageio
+from log_code.tree_visualizer import visualize_trees
 
 def agent_from_config(hparams: dict):
 
@@ -244,19 +245,14 @@ def eval_from_config(
         agent_from_config(hparams)
     )
 
-    print(train_env.unwrapped.desc)
-    print(train_env.unwrapped.hole_reward)
-
     if "workers" not in hparams or hparams["workers"] is None:
         hparams["workers"] = multiprocessing.cpu_count()
-    workers = hparams["workers"]
+    else:
+        workers = hparams["workers"]
 
     seeds = [0] * hparams["runs"]
 
     test_env = gym.make(**hparams["test_env"])
-
-    print(test_env.unwrapped.desc)
-    print(test_env.unwrapped.hole_reward)
 
     results = eval_agent(
         agent=agent,
@@ -272,8 +268,14 @@ def eval_from_config(
         azdetection= (hparams["agent_type"] == "azdetection"),
         unroll_budget= hparams["unroll_budget"],
         render=hparams["render"],
+        return_trees=hparams["visualize_trees"],
     )
-    print(len(results))
+
+    if hparams["visualize_trees"]:
+        results, trees = results
+        trees = trees[0]
+        print(f"Visualizing {len(trees)} trees...")
+        visualize_trees(trees, "tree_visualizations")
         
     episode_returns, discounted_returns, time_steps, entropies = calc_metrics(
         results, agent.discount_factor, test_env.action_space.n
@@ -340,7 +342,7 @@ def eval_budget_sweep(
 
     if budgets is None:
         budgets = [
-            8, 16, 32, 64, 128             
+            64#8, 16, 32, 64, 128             
         ]  # Default budgets to sweep
 
     use_wandb = config["wandb_logs"]
@@ -447,11 +449,11 @@ if __name__ == "__main__":
     # Basic search parameters
     parser.add_argument("--tree_evaluation_policy", type=str, default="mvc", help="Tree evaluation policy")
     parser.add_argument("--selection_policy", type=str, default="PolicyUCT", help="Selection policy")
-    parser.add_argument("--planning_budget", type=int, default=32, help="Planning budget")
+    parser.add_argument("--planning_budget", type=int, default=64, help="Planning budget")
     parser.add_argument("--puct_c", type=float, default=1.0, help="PUCT parameter")
 
     # Search algorithm
-    parser.add_argument("--agent_type", type=str, default="azdetection", help="Agent type")
+    parser.add_argument("--agent_type", type=str, default="azmcts", help="Agent type")
     parser.add_argument("--depth_estimation", type=bool, default=False, help="Use tree depth estimation")
 
     # Stochasticity parameters
@@ -461,7 +463,7 @@ if __name__ == "__main__":
 
     # AZDetection detection parameters
     parser.add_argument("--threshold", type=float, default=0.2, help="Detection threshold")
-    parser.add_argument("--unroll_budget", type=int, default=2, help="Unroll budget")
+    parser.add_argument("--unroll_budget", type=int, default=4, help="Unroll budget")
 
     # AZDetection replanning parameters
     parser.add_argument("--planning_style", type=str, default="connected", help="Planning style")
@@ -472,7 +474,7 @@ if __name__ == "__main__":
     parser.add_argument("--test_env_id", type=str, default="DefaultFrozenLake8x8-v1", help="Test environment ID")
     parser.add_argument("--test_env_desc", type=str, default="DEAD_END", help="Environment description")
     parser.add_argument("--test_env_is_slippery", type=bool, default=False, help="Environment slippery flag")
-    parser.add_argument("--test_env_hole_reward", type=int, default=0.0, help="Hole reward")
+    parser.add_argument("--test_env_hole_reward", type=int, default=0, help="Hole reward")
     parser.add_argument("--test_env_terminate_on_hole", type=bool, default=False, help="Terminate on hole")
     parser.add_argument("--deviation_type", type=str, default="bump", help="Deviation type")
 
@@ -480,7 +482,7 @@ if __name__ == "__main__":
     parser.add_argument("--observation_embedding", type=str, default="coordinate", help="Observation embedding type")
 
     # Model file for single run evaluation
-    parser.add_argument("--model_file", type=str, default=f"hyper/AZTrain_env=CustomFrozenLakeNoHoles8x8-v1_iterations=50_budget=64_seed=5/checkpoint.pth", help="Path to model file")
+    parser.add_argument("--model_file", type=str, default=f"hyper/AZTrain_env=CustomFrozenLakeNoHoles8x8-v1_iterations=50_budget=64_seed=1/checkpoint.pth", help="Path to model file")
 
     parser.add_argument("--train_seeds", type=int, default=10, help="The number of random seeds to use for training.")
     parser.add_argument("--eval_seeds", type=int, default=1, help="The number of random seeds to use for evaluation.")
@@ -491,6 +493,8 @@ if __name__ == "__main__":
     parser.add_argument("--run_full_eval", type=bool, default= False, help="Run type")
 
     parser.add_argument("--hpc", type=bool, default=False, help="HPC flag")
+
+    parser.add_argument("--visualize_trees", type=bool, default=True, help="Visualize planning trees")
 
     # Parse arguments
     args = parser.parse_args()
@@ -529,6 +533,7 @@ if __name__ == "__main__":
         "model_file": args.model_file,
         "render": args.render,
         "hpc": args.hpc,
+        "visualize_trees": args.visualize_trees,
     }
 
     run_config = {**base_parameters, **challenge, **config_modifications}

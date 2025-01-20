@@ -3,7 +3,7 @@ from typing import Dict, Generic, List, TypeVar, Optional, Any, Callable, Tuple
 import gymnasium as gym
 import numpy as np
 import torch as th
-
+from environments.frozenlake.frozen_lake import actions_dict, coords
 
 ObservationType = TypeVar("ObservationType")
 
@@ -24,6 +24,7 @@ class Node(Generic[ObservationType]):
     env: Optional[gym.Env]
     variance: float | None = None
     policy_value: float | None = None
+    #problem_vicinity: float = 0.0
 
     backup_visits: int = 0 # number of visits to backup, estimated by the original policy
     
@@ -49,6 +50,7 @@ class Node(Generic[ObservationType]):
 
         self.backup_visits = backup_visits
         self.subtree_depth = 0 if terminal else 1
+        #self.problem_vicinity = th.inf
 
     def is_terminal(self) -> bool:
         return self.terminal
@@ -125,7 +127,7 @@ class Node(Generic[ObservationType]):
     ) -> None:
         if max_depth is not None and max_depth == 0:
             return
-        label = f"O: {self.observation}, R: {self.reward}, MS: {self.default_value(): .2f}, V: {self.value_evaluation: .2f}\nVisit: {self.visits}, T: {int(self.terminal)}"
+        label = f"O: {coords(self.observation)}, R: {self.reward}, MS: {self.default_value(): .2f}, V: {self.value_evaluation: .2f}\nVisit: {self.visits}, T: {int(self.terminal)}"
         if var_fn is not None:
             label += f", VarFn: {var_fn(self)}"
 
@@ -139,7 +141,7 @@ class Node(Generic[ObservationType]):
                 dot, var_fn, max_depth=max_depth - 1 if max_depth is not None else None
             )
 
-            dot.edge(str(id(self)), str(id(child)), label=f"Action: {action}")
+            dot.edge(str(id(self)), str(id(child)), label=f"Action: {actions_dict[action]}")
 
 
     def state_visitation_counts(self) -> Counter:

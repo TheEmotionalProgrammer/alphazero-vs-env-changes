@@ -1,5 +1,6 @@
 slurm*
 
+tree_visualizations/
 tensorboard_logs/
 runs/
 hyper/

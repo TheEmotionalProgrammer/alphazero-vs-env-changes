@@ -26,9 +26,16 @@ def collect_trajectories(tasks, workers=1):
             # Run the tasks using map
             results = pool.map(run_episode_process, tasks)
     else:
-        results = [run_episode_process(task) for task in tasks]
-    res_tensor =  th.stack(results)
-    return res_tensor
+        results = [run_episode_process(task) for task in tasks] 
+
+    # check if the results are tuples, if so, unpack them
+    if all(isinstance(result, tuple) for result in results):
+        trajectories, trees = zip(*results)
+        res_tensor = th.stack(trajectories)
+        return res_tensor, trees
+    else:
+        res_tensor =  th.stack(results)
+        return res_tensor
 
 @th.no_grad()
 def run_episode(
@@ -53,6 +60,8 @@ def run_episode(
     For each timestep, the trajectory contains the observation, the policy distribution, the action taken and the reward received.
     Outputs the trajectory and optionally the trees that were generated during the episode.
     """
+
+    max_steps = 25
 
     assert isinstance(env.action_space, gym.spaces.Discrete) # For now, only supports discrete action spaces
     n = int(env.action_space.n)
@@ -98,7 +107,7 @@ def run_episode(
     
     if azdetection: # Calls the search function of azdetection
 
-        tree = solver.search(env,planning_budget, observation, 0.0, original_env = original_env, n=unroll_steps)
+        tree = solver.search(env,planning_budget, observation, 0.0, original_env = original_env, n=unroll_steps, env_action=None)
         
     else: # Calls the standard search function
 
@@ -184,7 +193,8 @@ def run_episode(
         policy_dist = tree_evaluation_policy.softmaxed_distribution(tree) # Evaluates the tree using the given evaluation policy (e.g., visitation counts)
 
         if return_trees:
-            trees.append(tree)
+            tree_copy = copy.deepcopy(tree) 
+            trees.append(tree_copy)
 
         if not azdetection: # We sample the action from the eval policy distribution
         
@@ -250,7 +260,7 @@ def run_episode(
             break
         
         if azdetection:
-            tree = solver.search(env, planning_budget, new_obs, reward, original_env=original_env, n=unroll_steps) 
+            tree = solver.search(env, planning_budget, new_obs, reward, original_env=original_env, n=unroll_steps, env_action=action) 
 
         else:
             tree = solver.search(env, planning_budget, new_obs, reward)
@@ -264,11 +274,11 @@ def run_episode(
     # trajectory.append((observation, None, None, None, None))
     # observations.append(observation)
     # convert render to tensor
-
-    if return_trees:
-        return trajectory, trees
     
     if render:
         save_gif_imageio(frames, output_path=f"gifs/output.gif", fps=5)
+
+    if return_trees:
+        return trajectory, trees
 
     return trajectory

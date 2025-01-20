@@ -23,6 +23,9 @@ def policy_value(
     # If the value has already been computed, return it.
     if node.policy_value is not None:
         return node.policy_value
+    
+    # if node.problem_vicinity == 1:
+    #     return 0.0
 
     if isinstance(policy, th.distributions.Categorical):
         pi = policy
@@ -66,6 +69,10 @@ def value_evaluation_variance(node: Node):
         return 1.0 / float(node.visits)
     else:
         return 1.0
+    # else:
+    #     if node.problem_vicinity == 0.0:
+    #         return 9999999
+    #     return 1.0 + 1/node.problem_vicinity
 
 
 def independent_policy_value_variance(
@@ -124,6 +131,17 @@ def get_children_inverse_variances(
         )
 
     return inverse_variances
+
+def get_children_variances(
+    parent: Node, policy: PolicyDistribution, discount_factor: float
+) -> th.Tensor:
+    variances = th.ones(int(parent.action_space.n), dtype=th.float32)
+    for action, child in parent.children.items():
+        variances[action] = independent_policy_value_variance(
+            child, policy, discount_factor
+        )
+
+    return variances
 
 
 def get_children_policy_values_and_inverse_variance(

@@ -11,9 +11,9 @@ from core.node import Node
 from policies.policies import Policy
 from policies.selection_distributions import PolicyUCT
 import numpy as np
-from environments.frozenlake.frozen_lake import actions_dict
+from environments.frozenlake.frozen_lake import actions_dict, coords
 
-from policies.utility_functions import policy_value
+from policies.utility_functions import policy_value, get_children_visits
 
 class AlphaZeroDetector(AlphaZeroMCTS):
 
@@ -51,6 +51,7 @@ class AlphaZeroDetector(AlphaZeroMCTS):
         self.trajectory = [] # List of tuples (node, action) that represent the trajectory sampled by unrolling the prior policy during detection
         self.problem_idx = None # Index of the problematic node in the trajectory, i.e. first node whose value estimate is disregarded
         self.last_value_estimate = None 
+        self.root_idx = None
         self.planning_style = planning_style # The planning style to use when the problem is detected
         self.predictor = predictor # The predictor to use for the n-step prediction
         self.value_search = value_search # If True, the agent will use the value search 
@@ -69,9 +70,6 @@ class AlphaZeroDetector(AlphaZeroMCTS):
         At every step, the cumulative value estimate is compared to the prediction to detect any changes.
         The policy is always unrolled from the current root node.
         """
-
-        #create coordinate lambda function that maps the observation to a 2D position
-        coords = lambda observ: (observ // 8, observ % 8)
 
         len_traj = len(self.trajectory)
 
@@ -247,10 +245,8 @@ class AlphaZeroDetector(AlphaZeroMCTS):
 
                 return
 
-    def accumulate_unroll(self, env: gym.Env, n: int, obs, reward: float, original_env: None | gym.Env):
+    def accumulate_unroll(self, env: gym.Env, n: int, obs, reward: float, original_env: None | gym.Env, env_action = None) -> None:
 
-        #create coordinate lambda function that maps the observation to a 2D position
-        coords = lambda observ: (observ // 8, observ % 8)
         ziopera = False
 
         if self.trajectory == []:
@@ -260,6 +256,7 @@ class AlphaZeroDetector(AlphaZeroMCTS):
             self.trajectory = []
             self.problem_idx = None
             start = 0
+            self.root_idx = 0
         
             root_node = Node(
                 env=copy.deepcopy(env),
@@ -307,12 +304,9 @@ class AlphaZeroDetector(AlphaZeroMCTS):
 
             root_estimate = self.n_step_prediction(None, 0, original_root_node) if self.predictor == "original_env" else node.value_evaluation
 
-            print(f"Value estimate: {val}, Prediction: {val}", "obs", f"({coords(node.observation)[0]}, {coords(node.observation)[1]})")
-
         if self.trajectory != [] and self.problem_idx is None:
-            #print the current trajectory
-            print("Current Trajectory: ")
-            print([(self.trajectory[i][0].observation // 8, self.trajectory[i][0].observation % 8) for i in range(len(self.trajectory))])
+
+
             # We have already started unrolling and have not encountered a problem yet.
             # We can use the previous trajectory to continue unrolling, starting from the last node.
 
@@ -320,6 +314,9 @@ class AlphaZeroDetector(AlphaZeroMCTS):
             node = self.trajectory[-1][0]
             val = node.value_evaluation
             policy = node.prior_policy
+
+            self.root_idx +=1
+            self.trajectory[self.root_idx][0].parent = None # We set the parent of the root node to None
 
             start = len(self.trajectory)-1
 
@@ -337,40 +334,43 @@ class AlphaZeroDetector(AlphaZeroMCTS):
 
             value_estimate = self.last_value_estimate # should take the final computation of the last trajectory
      
-        elif self.trajectory != [] and self.problem_idx is not None:
+        if self.trajectory != [] and self.problem_idx is not None:
 
             len_traj = len(self.trajectory)
 
-            if len_traj >= 1 and self.problem_idx is not None:
-                if obs == self.trajectory[0][0].observation:
+            if len_traj >= 1:
+                if obs == self.trajectory[self.root_idx][0].observation:
                     print("Reusing Trajectory: ")
-                    if self.planning_style != "mini_trees":
-                        self.trajectory[0][0].parent = None # We set the parent of the root node to None
+                    self.trajectory[self.root_idx][0].parent = None
                     print([(self.trajectory[i][0].observation // 8, self.trajectory[i][0].observation % 8) for i in range(len(self.trajectory))])
                     return
-                elif len_traj > 1 and obs == self.trajectory[1][0].observation:
+                elif len_traj > 1 and obs == self.trajectory[self.root_idx+1][0].observation:
                     print("Reusing Trajectory: ")
-                    start_idx = 1
-                    self.trajectory = self.trajectory[start_idx:] 
-                    self.problem_idx -= start_idx
-                    if self.planning_style != "mini_trees":
-                        self.trajectory[0][0].parent = None
-                    print([(self.trajectory[i][0].observation // 8, self.trajectory[i][0].observation % 8) for i in range(len(self.trajectory))])
+                    self.root_idx += 1
+                    self.trajectory[self.root_idx][0].parent = None
                     return
             
-            # We have started unrolling from scratch, so we have to create the first node
+            # We have started unrolling from scratch, but we can use an existing
+
+            if env_action in self.trajectory[self.root_idx][0].children:
+                root_node = self.trajectory[self.root_idx][0].children[env_action]
+                root_node.parent = None
+                print("Gabibbo")
+            else:
+                root_node = Node(
+                    env=copy.deepcopy(env),
+                    parent=None,
+                    reward=reward,
+                    action_space=env.action_space,
+                    observation=obs,
+                )
 
             self.trajectory = []
             self.problem_idx = None
+            self.root_idx = 0
             start = 0
         
-            root_node = Node(
-                env=copy.deepcopy(env),
-                parent=None,
-                reward=reward,
-                action_space=env.action_space,
-                observation=obs,
-            )
+            
             
             original_root_node = (
                 None if original_env is None else 
@@ -410,7 +410,8 @@ class AlphaZeroDetector(AlphaZeroMCTS):
 
             root_estimate = self.n_step_prediction(None, 0, original_root_node) if self.predictor == "original_env" else node.value_evaluation
 
-            print(f"Value estimate: {val}, Prediction: {val}", "obs", f"({coords(node.observation)[0]}, {coords(node.observation)[1]})")
+        print("Current Trajectory: ")
+        print([(self.trajectory[i][0].observation // 8, self.trajectory[i][0].observation % 8) for i in range(len(self.trajectory))])
         
         new_end = start + n
 
@@ -450,11 +451,17 @@ class AlphaZeroDetector(AlphaZeroMCTS):
 
             elif self.planning_style == "connected": # connected or q-directed
 
-                eval_node = self.expand(node, action)
-                eval_node.value_evaluation = self.value_function(eval_node)
+                if action in node.children:
+                    
+                    node = node.children[action]
+                
+                else:
 
-                node = eval_node
-                self.backup(node, node.value_evaluation)
+                    eval_node = self.expand(node, action)
+                    eval_node.value_evaluation = self.value_function(eval_node)
+
+                    node = eval_node
+                    self.backup(node, node.value_evaluation)
 
                 if node.is_terminal():
                     break
@@ -463,19 +470,23 @@ class AlphaZeroDetector(AlphaZeroMCTS):
             
             elif self.planning_style == "q-directed":
 
-                eval_node = self.expand(node, action)
-                eval_node.value_evaluation = self.value_function(eval_node)
+                if action in node.children:
+                    
+                    node = node.children[action]
 
-                node = eval_node
-                # node.visits += 1
-                # node.policy_value = th.tensor(node.value_evaluation)
-                self.backup(node, node.value_evaluation)
+                else:
+                    eval_node = self.expand(node, action)
+                    eval_node.value_evaluation = self.value_function(eval_node)
+
+                    node = eval_node
+                    # node.visits += 1
+                    # node.policy_value = th.tensor(node.value_evaluation)
+                    self.backup(node, node.value_evaluation)
 
                 if node.is_terminal():
                     break
 
                 val, policy = node.value_evaluation, node.prior_policy
-
 
             i_est = value_estimate + (self.discount_factor**(i+1)) * val
             
@@ -507,7 +518,7 @@ class AlphaZeroDetector(AlphaZeroMCTS):
                 # In this example situation: ()-()-()-x-()... it would be 2. Note that this also 
                 # corresponds to the last safe state in the trajectory (since indexing starts from 0).
         
-                problem_index = min(safe_index + 1, new_end-1) # We add 1 to include the first problematic node in the trajectory
+                problem_index = min(safe_index + 1, new_end) # We add 1 to include the first problematic node in the trajectory
 
                 if problem_index == len(self.trajectory):
                     self.trajectory.append((node, None))
@@ -595,8 +606,6 @@ class AlphaZeroDetector(AlphaZeroMCTS):
                 if node.is_terminal():
                     break
 
-                #coords = lambda observ: (observ // 8, observ % 8)
-
                 val, policy = self.model.single_observation_forward(node.observation)
 
                 i_est = value_estimate + (self.discount_factor**(i+1)) * val
@@ -668,23 +677,21 @@ class AlphaZeroDetector(AlphaZeroMCTS):
 
             return value_estimate
         
-    def search(self, env: Env, iterations: int, obs, reward: float, original_env: Env | None, n: float = 5) -> Node:
+    def search(self, env: Env, iterations: int, obs, reward: float, original_env: Env | None, n: float = 5, env_action = None) -> Node:
 
-        self.accumulate_unroll(env, n, obs, reward, original_env) # We always unroll the prior before planning in azdetection
+        self.accumulate_unroll(env, n, obs, reward, original_env, env_action) # We always unroll the prior before planning in azdetection
 
-        if self.problem_idx is None: # If no problem was detected we don't need to plan since we'll just follow the prior
-            node = Node(
-                env=copy.deepcopy(env),
-                parent=None,
-                reward=reward,
-                action_space=env.action_space,
-                observation=obs,
-            )
-            node.value_evaluation = self.value_function(node)
-            self.backup(node, node.value_evaluation)
-            return node
+        # if self.problem_idx is None: # If no problem was detected we don't need to plan since we'll just follow the prior
+        #     print("Root idx:", self.root_idx)   
+        #     node = self.trajectory[self.root_idx][0]
+        #     return node
         
-        safe_length = max(len(self.trajectory)-1, 1) # Excludes the problematic node, we don't want to plan from there
+        safe_length = max(len(self.trajectory)-1, 1) if self.problem_idx is not None else len(self.trajectory) # Excludes the problematic node, we don't want to plan from there
+
+        if self.problem_idx is not None:
+            self.trajectory[self.problem_idx][0].value_evaluation = 0.0
+            self.backup(self.trajectory[self.problem_idx][0], 0, 0) # We backup the value of the problematic node
+            #self.trajectory[self.problem_idx][0].policy_value = 0.0
 
         if self.value_search:
             # We initialize the value estimate of the problematic node
@@ -774,12 +781,13 @@ class AlphaZeroDetector(AlphaZeroMCTS):
 
             # Backup the value of the problematic node
 
-            root_node = self.trajectory[0][0]
-            print("Num expanded children of the root:", len(root_node.children))
-            start_val = root_node.value_evaluation
-            
-            counter = root_node.visits
+            root_node = self.trajectory[self.root_idx][0]
+            root_node.parent = None # We don't want to backtrack to nodes that are already surpassed
 
+            start_val = root_node.value_evaluation
+
+            counter = root_node.visits
+            
             while root_node.visits - counter < iterations:
 
                 candidate_actions  = [] if self.value_search else None
@@ -826,8 +834,8 @@ class AlphaZeroDetector(AlphaZeroMCTS):
 
         elif self.planning_style == "q-directed":
 
-            assert isinstance(self.selection_policy, PolicyUCT)
-            assert self.selection_policy.c == 0
+            # assert isinstance(self.selection_policy, PolicyUCT)
+            # assert self.selection_policy.c == 0
 
             """
 
@@ -836,7 +844,7 @@ class AlphaZeroDetector(AlphaZeroMCTS):
 
             """
 
-            safe_nodes = self.trajectory[:safe_length] # We only consider the nodes before the problematic node
+            safe_nodes = self.trajectory[self.root_idx:safe_length] # We only consider the nodes before the problematic node
 
             for _ in range(iterations):
 
@@ -857,19 +865,20 @@ class AlphaZeroDetector(AlphaZeroMCTS):
                         taken_actions.append(action)
 
                     node.policy_value = policy_value(node, self.selection_policy.policy, self.discount_factor)
-                    print(node.policy_value)
+                    #print(node.policy_value)
 
                     # if not node.is_fully_expanded():
                     #     chosen_node = node
                     #     candidate_actions = taken_actions[:-1] if self.value_search else None
                     #     break
+
                     
                     if node.policy_value > max_val:
                         max_val = node.policy_value
                         chosen_node = node
                         candidate_actions = taken_actions[:-1] if self.value_search else None
 
-                print("Chosen node value:", chosen_node.policy_value)
+                #print("Chosen node value:", chosen_node.policy_value)
 
                 parent = chosen_node.parent
                 chosen_node.parent = None
@@ -922,7 +931,7 @@ class AlphaZeroDetector(AlphaZeroMCTS):
             raise NotImplementedError("Planning style not recognized.")
 
 
-        return self.trajectory[0][0] # If the problem is not solved, return the root node
+        return self.trajectory[self.root_idx][0] # If the problem is not solved, return the root node
 
 
     def traverse(

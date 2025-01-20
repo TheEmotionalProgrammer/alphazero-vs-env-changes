@@ -15,6 +15,8 @@ actions_dict = {
     3: "Up",
 }
 
+coords = lambda observ: (observ // 8, observ % 8) if observ is not None else None
+
 
 class CustomFrozenLakeEnv(FrozenLakeEnv):
     def __init__(

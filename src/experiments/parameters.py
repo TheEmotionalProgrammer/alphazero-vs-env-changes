@@ -12,7 +12,7 @@ base_parameters = {
     "regularization_weight": 1e-6,
     "tree_evaluation_policy": "visit",
     "eval_param": 10.0,
-    "tree_temperature": None,
+    "tree_temperature": 0,
     "tree_value_transform": "identity",
     "hidden_dim": 64,
     "learning_rate": 1e-3,
@@ -168,12 +168,24 @@ fz_env_descriptions = {
         "FFFFFFFG"
     ],
 
+    "NARROW_FAR": [
+        "SFFFFFFF",
+        "FFFFFFFF",
+        "FFFFFFFF",
+        "FFFFFFFF",
+        "FFFFFFFF",
+        "HHFHHHHH",
+        "HHFHHHHH",
+        "FFFFFFFG"
+    ],
+
+
     "DEAD_END": [
         "SFFFFFFF",
         "FFFFFFFF",
         "FFFFFFFF",
         "FFFFFFFF",
-        "FFHHHHHH",
+        "GFHHHHHH",
         "FFFFFFFF",
         "FFFFFFFF",
         "FFFFFFFG"
