@@ -95,7 +95,7 @@ class VarianceSelectionPolicy(PolicyUCT):
             # return 1 for all children with 0 visits
             return variances == 1
 
-        return variances # should help explore more uncertain nodes
+        return self.Q(node) + self.c * variances 
 
 
 class T_UCT(UCT):

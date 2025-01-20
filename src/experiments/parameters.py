@@ -185,7 +185,7 @@ fz_env_descriptions = {
         "FFFFFFFF",
         "FFFFFFFF",
         "FFFFFFFF",
-        "GFHHHHHH",
+        "FFHHHHHH",
         "FFFFFFFF",
         "FFFFFFFF",
         "FFFFFFFG"
