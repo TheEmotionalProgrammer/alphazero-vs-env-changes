@@ -61,8 +61,6 @@ def run_episode(
     Outputs the trajectory and optionally the trees that were generated during the episode.
     """
 
-    max_steps = 25
-
     assert isinstance(env.action_space, gym.spaces.Discrete) # For now, only supports discrete action spaces
     n = int(env.action_space.n)
 
@@ -205,7 +203,7 @@ def run_episode(
 
         else: # If we are using azdetection, we need to check if a problem was detected
 
-            if solver.problem_idx is None: # If no problem was detected, we act following the prior (quick)
+            if solver.problem_idx is None and not solver.stop_unrolling: # If no problem was detected, we act following the prior (quick)
                 print("No problem detected, acting normally.")
                 action = th.argmax(tree.prior_policy).item()
 

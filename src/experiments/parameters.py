@@ -12,7 +12,7 @@ base_parameters = {
     "regularization_weight": 1e-6,
     "tree_evaluation_policy": "visit",
     "eval_param": 10.0,
-    "tree_temperature": 0,
+    "tree_temperature": None,
     "tree_value_transform": "identity",
     "hidden_dim": 64,
     "learning_rate": 1e-3,
@@ -58,7 +58,7 @@ env_challenges = {
 
     "CustomFrozenLakeNoHoles16x16-v1": {
         "env_description": "CustomFrozenLakeNoHoles16x16-v1",
-        "max_episode_length": 300,
+        "max_episode_length": 100,
         "env_params": dict(id="CustomFrozenLakeNoHoles16x16-v1", max_episode_steps=1000000000),
         "optimal_value": 1.0 * 0.95 ** 30,
         "worst_value": 0.0,
@@ -210,8 +210,8 @@ fz_env_descriptions = {
         "FFFFFFFF",
         "FFFFFFFF",
         "FFFFFFFF",
-        "FFHHHHHH",
         "FFFFFFFF",
+        "FFHHHHHH",
         "FFFFFFFF",
         "FFFFFFFG"
     ],
@@ -306,6 +306,24 @@ fz_env_descriptions = {
         "FFFFFFFFFFFFFFFG"
     ],
 
+    "16x16_DEAD_END": [
+        "SFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFHHHHHHHHHH",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFG"
+    ],
 
 
 }
