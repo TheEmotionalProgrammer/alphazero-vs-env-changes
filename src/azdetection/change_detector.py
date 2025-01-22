@@ -71,7 +71,7 @@ class AlphaZeroDetector(AlphaZeroMCTS):
         """
 
         #create coordinate lambda function that maps the observation to a 2D position
-        coords = lambda observ: (observ // 8, observ % 8)
+        coords = lambda observ: (observ // self.ncols, observ % self.ncols)
 
         len_traj = len(self.trajectory)
 
@@ -316,7 +316,7 @@ class AlphaZeroDetector(AlphaZeroMCTS):
                 if node.is_terminal():
                     break
 
-                #coords = lambda observ: (observ // 8, observ % 8)
+                #coords = lambda observ: (observ // self.ncols, observ % self.ncols)
 
                 val = self.value_function(node)
                 policy = node.prior_policy

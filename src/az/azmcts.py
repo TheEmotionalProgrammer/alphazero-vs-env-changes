@@ -38,9 +38,9 @@ class AlphaZeroMCTS(MCTS):
         self.dir_epsilon = dir_epsilon
         self.dir_alpha = dir_alpha
         self.value_estimate = value_estimate
+        self.ncols = self.model.observation_embedding.ncols
 
         if self.value_estimate == "perfect":
-            self.ncols = self.model.observation_embedding.ncols
             desc = self.model.env.unwrapped.desc.tolist() # Get the original desc of the training env
             self.distances = fz_compute_distances(desc) # Compute the distances from each cell to the goal cell
             
