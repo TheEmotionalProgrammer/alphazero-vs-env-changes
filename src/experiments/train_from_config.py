@@ -50,7 +50,7 @@ def train_from_config(
     # Initialize Weights & Biases
     settings = wandb.Settings(job_name=job_name)
 
-    run_name = f"AZTrain_env={config['env_description']}_iterations={config['iterations']}_budget={config['planning_budget']}_seed={seed}_{datetime.datetime.now().strftime('%Y%m%d-%H%M%S')}"
+    run_name = f"AZTrain_env={config['env_description']}_iterations={config['iterations']}_budget={config['planning_budget']}_lr={config['learning_rate']}_nstepslr={config['n_steps_learning']}_seed={seed}_{datetime.datetime.now().strftime('%Y%m%d-%H%M%S')}"
 
     run = wandb.init(
         project=project_name, name= run_name,entity=entity, settings=settings, config=config, tags=tags
@@ -215,20 +215,21 @@ if __name__ == "__main__":
     
     # Parse the train seed from command line
     parser = argparse.ArgumentParser(description="AlphaZero Training with a specific seed.")
-    parser.add_argument("--workers", type=int, default=min(6, multiprocessing.cpu_count()), help="Number of workers")
+    parser.add_argument("--workers", type=int, default=6, help="Number of workers")
     parser.add_argument("--tree_evaluation_policy", type=str, default="visit", help="Tree evaluation policy")
     parser.add_argument("--selection_policy", type=str, default="PUCT", help="Selection policy")
-    parser.add_argument("--planning_budget", type=int, default=64, help="Planning budget")
-    parser.add_argument("--iterations", type=int, default=50, help="Number of iterations")
+    parser.add_argument("--planning_budget", type=int, default=8, help="Planning budget")
+    parser.add_argument("--iterations", type=int, default=200, help="Number of iterations")
     parser.add_argument("--observation_embedding", type=str, default="coordinate", help="Observation embedding type")
-    parser.add_argument("--n_steps_learning", type=int, default=1, help="Number of steps for learning")
-    parser.add_argument("--train_seed", type=int, required=True, help="The random seed to use for training.")
+    parser.add_argument("--n_steps_learning", type=int, default=3, help="Number of steps for learning")
+    parser.add_argument("--train_seed", type=int, default=0, help="The random seed to use for training.")
+    parser.add_argument("--puct_c", type=float, default=1.0, help="PUCT constant")
 
     args = parser.parse_args()
 
     # Construct run configuration
 
-    challenge = env_challenges["CustomFrozenLakeNoHoles8x8-v1"]
+    challenge = env_challenges["CustomFrozenLakeNoHoles16x16-v1"]
     
     config_modifications = {
         "workers": args.workers,

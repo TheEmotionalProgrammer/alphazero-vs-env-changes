@@ -132,8 +132,8 @@ def run_episode(
                     vis_env.step(action)
                     frames.append(vis_env.render())
 
-                new_pos_row = new_obs // 8
-                new_pos_col = new_obs % 8
+                new_pos_row = new_obs // observation_embedding.ncols
+                new_pos_col = new_obs % observation_embedding.ncols
                 print(f"obs = ({new_pos_row}, {new_pos_col}), reward = {reward}, terminated = {terminated}, truncated = {truncated}")
 
                 if original_env is not None:
@@ -234,8 +234,8 @@ def run_episode(
             frames.append(vis_env.render())
 
         # Convert the observation to a 2D position, hardcoded size of the grid for now
-        new_pos_row = new_obs // 8 
-        new_pos_col = new_obs % 8
+        new_pos_row = new_obs // observation_embedding.ncols
+        new_pos_col = new_obs % observation_embedding.ncols
 
         print(f"Env: obs = ({new_pos_row}, {new_pos_col}), reward = {reward}, terminated = {terminated}, truncated = {truncated}")
 

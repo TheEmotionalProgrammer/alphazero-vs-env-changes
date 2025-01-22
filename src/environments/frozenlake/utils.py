@@ -32,4 +32,7 @@ def fz_compute_distances(lake_map: List[str]) -> Dict[int, int]:
                 visited.add((new_row, new_col))
                 distances[new_row, new_col] = distances[row, col] + 1
                 queue.append((new_row, new_col))
+    
+    distances[goal] = 0
+
     return distances
