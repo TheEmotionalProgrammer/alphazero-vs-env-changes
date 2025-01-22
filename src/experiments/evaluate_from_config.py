@@ -462,17 +462,17 @@ if __name__ == "__main__":
     parser.add_argument("--dir_alpha", type=float, default=None, help="Dirichlet noise parameter alpha")
 
     # AZDetection detection parameters
-    parser.add_argument("--threshold", type=float, default=0.05, help="Detection threshold")
-    parser.add_argument("--unroll_budget", type=int, default=15, help="Unroll budget")
+    parser.add_argument("--threshold", type=float, default=0.01, help="Detection threshold")
+    parser.add_argument("--unroll_budget", type=int, default=10, help="Unroll budget")
 
     # AZDetection replanning parameters
     parser.add_argument("--planning_style", type=str, default="mini_trees", help="Planning style")
     parser.add_argument("--value_search", type=bool, default=True, help="Enable value search")
-    parser.add_argument("--predictor", type=str, default="current_value", help="Predictor to use for detection")
+    parser.add_argument("--predictor", type=str, default="original_env", help="Predictor to use for detection")
 
     # Test environment
-    parser.add_argument("--test_env_id", type=str, default="DefaultFrozenLake8x8-v1", help="Test environment ID")
-    parser.add_argument("--test_env_desc", type=str, default="DEAD_END", help="Environment description")
+    parser.add_argument("--test_env_id", type=str, default="CustomFrozenLakeNoHoles16x16-v1", help="Test environment ID")
+    parser.add_argument("--test_env_desc", type=str, default="16x16_IMPOSSIBLE", help="Environment description")
     parser.add_argument("--test_env_is_slippery", type=bool, default=False, help="Environment slippery flag")
     parser.add_argument("--test_env_hole_reward", type=int, default=0.0, help="Hole reward")
     parser.add_argument("--test_env_terminate_on_hole", type=bool, default=False, help="Terminate on hole")
@@ -482,7 +482,7 @@ if __name__ == "__main__":
     parser.add_argument("--observation_embedding", type=str, default="coordinate", help="Observation embedding type")
 
     # Model file for single run evaluation
-    parser.add_argument("--model_file", type=str, default=f"hyper/AZTrain_env=CustomFrozenLakeNoHoles8x8-v1_iterations=50_budget=64_seed=7/checkpoint.pth", help="Path to model file")
+    parser.add_argument("--model_file", type=str, default=f"hyper/AZTrain_env=CustomFrozenLakeNoHoles16x16-v1_iterations=200_budget=32_seed=7_20250121-104757/checkpoint.pth", help="Path to model file")
 
     parser.add_argument("--train_seeds", type=int, default=10, help="The number of random seeds to use for training.")
     parser.add_argument("--eval_seeds", type=int, default=10, help="The number of random seeds to use for evaluation.")
@@ -499,7 +499,7 @@ if __name__ == "__main__":
     # Parse arguments
     args = parser.parse_args()
 
-    challenge = env_challenges["CustomFrozenLakeNoHoles8x8-v1"]  # Training environment
+    challenge = env_challenges["CustomFrozenLakeNoHoles16x16-v1"]  # Training environment
 
     # Construct the config
     config_modifications = {

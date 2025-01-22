@@ -48,7 +48,7 @@ class AlphaZeroDetector(AlphaZeroMCTS):
             value_estimate = value_estimate
         )
 
-        self.threshold = 0.001 if predictor == "original_env" else threshold # If we use the original env predictor, we can set the threshold arbitrarily low
+        self.threshold = 0 if predictor == "original_env" else threshold # If we use the original env predictor, we can set the threshold arbitrarily low
         self.trajectory = [] # List of tuples (node, action) that represent the trajectory sampled by unrolling the prior policy during detection
         self.problem_idx = None # Index of the problematic node in the trajectory, i.e. first node whose value estimate is disregarded
         self.planning_style = planning_style # The planning style to use when the problem is detected
@@ -80,7 +80,7 @@ class AlphaZeroDetector(AlphaZeroMCTS):
                 print("Reusing Trajectory: ")
                 if self.planning_style != "mini_trees":
                     self.trajectory[0][0].parent = None # We set the parent of the root node to None
-                print([(self.trajectory[i][0].observation // 8, self.trajectory[i][0].observation % 8) for i in range(len(self.trajectory))])
+                print([(self.trajectory[i][0].observation // self.ncols, self.trajectory[i][0].observation % self.ncols) for i in range(len(self.trajectory))])
                 return
             elif len_traj > 1 and obs == self.trajectory[1][0].observation:
                 print("Reusing Trajectory: ")
@@ -89,7 +89,7 @@ class AlphaZeroDetector(AlphaZeroMCTS):
                 self.problem_idx -= start_idx
                 if self.planning_style != "mini_trees":
                     self.trajectory[0][0].parent = None
-                print([(self.trajectory[i][0].observation // 8, self.trajectory[i][0].observation % 8) for i in range(len(self.trajectory))])
+                print([(self.trajectory[i][0].observation // self.ncols, self.trajectory[i][0].observation % self.ncols) for i in range(len(self.trajectory))])
                 return
         
         self.trajectory = []
@@ -232,7 +232,7 @@ class AlphaZeroDetector(AlphaZeroMCTS):
                 # In this example situation: ()-()-()-x-()... it would be 2. Note that this also 
                 # corresponds to the last safe state in the trajectory (since indexing starts from 0).
            
-                problem_index = min(safe_index + 1, n-1) # We add 1 to include the first problematic node in the trajectory
+                problem_index = min(safe_index + 1, len(self.trajectory)) # We add 1 to include the first problematic node in the trajectory
 
                 if problem_index == len(self.trajectory):
                     self.trajectory.append((node, None))
@@ -590,7 +590,7 @@ class AlphaZeroDetector(AlphaZeroMCTS):
                 parent = chosen_node.parent
                 chosen_node.parent = None
 
-                #print("Chosen node:", f"({chosen_node.observation // 8}, {chosen_node.observation % 8})")
+                #print("Chosen node:", f"({chosen_node.observation // self.ncols}, {chosen_node.observation % self.ncols})")
 
                 # We traverse the tree from the chosen node
                 selected_node_for_expansion, selected_action = self.traverse(chosen_node, candidate_actions)

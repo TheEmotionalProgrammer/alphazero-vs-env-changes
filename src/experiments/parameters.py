@@ -275,4 +275,25 @@ fz_env_descriptions = {
         "FFFFFFFFFFFFFFFG"
     ],
 
+    "16x16_IMPOSSIBLE": [ # for debugging purposes
+        "SFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "HHHHHHHHHHHHHHHH",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFG"
+    ],
+
+
+
 }
