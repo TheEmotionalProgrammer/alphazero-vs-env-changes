@@ -5,6 +5,7 @@ from core.mcts_t import MCTS_T
 from az.model import AlphaZeroModel
 from core.node import Node
 from policies.policies import Policy
+from environments.frozenlake.utils import fz_compute_distances, fz_perfect_value
 
 
 class AlphaZeroMCTS(MCTS):
@@ -30,13 +31,19 @@ class AlphaZeroMCTS(MCTS):
     dir_alpha: float
 
     def __init__(
-        self, model: AlphaZeroModel, *args, dir_epsilon=0.0, dir_alpha=0.3, **kwargs
+        self, model: AlphaZeroModel, *args, dir_epsilon=0.0, dir_alpha=0.3, value_estimate = "nn", **kwargs
     ):
         super().__init__(*args, **kwargs)
         self.model = model
         self.dir_epsilon = dir_epsilon
         self.dir_alpha = dir_alpha
+        self.value_estimate = value_estimate
 
+        if self.value_estimate == "perfect":
+            self.ncols = self.model.observation_embedding.ncols
+            desc = self.model.env.unwrapped.desc.tolist() # Get the original desc of the training env
+            self.distances = fz_compute_distances(desc) # Compute the distances from each cell to the goal cell
+            
     @th.no_grad()
     def value_function(self, node: Node) -> float:
         """
@@ -73,7 +80,7 @@ class AlphaZeroMCTS(MCTS):
         else:
             node.prior_policy = policy
 
-        return value
+        return value if self.value_estimate == "nn" else fz_perfect_value(self.distances, node.observation, self.ncols, self.discount_factor)
 
 class AlphaZeroMCTS_T(MCTS_T, AlphaZeroMCTS):
     """

@@ -36,7 +36,7 @@ class AlphaZeroDetector(AlphaZeroMCTS):
             predictor: str = "current_value",
             planning_style: str = "value_search",
             value_search: bool = False,
-
+            value_estimate: str = "nn",
     ):
         super().__init__(
             model = model,
@@ -45,6 +45,7 @@ class AlphaZeroDetector(AlphaZeroMCTS):
             dir_epsilon = dir_epsilon,
             dir_alpha = dir_alpha,
             root_selection_policy = root_selection_policy,
+            value_estimate = value_estimate
         )
 
         self.threshold = 0.001 if predictor == "original_env" else threshold # If we use the original env predictor, we can set the threshold arbitrarily low
@@ -119,7 +120,8 @@ class AlphaZeroDetector(AlphaZeroMCTS):
 
         if self.planning_style == "mini_trees":
 
-            val, policy = self.model.single_observation_forward(node.observation)
+            val = self.value_function(node)
+            policy = node.prior_policy
 
             node.value_evaluation = val
             node.prior_policy = policy
@@ -168,7 +170,8 @@ class AlphaZeroDetector(AlphaZeroMCTS):
                 if node.is_terminal():
                     break
 
-                val, policy = self.model.single_observation_forward(node.observation)
+                val = self.value_function(node)
+                policy = node.prior_policy
 
             elif self.planning_style == "connected": # connected or q-directed
 
@@ -206,11 +209,11 @@ class AlphaZeroDetector(AlphaZeroMCTS):
                 self.n_step_prediction(root_node, i+1, None)
             )
 
+            print(f"Value estimate: {i_est}, Prediction: {i_pred}", "obs", f"({coords(node.observation)[0]}, {coords(node.observation)[1]})")
+
             # Add a very small delta to avoid division by zero
             i_pred = i_pred + 1e-9
             i_est = i_est + 1e-9
-            
-            print(f"Value estimate: {i_est}, Prediction: {i_pred}", "obs", f"({coords(node.observation)[0]}, {coords(node.observation)[1]})")
 
             if i_est/i_pred < 1 - self.threshold:
 
@@ -219,8 +222,8 @@ class AlphaZeroDetector(AlphaZeroMCTS):
                 # NOTE: at i in the for loop, we have taken i+1 steps
                 safe_index = i+1 - (np.log(1-self.threshold)/np.log(self.discount_factor))
 
-                if self.predictor == "current_value": # Log Error correction 
-                    safe_index -= np.log(i+1)
+                # if self.predictor == "current_value": # Log Error correction 
+                #     safe_index -= np.log(i+1)
 
                 safe_index = floor(safe_index)
 
@@ -281,7 +284,8 @@ class AlphaZeroDetector(AlphaZeroMCTS):
 
         value_estimate = 0.0
 
-        val, policy = self.model.single_observation_forward(node.observation)
+        val = self.value_function(node)
+        policy = node.prior_policy
 
         node.value_evaluation = val
         node.prior_policy = policy
@@ -314,7 +318,8 @@ class AlphaZeroDetector(AlphaZeroMCTS):
 
                 #coords = lambda observ: (observ // 8, observ % 8)
 
-                val, policy = self.model.single_observation_forward(node.observation)
+                val = self.value_function(node)
+                policy = node.prior_policy
 
                 i_est = value_estimate + (self.discount_factor**(i+1)) * val
                 
@@ -381,7 +386,7 @@ class AlphaZeroDetector(AlphaZeroMCTS):
 
                 if i == n-1:
 
-                    value_estimate = value_estimate + (self.discount_factor**(i+1)) * self.model.single_observation_forward(node.observation)[0]
+                    value_estimate = value_estimate + (self.discount_factor**(i+1)) * self.value_function(node)
 
             return value_estimate
         
@@ -399,7 +404,7 @@ class AlphaZeroDetector(AlphaZeroMCTS):
 
         if self.value_search:
             # We initialize the value estimate of the problematic node
-            self.trajectory[self.problem_idx][0].value_evaluation = self.model.single_observation_forward(self.trajectory[self.problem_idx][0].observation)[0]
+            self.trajectory[self.problem_idx][0].value_evaluation = self.value_function(self.trajectory[self.problem_idx][0])
 
         if self.planning_style == "mini_trees":
 
@@ -438,7 +443,7 @@ class AlphaZeroDetector(AlphaZeroMCTS):
 
                     if selected_node_for_expansion.is_terminal(): # If the node is terminal, set its value to 0 and backup
 
-                        if self.value_search and selected_node_for_expansion.reward > self.trajectory[self.problem_idx][0].value_evaluation:
+                        if self.value_search and selected_node_for_expansion.reward >= self.trajectory[self.problem_idx][0].value_evaluation:
                         #if self.value_search and selected_node_for_expansion.reward > start_val: # Potentially better but slower
                             self.problem_idx = None
                             return candidate_actions
@@ -451,7 +456,7 @@ class AlphaZeroDetector(AlphaZeroMCTS):
                         eval_node = self.expand(selected_node_for_expansion, selected_action)
                         eval_node.value_evaluation = self.value_function(eval_node)
 
-                        if self.value_search and eval_node.value_evaluation > self.trajectory[self.problem_idx][0].value_evaluation:
+                        if self.value_search and eval_node.value_evaluation >= self.trajectory[self.problem_idx][0].value_evaluation:
                         #if self.value_search and eval_node.value_evaluation > start_val: # Potentially better but slower
 
                             # We create copies of the envs to avoid any interference with the standard ongoing planning
@@ -760,7 +765,7 @@ class AlphaZeroDetector_T(AlphaZeroDetector, MCTS_T):
 
         if self.value_search:
             # We initialize the value estimate of the problematic node
-            self.trajectory[self.problem_idx][0].value_evaluation = self.model.single_observation_forward(self.trajectory[self.problem_idx][0].observation)[0]
+            self.trajectory[self.problem_idx][0].value_evaluation = self.value_function(self.trajectory[self.problem_idx][0])
 
         if self.planning_style == "mini_trees":
 

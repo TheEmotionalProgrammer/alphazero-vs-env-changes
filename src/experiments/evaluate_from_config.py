@@ -33,7 +33,7 @@ from parameters import base_parameters, env_challenges, fz_env_descriptions
 from log_code.gen_renderings import save_gif_imageio
 
 def agent_from_config(hparams: dict):
-
+    
     env = gym.make(**hparams["env_params"])
 
     discount_factor = hparams["discount_factor"]
@@ -148,6 +148,7 @@ def agent_from_config(hparams: dict):
                 dir_epsilon=dir_epsilon,
                 dir_alpha=dir_alpha,
                 discount_factor=discount_factor,
+                value_estimate=hparams["value_estimate"],
             )
 
     elif hparams["agent_type"] == "azdetection":
@@ -204,6 +205,7 @@ def agent_from_config(hparams: dict):
                 threshold=threshold,
                 planning_style=planning_style,
                 value_search=value_search,
+                value_estimate=hparams["value_estimate"],
             )
 
     else:
@@ -440,19 +442,18 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="AlphaZero Evaluation Configuration")
 
     # Run configurations
-    parser.add_argument("--wandb_logs", type=bool, default=True, help="Enable wandb logging")
+    parser.add_argument("--wandb_logs", type=bool, default=False, help="Enable wandb logging")
     parser.add_argument("--workers", type=int, default=6, help="Number of workers")
     parser.add_argument("--runs", type=int, default=1, help="Number of runs")
 
     # Basic search parameters
-    parser.add_argument("--tree_evaluation_policy", type=str, default="mvc", help="Tree evaluation policy")
-    parser.add_argument("--selection_policy", type=str, default="PolicyUCT", help="Selection policy")
-    parser.add_argument("--planning_budget", type=int, default=512, help="Planning budget")
+    parser.add_argument("--tree_evaluation_policy", type=str, default="visit", help="Tree evaluation policy")
+    parser.add_argument("--selection_policy", type=str, default="PUCT", help="Selection policy")
+    parser.add_argument("--planning_budget", type=int, default=32, help="Planning budget")
     parser.add_argument("--puct_c", type=float, default=1.0, help="PUCT parameter")
 
     # Search algorithm
     parser.add_argument("--agent_type", type=str, default="azdetection", help="Agent type")
-    parser.add_argument("--depth_estimation", type=bool, default=False, help="Use tree depth estimation")
     parser.add_argument("--depth_estimation", type=bool, default=False, help="Use tree depth estimation")
 
     # Stochasticity parameters
@@ -461,17 +462,17 @@ if __name__ == "__main__":
     parser.add_argument("--dir_alpha", type=float, default=None, help="Dirichlet noise parameter alpha")
 
     # AZDetection detection parameters
-    parser.add_argument("--threshold", type=float, default=0.001, help="Detection threshold")
-    parser.add_argument("--unroll_budget", type=int, default=10, help="Unroll budget")
+    parser.add_argument("--threshold", type=float, default=0.05, help="Detection threshold")
+    parser.add_argument("--unroll_budget", type=int, default=15, help="Unroll budget")
 
     # AZDetection replanning parameters
-    parser.add_argument("--planning_style", type=str, default="connected", help="Planning style")
+    parser.add_argument("--planning_style", type=str, default="mini_trees", help="Planning style")
     parser.add_argument("--value_search", type=bool, default=True, help="Enable value search")
-    parser.add_argument("--predictor", type=str, default="original_env", help="Predictor to use for detection")
+    parser.add_argument("--predictor", type=str, default="current_value", help="Predictor to use for detection")
 
     # Test environment
     parser.add_argument("--test_env_id", type=str, default="DefaultFrozenLake8x8-v1", help="Test environment ID")
-    parser.add_argument("--test_env_desc", type=str, default="DEFAULT", help="Environment description")
+    parser.add_argument("--test_env_desc", type=str, default="DEAD_END", help="Environment description")
     parser.add_argument("--test_env_is_slippery", type=bool, default=False, help="Environment slippery flag")
     parser.add_argument("--test_env_hole_reward", type=int, default=0.0, help="Hole reward")
     parser.add_argument("--test_env_terminate_on_hole", type=bool, default=False, help="Terminate on hole")
@@ -481,7 +482,7 @@ if __name__ == "__main__":
     parser.add_argument("--observation_embedding", type=str, default="coordinate", help="Observation embedding type")
 
     # Model file for single run evaluation
-    parser.add_argument("--model_file", type=str, default=f"hyper/AZTrain_env=CustomFrozenLakeNoHoles8x8-v1_iterations=50_budget=64_seed=5/checkpoint.pth", help="Path to model file")
+    parser.add_argument("--model_file", type=str, default=f"hyper/AZTrain_env=CustomFrozenLakeNoHoles8x8-v1_iterations=50_budget=64_seed=7/checkpoint.pth", help="Path to model file")
 
     parser.add_argument("--train_seeds", type=int, default=10, help="The number of random seeds to use for training.")
     parser.add_argument("--eval_seeds", type=int, default=10, help="The number of random seeds to use for evaluation.")
@@ -492,6 +493,8 @@ if __name__ == "__main__":
     parser.add_argument("--run_full_eval", type=bool, default= False, help="Run type")
 
     parser.add_argument("--hpc", type=bool, default=False, help="HPC flag")
+
+    parser.add_argument("--value_estimate", type=str, default="nn", help="Value estimate method")
 
     # Parse arguments
     args = parser.parse_args()
@@ -530,6 +533,7 @@ if __name__ == "__main__":
         "model_file": args.model_file,
         "render": args.render,
         "hpc": args.hpc,
+        "value_estimate": args.value_estimate,
     }
 
     run_config = {**base_parameters, **challenge, **config_modifications}
