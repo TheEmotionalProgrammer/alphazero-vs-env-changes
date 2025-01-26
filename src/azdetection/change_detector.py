@@ -34,7 +34,7 @@ class AlphaZeroDetector(AlphaZeroMCTS):
             dir_alpha: float = 0.3,
             root_selection_policy: Policy | None = None,
             predictor: str = "current_value",
-            planning_style: str = "value_search",
+            planning_style: str = "connected",
             value_search: bool = False,
             value_estimate: str = "nn",
     ):
@@ -57,6 +57,7 @@ class AlphaZeroDetector(AlphaZeroMCTS):
         self.predictor = predictor # The predictor to use for the n-step prediction
         self.value_search = value_search # If True, the agent will use the value search 
         self.stop_unrolling = False
+        self.time_left = th.inf
 
         self.coords = lambda observ: (observ // self.ncols, observ % self.ncols) if observ is not None else None
         
@@ -258,11 +259,11 @@ class AlphaZeroDetector(AlphaZeroMCTS):
         if self.trajectory == []:
             
             # We have started unrolling from scratch, so we have to create the first node
-
             self.trajectory = []
             self.problem_idx = None
             start = 0
             self.root_idx = 0
+            self.time_left = th.inf
         
             root_node = Node(
                 env=copy.deepcopy(env),
@@ -537,6 +538,8 @@ class AlphaZeroDetector(AlphaZeroMCTS):
                 print(f"Problem detected at state ({self.coords(problem_obs)[0]}, {self.coords(problem_obs)[1]}), after {problem_index} steps ")
 
                 self.problem_idx = problem_index
+                self.time_left = self.problem_idx - self.root_idx
+                print("Time left:", self.time_left)
                 self.trajectory = self.trajectory[:problem_index+1] # +1 to include the problematic node
 
                 #self.trajectory[problem_index][0].reward = -1 # Set the reward of the problematic node to 0
@@ -631,12 +634,11 @@ class AlphaZeroDetector(AlphaZeroMCTS):
     
                 i_pred = i_pred + 1e-9
                 i_est = i_est + 1e-9
-    
+
                 if i_est/i_pred < 1 - self.threshold:
                     return True # If a problem is detected, return True
 
         print("Clear detached unroll")
-
         return False # No problem detected in the unroll
 
     def n_step_prediction(self, node: Node | None, n: int, original_node: None | Node) -> float:
@@ -690,13 +692,16 @@ class AlphaZeroDetector(AlphaZeroMCTS):
             return value_estimate
         
     def search(self, env: Env, iterations: int, obs, reward: float, original_env: Env | None, n: float = 5, env_action = None) -> Node:
+
+        if self.time_left <= 0:
+            self.stop_unrolling = False
+            self.trajectory = []
+            self.time_left = th.inf
+
+        self.time_left -= 1
+
         if not self.stop_unrolling:
             self.accumulate_unroll(env, n, obs, reward, original_env, env_action) # We always unroll the prior before planning in azdetection
-
-        # if self.problem_idx is None: # If no problem was detected we don't need to plan since we'll just follow the prior
-        #     print("Root idx:", self.root_idx)   
-        #     node = self.trajectory[self.root_idx][0]
-        #     return node
         
             safe_length = max(len(self.trajectory)-1, 1) if self.problem_idx is not None else len(self.trajectory) # Excludes the problematic node, we don't want to plan from there
 
@@ -705,7 +710,7 @@ class AlphaZeroDetector(AlphaZeroMCTS):
                 self.backup(self.trajectory[self.problem_idx][0], 0, 0) # We backup the value of the problematic node
                 #self.trajectory[self.problem_idx][0].policy_value = 0.0
 
-            if self.value_search:
+            if self.value_search and self.problem_idx is not None:
                 # We initialize the value estimate of the problematic node
                 self.trajectory[self.problem_idx][0].value_evaluation = self.value_function(self.trajectory[self.problem_idx][0])
 
@@ -788,8 +793,8 @@ class AlphaZeroDetector(AlphaZeroMCTS):
             This method should be combined with the mvc tree evaluation policy.
             """
 
-            # assert isinstance(self.selection_policy, PolicyUCT)
-            # assert self.selection_policy.c == 0
+            if self.problem_idx is not None:
+                distance = len(self.trajectory)
 
             # Backup the value of the problematic node
             if not self.stop_unrolling:
@@ -798,15 +803,22 @@ class AlphaZeroDetector(AlphaZeroMCTS):
             else:
 
                 new_root = True
-                
-                for action, child in self.trajectory[self.root_idx][0].children.items():
-                    if child.observation == obs:
-                        root_node = child
-                        root_node.parent = None
-                        new_root = False
-                        self.trajectory[self.root_idx] = (root_node, None)
-                        print("Supremo Gabibbo")
-                        break
+
+                if self.trajectory[self.root_idx][0].observation == obs:
+                    root_node = self.trajectory[self.root_idx][0]
+                    root_node.parent = None
+                    new_root = False
+                    self.trajectory[self.root_idx] = (root_node, None)
+                    print("Same state")
+                else:
+                    for _, child in self.trajectory[self.root_idx][0].children.items():
+                        if child.observation == obs:
+                            root_node = child
+                            root_node.parent = None
+                            new_root = False
+                            self.trajectory[self.root_idx] = (root_node, None)
+                            #print("Supremo Gabibbo")
+                            break
                     
                 if new_root:
                     root_node = Node(
@@ -821,9 +833,11 @@ class AlphaZeroDetector(AlphaZeroMCTS):
                     
             start_val = root_node.value_evaluation
 
-            counter = root_node.visits
+            counter = root_node.visits 
+
+            diff = n if not self.stop_unrolling else 0
             
-            while root_node.visits - counter < iterations:
+            while root_node.visits - counter + diff < iterations:
 
                 candidate_actions  = [] if self.value_search else None
 
@@ -833,11 +847,6 @@ class AlphaZeroDetector(AlphaZeroMCTS):
                     candidate_actions.append(selected_action)
 
                 if selected_node_for_expansion.is_terminal(): # If the node is terminal, set its value to 0 and backup
-
-                    #if self.value_search and selected_node_for_expansion.reward > start_val:
-                    if self.value_search and selected_node_for_expansion.reward > self.trajectory[self.problem_idx][0].value_evaluation:
-                        self.problem_idx = None
-                        return candidate_actions
                     
                     selected_node_for_expansion.value_evaluation = 0.0
                     self.backup(selected_node_for_expansion, 0)
@@ -849,18 +858,21 @@ class AlphaZeroDetector(AlphaZeroMCTS):
                     eval_node.value_evaluation = value # Set the value of the node
 
                     #if self.value_search and eval_node.value_evaluation > start_val:
-                    if self.value_search and eval_node.value_evaluation > self.trajectory[self.problem_idx][0].value_evaluation:
-                            
+                    if (self.problem_idx is not None
+                        and self.value_search 
+                        and eval_node.value_evaluation >= self.trajectory[self.problem_idx][0].value_evaluation
+                        and eval_node.value_evaluation > start_val
+                        ):
+       
                             eval_node_env = copy.deepcopy(eval_node.env)
                             original_env_copy = copy.deepcopy(original_env)
                             obs = eval_node.observation
                             reward = eval_node.reward
 
                             if (
-                                not self.detached_unroll(eval_node_env, n, obs, reward, original_env_copy) 
+                                not self.detached_unroll(eval_node_env, distance, obs, reward, original_env_copy) 
                             ): # If the unroll does not encounter the problem
-
-                                self.problem_idx = None # The problem has been solved
+                                print("HERE")
                                 return candidate_actions
                                 
                     self.backup(eval_node, value) # Backup the value of the node
@@ -907,7 +919,6 @@ class AlphaZeroDetector(AlphaZeroMCTS):
                     #     candidate_actions = taken_actions[:-1] if self.value_search else None
                     #     break
 
-                    
                     if node.policy_value > max_val:
                         max_val = node.policy_value
                         chosen_node = node

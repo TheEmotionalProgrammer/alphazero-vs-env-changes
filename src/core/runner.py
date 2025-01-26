@@ -116,7 +116,6 @@ def run_episode(
     while step < max_steps:
         
         if azdetection and solver.value_search and isinstance(tree, list):
-
             """
             If the agent is using the value search planning style and the search returned a list of actions,
             then we want to just follow those actions.
@@ -182,7 +181,10 @@ def run_episode(
 
             tree.backup_visits = 1 # For mcts-t only
             solver.backup(tree, tree.value_evaluation)
-                       
+
+            solver.problem_idx = None # Reset the problem index
+            solver.stop_unrolling = False # Reset the stop unrolling flag
+            solver.trajectory = [] # Reset the trajectory 
 
         root_value = tree.value_evaluation # Contains the value estimate of the root node computed by the planning step
 
@@ -203,12 +205,12 @@ def run_episode(
 
         else: # If we are using azdetection, we need to check if a problem was detected
 
-            if solver.problem_idx is None and not solver.stop_unrolling: # If no problem was detected, we act following the prior (quick)
+            if solver.time_left <= 0 or (solver.problem_idx is None and not solver.stop_unrolling): # If no problem was detected, we act following the prior (quick)
                 print("No problem detected, acting normally.")
                 action = th.argmax(tree.prior_policy).item()
 
             else: # If a problem was detected, we act following the policy distribution
-
+                print("Acting according to the planning.")
                 distribution = th.distributions.Categorical(probs=custom_softmax(policy_dist.probs, temperature, None)) # apply extra softmax
 
                 # Check if the probs are all equal, if so, we act according to the prior

@@ -252,7 +252,7 @@ def eval_from_config(
     else:
         workers = hparams["workers"]
 
-    seeds = [None] * hparams["runs"]
+    seeds = [0] * hparams["runs"]
 
     test_env = gym.make(**hparams["test_env"])
 
@@ -344,7 +344,7 @@ def eval_budget_sweep(
 
     if budgets is None:
         budgets = [
-            64#8, 16, 32, 64, 128             
+            8, 16, 32, 64, 128             
         ]  # Default budgets to sweep
 
     use_wandb = config["wandb_logs"]
@@ -369,8 +369,9 @@ def eval_budget_sweep(
     budget_results = []
 
     for model_seed in range(num_train_seeds):
-
-        model_file = f"{"hyper" if not hparams["hpc"] else "scratch/itamassia"}/AZTrain_env=CustomFrozenLakeNoHoles8x8-v1_iterations=50_budget=64_seed={model_seed}/checkpoint.pth"
+        if model_seed == 4:
+            continue
+        model_file = f"{"hyper" if not hparams["hpc"] else "scratch/itamassia"}/AZTrain_env=CustomFrozenLakeNoHoles16x16-v1_evalpol=mvc_iterations=50_budget=16_df=0.95_lr=0.003_nstepslr=2_seed={model_seed}/checkpoint.pth"
 
         for seed in range(num_eval_seeds):
 
@@ -450,12 +451,12 @@ if __name__ == "__main__":
 
     # Basic search parameters
     parser.add_argument("--tree_evaluation_policy", type=str, default="mvc", help="Tree evaluation policy")
-    parser.add_argument("--selection_policy", type=str, default="PolicyUCT", help="Selection policy")
-    parser.add_argument("--planning_budget", type=int, default=64, help="Planning budget")
-    parser.add_argument("--puct_c", type=float, default=0, help="PUCT parameter")
+    parser.add_argument("--selection_policy", type=str, default="PolicyPUCT", help="Selection policy")
+    parser.add_argument("--planning_budget", type=int, default=16, help="Planning budget")
+    parser.add_argument("--puct_c", type=float, default=1, help="PUCT parameter")
 
     # Search algorithm
-    parser.add_argument("--agent_type", type=str, default="azdetection", help="Agent type")
+    parser.add_argument("--agent_type", type=str, default="azmcts", help="Agent type")
     parser.add_argument("--depth_estimation", type=bool, default=False, help="Use tree depth estimation")
 
     # Stochasticity parameters
@@ -465,7 +466,7 @@ if __name__ == "__main__":
 
     # AZDetection detection parameters
     parser.add_argument("--threshold", type=float, default=0.01, help="Detection threshold")
-    parser.add_argument("--unroll_budget", type=int, default=8, help="Unroll budget")
+    parser.add_argument("--unroll_budget", type=int, default=4, help="Unroll budget")
 
     # AZDetection replanning parameters
     parser.add_argument("--planning_style", type=str, default="connected", help="Planning style")
@@ -484,7 +485,7 @@ if __name__ == "__main__":
     parser.add_argument("--observation_embedding", type=str, default="coordinate", help="Observation embedding type")
 
     # Model file for single run evaluation
-    parser.add_argument("--model_file", type=str, default=f"hyper/AZTrain_env=CustomFrozenLakeNoHoles16x16-v1_iterations=200_budget=32_seed=7_20250121-104757/checkpoint.pth", help="Path to model file")
+    parser.add_argument("--model_file", type=str, default=f"hyper/AZTrain_env=CustomFrozenLakeNoHoles16x16-v1_evalpol=mvc_iterations=50_budget=16_df=0.95_lr=0.003_nstepslr=2_seed=9/checkpoint.pth", help="Path to model file")
 
     parser.add_argument("--train_seeds", type=int, default=10, help="The number of random seeds to use for training.")
     parser.add_argument("--eval_seeds", type=int, default=1, help="The number of random seeds to use for evaluation.")
@@ -492,11 +493,11 @@ if __name__ == "__main__":
     # Rendering
     parser.add_argument("--render", type=bool, default=True, help="Render the environment")
 
-    parser.add_argument("--run_full_eval", type=bool, default= False, help="Run type")
+    parser.add_argument("--run_full_eval", type=bool, default= True, help="Run type")
 
     parser.add_argument("--hpc", type=bool, default=False, help="HPC flag")
 
-    parser.add_argument("--value_estimate", type=str, default="perfect", help="Value estimate method")
+    parser.add_argument("--value_estimate", type=str, default="nn", help="Value estimate method")
     parser.add_argument("--visualize_trees", type=bool, default=False, help="Visualize trees")
 
     # Parse arguments
@@ -545,6 +546,6 @@ if __name__ == "__main__":
     # Execute the evaluation
 
     if args.run_full_eval:
-        eval_budget_sweep(config=run_config, num_train_seeds=args.train_seeds, num_eval_seeds=args.eval_seeds)
+        eval_budget_sweep(config=run_config, budgets= [8],  num_train_seeds=args.train_seeds, num_eval_seeds=args.eval_seeds)
     else:
         eval_from_config(config=run_config)

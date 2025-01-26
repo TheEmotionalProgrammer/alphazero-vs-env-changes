@@ -3,11 +3,13 @@ from typing import Dict, Generic, List, TypeVar, Optional, Any, Callable, Tuple
 import gymnasium as gym
 import numpy as np
 import torch as th
-from environments.frozenlake.frozen_lake import actions_dict, coords
+from environments.frozenlake.frozen_lake import actions_dict
 
 ObservationType = TypeVar("ObservationType")
 
 NodeType = TypeVar("NodeType", bound="Node")
+
+coords = lambda observation: (observation // 16, observation % 16) if observation is not None else None
 
 class Node(Generic[ObservationType]):
 

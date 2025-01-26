@@ -195,6 +195,7 @@ class MCTS:
             #     node.problem_vicinity = problem_vicinity
         
             # NEW: reset the prior policy and value evaluation (mark as needing update)
+            node.policy_value = None
             node.variance = None
             node = node.parent
 
