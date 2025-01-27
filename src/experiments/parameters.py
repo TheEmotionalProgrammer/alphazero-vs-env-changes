@@ -39,7 +39,7 @@ env_challenges = {
         "max_episode_length": 100,
         "iterations": 30,
         "env_params": dict(id="CustomFrozenLakeNoHoles4x4-v1", max_episode_steps=1000000000),
-        "optimal_value": 1.0 * 0.9 ** 5,
+        "optimal_value": 1.0 * 0.9 ** 6,
         "worst_value": 0.0,
         "discount_factor": 0.9,
         "ncols": 4,
@@ -73,7 +73,7 @@ env_challenges = {
         "env_description": "CustomFrozenLakeNoHoles20x20-v1",
         "max_episode_length": 400,
         "env_params": dict(id="CustomFrozenLakeNoHoles20x20-v1", max_episode_steps=1000000000),
-        "optimal_value": 1.0 * 0.95 ** 29,
+        "optimal_value": 1.0 * 0.95 ** 38,
         "worst_value": 0.0,
         "discount_factor": 0.95,
         "eval_param": 10.0,
@@ -237,5 +237,64 @@ fz_env_descriptions = {
         "FFHHFFFF",
         "FFFFFFFG"
     ],
+
+    "16x16_NO_OBSTACLES": [
+        "SFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFG"
+    ],
+
+    "16x16_DEFAULT": [
+        "SFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFHHHFFFFFFFFF",
+        "FFFFFFHFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFHHHFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFHHHHFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFHFFFF",
+        "FFFFFFFFFFHHFFFF",
+        "FFFFFFFFFFFFFFFG"
+    ],
+
+    "16x16_IMPOSSIBLE": [ # for debugging purposes
+        "SFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "HHHHHHHHHHHHHHHH",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFG"
+    ],
+
+
 
 }
