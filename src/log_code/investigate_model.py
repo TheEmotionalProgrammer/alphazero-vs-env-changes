@@ -82,31 +82,23 @@ def plot_policy_network(outputs, nrows=4, ncols=12, title="Policy Network"):
     plt.ioff()
     action_arrows = {3: "↑", 2: "→", 1: "↓", 0: "←"}
     preferred_actions = np.zeros((nrows, ncols), dtype="<U2")
-    entropy = np.zeros((nrows, ncols))
     
-    # Fill the grid with entropy and preferred actions
+    # Fill the grid with preferred actions
     for state, action in outputs.items():
         row, col = divmod(state, ncols)
         preferred_actions[row, col] = action_arrows[np.argmax(action[1]).item()]
-        entropy[row, col] = th.distributions.Categorical(
-            probs=action[1]
-        ).entropy().item() / np.log(len(action_arrows))
     
     fig, ax = plt.subplots()
-    #ax.grid(False)
+
+    # Set the background color to white for all cells
+    ax.imshow(np.ones((nrows, ncols)), interpolation="nearest", cmap="binary", vmin=1, vmax=1)
     
     # Add text and cell borders
     for i in range(nrows):
         for j in range(ncols):
-            # Add entropy text
-            # ax.text(j, i, f"{entropy[i, j]:.2f}", ha="center", va="top", color="black", fontsize=8)
             # Add preferred action text
             ax.text(j, i, f"{preferred_actions[i, j]}", ha="center", va="center", color="red", fontsize=14)
-            # Add a rectangle around the cell for the border
-            # rect = patches.Rectangle((j - 0.5, i - 0.5), 1, 1, linewidth=0.5, edgecolor='black', facecolor='none')
-            # ax.add_patch(rect)
     
-    ax.imshow(entropy, interpolation="nearest")
     ax.set_title(title)
 
     # Adjust the grid to make it more clear
