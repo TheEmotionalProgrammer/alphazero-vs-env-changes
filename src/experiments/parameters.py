@@ -116,17 +116,6 @@ fz_env_descriptions = {
         "FFFFFFFG"
     ],
 
-    "DEFAULT": [
-        "SFFFFFFF",
-        "FFFFFFFF",
-        "FFFHFFFF",
-        "FFFFFHFF",
-        "FFFHFFFF",
-        "FHHFFFHF",
-        "FHFFHFHF",
-        "FFFHFFFG"
-    ],
-
     "MINI_SLALOM": [
         "SFFFFFFF",
         "FFFFFFFF",
@@ -171,15 +160,34 @@ fz_env_descriptions = {
         "FFFFFFFG"
     ],
 
-    "NARROW": [
+    "DEFAULT": [
         "SFFFFFFF",
         "FFFFFFFF",
-        "HHFHHHHH",
-        "HHFHHHHH",
-        "FFFFFFFF",
-        "FFFFFFHF",
-        "FFFFFFHF",
-        "FFFFFFHG"
+        "FFFHFFFF",
+        "FFFFFHFF",
+        "FFFHFFFF",
+        "FHHFFFHF",
+        "FHFFHFHF",
+        "FFFHFFFG"
+    ],
+
+    "16x16_DEFAULT": [
+        "SFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFHHFFFFFFFFFF",
+        "FFFFHHFFFFFFFFFF",
+        "FFFFFFFFHHFFFFFF",
+        "FFFFFFFFHHFFFFFF",
+        "FFFFHHFFFFFFFFFF",
+        "FFFFHHFFFFFFFFFF",
+        "FFFFFFFFFFFFHHFF",
+        "FFHHFFFFFFFFHHFF",
+        "FFHFFFFFHHFFHHFF",
+        "FFHFFFFFHHFFHHFF",
+        "FFHFFFFFFFFFFFFF",
+        "FFFFFHHFFFFFFFFF",
+        "FFFFFHHFFFFFFFFG"
     ],
 
     "NARROW_SIMPLIFIED": [
@@ -193,17 +201,54 @@ fz_env_descriptions = {
         "FFFFFFFG"
     ],
 
-    "NARROW_FAR": [
-        "SFFFFFFF",
-        "FFFFFFFF",
-        "FFFFFFFF",
-        "FFFFFFFF",
-        "FFFFFFFF",
-        "HHFHHHHH",
-        "HHFHHHHH",
-        "FFFFFFFG"
+    "16x16_NARROW_SIMPLIFIED": [
+        "SFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "HHHHFFHHHHHHHHHH",
+        "HHHHFFHHHHHHHHHH",
+        "HHHHFFHHHHHHHHHH",
+        "HHHHFFHHHHHHHHHH",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFG"
     ],
 
+    "NARROW": [
+        "SFFFFFFF",
+        "FFFFFFFF",
+        "HHFHHHHH",
+        "HHFHHHHH",
+        "FFFFFFFF",
+        "FFFFFFFF",
+        "FFFFFFHF",
+        "FFFFFFHG"
+    ],
+
+    "16x16_NARROW": [
+        "SFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "HHHHFFHHHHHHHHHH",
+        "HHHHFFHHHHHHHHHH",
+        "HHHHFFHHHHHHHHHH",
+        "HHHHFFHHHHHHHHHH",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFHHFF",
+        "FFFFFFFFFFFFHHFF",
+        "FFFFFFFFFFFFHHFF",
+        "FFFFFFFFFFFFHHFF",
+        "FFFFFFFFFFFFHHFG"
+    ],
 
     "DEAD_END": [
         "SFFFFFFF",
