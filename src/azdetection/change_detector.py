@@ -168,9 +168,6 @@ class AlphaZeroDetector(AlphaZeroMCTS):
                     self.trajectory[self.root_idx][0].parent = None
                     return
                 else: # the new node is not in the trajectory because the agent changed direction
-                    # Check if one of the children of the root node is the new node
-                    # for action, child in self.trajectory[self.root_idx][0].children.items():
-                    #     if child.observation == obs:
                     self.stop_unrolling = True
                     return
             
@@ -236,6 +233,7 @@ class AlphaZeroDetector(AlphaZeroMCTS):
         print([(self.trajectory[i][0].observation // self.ncols, self.trajectory[i][0].observation % self.ncols) for i in range(len(self.trajectory))])
         
         new_end = start + n
+        i_pred = root_estimate
 
         for i in range(start, new_end):
 
@@ -312,11 +310,14 @@ class AlphaZeroDetector(AlphaZeroMCTS):
 
             i_est = value_estimate + (self.discount_factor**(i+1)) * val
             
-            i_pred = (
-                self.n_step_prediction(None, i+1, original_root_node) if self.predictor == "original_env" else
-                root_estimate
-            )
+            if self.predictor == "original_env":
+                i_pred = (
+                    self.n_step_prediction(None, i+1, original_root_node)
+                )
 
+            if self.predictor == "current_value" and i_est > i_pred:
+                i_pred = i_est # We found a better estimate for the value of the node, assuming we are following the optimal policy
+            
             # Add a very small delta to avoid division by zero
             i_pred = i_pred + 1e-9
             i_est = i_est + 1e-9

@@ -67,9 +67,9 @@ def plot_comparison_from_csvs(filepaths, labels=None, map_size=16, max_episode_l
         if metric in optimal_values:
             plt.axhline(optimal_values[metric], color='red', linestyle='dotted', linewidth=1.5, label="Optimal Value")
 
-        plt.xlabel("Planning Budget (log scale)")
-        plt.ylabel(metric)
-        plt.title(f"{metric} vs Planning Budget (Comparison)")
+        plt.xlabel("Planning Budget (log scale)", fontsize=12)
+        plt.ylabel(metric, fontsize=12)
+        #plt.title(f"{metric} vs Planning Budget (Comparison)")
         plt.legend()
         plt.grid(True, which="both", linestyle="--", linewidth=0.5)
         plt.savefig(f"comparison_{metric.replace(' ', '_').lower()}.png")
@@ -78,9 +78,9 @@ def plot_comparison_from_csvs(filepaths, labels=None, map_size=16, max_episode_l
 if __name__ == "__main__":
     # Example usage
     filepaths = (
-        ["8x8/Algorithm_(azdetection)_EvalPol_(mvc)_SelPol_(PolicyUCT)_Predictor_(current_value)_n_(4)_eps_(0.01)_PlanningStyle_(connected)_ValueSearch_(False)_DEAD_END.csv",
-         "8x8/Algorithm_(azmcts)_EvalPol_(mvc)_SelPol_(PolicyUCT)_DEAD_END.csv"
+        ["8x8/Algorithm_(azdetection)_EvalPol_(mvc)_SelPol_(PolicyUCT)_Predictor_(current_value)_n_(4)_eps_(0.05)_PlanningStyle_(connected)_ValueSearch_(False)_NARROW_SIMPLIFIED.csv",
+         "8x8/Algorithm_(azmcts)_EvalPol_(mvc)_SelPol_(PolicyUCT)_NARROW_SIMPLIFIED.csv"
         ]
     )
-    labels = ["AZDetection", "AZMCTS"]
+    labels = ["AZD",  "AZMCTS"]
     plot_comparison_from_csvs(filepaths, labels, 8, 30)

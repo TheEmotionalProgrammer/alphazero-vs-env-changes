@@ -481,7 +481,7 @@ if __name__ == "__main__":
     parser.add_argument("--dir_alpha", type=float, default=None, help="Dirichlet noise parameter alpha")
 
     # AZDetection detection parameters
-    parser.add_argument("--threshold", type=float, default=0.01, help="Detection threshold")
+    parser.add_argument("--threshold", type=float, default=0.05, help="Detection threshold")
     parser.add_argument("--unroll_budget", type=int, default=4, help="Unroll budget")
 
     # AZDetection replanning parameters
@@ -491,7 +491,7 @@ if __name__ == "__main__":
 
     # Test environment
     parser.add_argument("--test_env_id", type=str, default="CustomFrozenLakeNoHoles8x8-v1", help="Test environment ID")
-    parser.add_argument("--test_env_desc", type=str, default="DEAD_END", help="Environment description")
+    parser.add_argument("--test_env_desc", type=str, default="NARROW_SIMPLIFIED", help="Environment description")
     parser.add_argument("--test_env_is_slippery", type=bool, default=False, help="Slippery environment")
     parser.add_argument("--test_env_hole_reward", type=int, default=0, help="Hole reward")
     parser.add_argument("--test_env_terminate_on_hole", type=bool, default=False, help="Terminate on hole")
@@ -501,7 +501,7 @@ if __name__ == "__main__":
     parser.add_argument("--observation_embedding", type=str, default="coordinate", help="Observation embedding type")
 
     # Model file for single run evaluation
-    parser.add_argument("--model_file", type=str, default=f"hyper/AZTrain_env=CustomFrozenLakeNoHoles8x8-v1_evalpol=visit_iterations=50_budget=64_df=0.95_lr=0.001_nstepslr=2_seed=2/checkpoint.pth", help="Path to model file")
+    parser.add_argument("--model_file", type=str, default=f"hyper/AZTrain_env=CustomFrozenLakeNoHoles8x8-v1_evalpol=visit_iterations=50_budget=64_df=0.95_lr=0.001_nstepslr=2_seed=5/checkpoint.pth", help="Path to model file")
 
     parser.add_argument("--train_seeds", type=int, default=10, help="The number of random seeds to use for training.")
     parser.add_argument("--eval_seeds", type=int, default=10, help="The number of random seeds to use for evaluation.")
@@ -514,10 +514,10 @@ if __name__ == "__main__":
 
     parser.add_argument("--hpc", type=bool, default=False, help="HPC flag")
 
-    parser.add_argument("--value_estimate", type=str, default="perfect", help="Value estimate method")
-    parser.add_argument("--visualize_trees", type=bool, default=True, help="Visualize trees")
+    parser.add_argument("--value_estimate", type=str, default="nn", help="Value estimate method")
+    parser.add_argument("--visualize_trees", type=bool, default=False, help="Visualize trees")
 
-    parser.add_argument("--var_penalty", type=float, default=1000.0, help="Variance penalty")
+    parser.add_argument("--var_penalty", type=float, default=10000.0, help="Variance penalty")
 
     # Parse arguments
     args = parser.parse_args()
