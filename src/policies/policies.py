@@ -82,6 +82,7 @@ class PolicyDistribution(Policy):
         pass
 
     def self_prob(self, node: Node, probs: th.Tensor) -> float:
+
         """
         Returns the relative probability of selecting the node itself
         """
@@ -89,12 +90,14 @@ class PolicyDistribution(Policy):
         return probs.sum() / (node.visits - 1)
 
     def add_self_to_probs(self, node: Node, probs: th.Tensor) -> th.Tensor:
+        
         """
         Takes the current policy and adds one extra value to it, which is the probability of selecting the node itself.
         Should return a tensor with one extra value at the end
         The default choice is to set it to 1/visits
         Note that policy is not yet normalized, so we can't just add 1/visits to the last value
         """
+
         self_prob = self.self_prob(node, probs)
         return th.cat([probs, th.tensor([self_prob])])
 

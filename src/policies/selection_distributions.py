@@ -4,7 +4,7 @@ import torch as th
 
 from core.node import Node
 from policies.policies import PolicyDistribution
-from policies.utility_functions import get_children_policy_values, get_children_visits, get_transformed_default_values, policy_value, get_children_subtree_depth, get_transformed_mcts_t_values, get_children_variances
+from policies.utility_functions import get_children_policy_values, get_children_visits, get_transformed_default_values, policy_value, get_children_subtree_depth, get_transformed_mcts_t_values, get_children_variances, get_children_policy_values_and_inverse_variance, value_evaluation_variance
 
 class SelectionPolicy(PolicyDistribution):
 
@@ -75,6 +75,26 @@ class PolicyUCT(UCT):
 
     def Q(self, node: Node) -> float:
         return get_children_policy_values(node, self.policy, self.discount_factor, self.value_transform)
+    
+    # def _probs(self, node: Node) -> th.Tensor:
+
+    #     children_visits = get_children_visits(node)
+    #     # if any child_visit is 0
+    #     if th.any(children_visits == 0):
+    #         # return 1 for all children with 0 visits
+    #         return children_visits == 0
+
+    #     Qs, inv_vars = get_children_policy_values_and_inverse_variance(node, self.policy, self.discount_factor, self.value_transform)
+    #     inv_variance = th.tensor(1/value_evaluation_variance(node))
+        
+    #     vars = 1/inv_vars
+    #     var = 1/inv_variance
+
+    #     if th.log(inv_variance) < 0:
+    #         return inv_vars >= 0
+    
+    #     return Qs + self.c * th.sqrt(th.log(inv_variance)) * th.sqrt(inv_vars)
+
 
 
 class VarianceSelectionPolicy(PolicyUCT):
@@ -151,6 +171,21 @@ class PolicyPUCT(PolicyUCT, PUCT):
 
     pass
 
+class PolicyPUCTnoVC(PolicyUCT, PUCT):
+
+    """
+    Uses the PUCT formula and the generic Q estimate of PolicyUCT.
+    """
+
+    def _probs(self, node: Node) -> th.Tensor:
+        child_visits = get_children_visits(node)
+        # if any child_visit is 0
+        unvisited = child_visits == 0
+        if th.any(unvisited):
+            return node.prior_policy * unvisited
+
+        return self.Q(node) + self.c * node.prior_policy 
+
 
 selection_dict_fn = lambda c, policy, discount, value_transform: {
     
@@ -160,4 +195,5 @@ selection_dict_fn = lambda c, policy, discount, value_transform: {
     "PolicyUCT": PolicyUCT(c, policy=policy, discount_factor=discount,temperature=0.0, value_transform=value_transform),
     "T_UCT": T_UCT(c, discount_factor=discount,temperature=0.0, value_transform=value_transform),
     "PolicyPUCT": PolicyPUCT(c, policy=policy, discount_factor=discount,temperature=0.0, value_transform=value_transform),
+    "PolicyPUCTnoVC": PolicyPUCTnoVC(c, policy=policy, discount_factor=discount,temperature=0.0, value_transform=value_transform),
 }

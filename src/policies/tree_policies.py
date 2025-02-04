@@ -77,6 +77,22 @@ class MinimalVarianceConstraintPolicy(PolicyDistribution):
         return probs
 
 
+class ValuePolicy(PolicyDistribution):
+    def __init__(self, discount_factor = 1.0, **kwargs):
+
+        super().__init__(**kwargs)
+        self.discount_factor = discount_factor
+        self.temperature = 0.0
+
+    """
+    Determinstic policy that selects the action with the highest value
+    """
+    def _probs(self, node: Node) -> th.Tensor:
+        
+        vals = get_children_policy_values(node, self, self.discount_factor, self.value_transform)
+
+        return vals
+
 class MinimalVarianceConstraintPolicyMath(PolicyDistribution):
     """
     Selects the action with the highest inverse variance of the q value.
@@ -186,20 +202,6 @@ class MVTOPolicy(PolicyDistribution):
             return g
 
         return probs
-
-class ValuePolicy(PolicyDistribution):
-    def __init__(self, discount_factor = 1.0, **kwargs):
-
-        super().__init__(**kwargs)
-        self.discount_factor = discount_factor
-        self.temperature = 0.0
-
-    """
-    Determinstic policy that selects the action with the highest value
-    """
-    def _probs(self, node: Node) -> th.Tensor:
-        vals = get_children_policy_values(node, self, self.discount_factor, self.value_transform)
-        return vals
 
 class PriorStdPolicy(PolicyDistribution):
     def Q(self, node: Node) -> th.Tensor:

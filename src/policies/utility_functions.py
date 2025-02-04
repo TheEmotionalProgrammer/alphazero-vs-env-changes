@@ -24,9 +24,6 @@ def policy_value(
     if node.policy_value is not None:
         return node.policy_value
     
-    # if node.problem_vicinity == 1:
-    #     return 0.0
-
     if isinstance(policy, th.distributions.Categorical):
         pi = policy
     else:
@@ -38,6 +35,7 @@ def policy_value(
     child_propabilities = probabilities[:-1]  # type: ignore
     child_values = th.zeros_like(child_propabilities, dtype=th.float32) # For all the unexpanded children, the value is 0
     #print("child_values_before", child_values)
+    
     # We recursively compute the value estimates of the children 
     for action, child in node.children.items():
         child_values[action] = policy_value(child, policy, discount_factor) 
@@ -50,6 +48,7 @@ def policy_value(
     )
    
     node.policy_value = val
+
     return val
 
 
@@ -61,20 +60,17 @@ def reward_variance(node: Node):
 
     return 0.0
 
-
 def value_evaluation_variance(node: Node):
-    # if we want to duplicate the default tree evaluator, we can return 1 / visits
-    # In reality, the variance should be lower for terminal nodes
+
+    if node.problematic:
+
+        return node.var_penalty
+
     if node.terminal:
-        return 1.0 / float(node.visits)
-    else:
-        return 1.0
-    # else:
-    #     if node.problem_vicinity == 0.0:
-    #         return 9999999
-    #     return 1.0 + 1/node.problem_vicinity
+        return 1 / float(node.visits)
 
-
+    return 1.0 
+    
 def independent_policy_value_variance(
     node: Node,
     policy: PolicyDistribution | th.distributions.Categorical,
@@ -102,6 +98,7 @@ def independent_policy_value_variance(
         own_propability_squared * value_evaluation_variance(node)
         + (child_propabilities_squared * child_variances).sum()
     )
+
     node.variance = var
     return var
 

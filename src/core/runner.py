@@ -112,7 +112,7 @@ def run_episode(
         tree = solver.search(env,planning_budget, observation, 0.0)
 
     step = 0
-
+    
     while step < max_steps:
         
         if azdetection and solver.value_search and isinstance(tree, list):

@@ -1,7 +1,6 @@
 import torch as th
 
 from core.mcts import MCTS
-from core.mcts_t import MCTS_T
 from az.model import AlphaZeroModel
 from core.node import Node
 from policies.policies import Policy
@@ -82,45 +81,3 @@ class AlphaZeroMCTS(MCTS):
 
         return value if self.value_estimate == "nn" else fz_perfect_value(self.distances, node.observation, self.ncols, self.discount_factor)
 
-class AlphaZeroMCTS_T(MCTS_T, AlphaZeroMCTS):
-    """
-    Combines the AlphaZeroMCTS and MCTS_T classes.
-
-    Attributes:
-        model (AlphaZeroModel): The AlphaZero model used for value and policy prediction.
-        dir_epsilon (float): The epsilon value for adding Dirichlet noise to the prior policy.
-        dir_alpha (float): The alpha value for the Dirichlet distribution.
-        estimate_policy (Policy): The policy used for estimating subtree depth.
-    """
-
-    def __init__(
-        self,
-        model: AlphaZeroModel,
-        selection_policy: Policy,
-        discount_factor: float = 1.0,
-        root_selection_policy: Policy | None = None,
-        estimation_policy: Policy | None = None,
-        dir_epsilon: float = 0.0,
-        dir_alpha: float = 0.3,
-    ):
-        # Initialize MCTS_T first 
-        MCTS_T.__init__(
-            self,
-            selection_policy=selection_policy,
-            discount_factor=discount_factor,
-            root_selection_policy=root_selection_policy,
-            estimate_policy=estimation_policy,
-        )
-
-        # Initialize AlphaZeroMCTS
-        AlphaZeroMCTS.__init__(
-            self,
-            model=model,
-            dir_epsilon=dir_epsilon,
-            dir_alpha=dir_alpha,
-            selection_policy=selection_policy,
-            discount_factor=discount_factor,
-            root_selection_policy=root_selection_policy,
-        )
-
-        

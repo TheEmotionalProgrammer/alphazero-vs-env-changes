@@ -39,7 +39,7 @@ def plot_image(fig, ax, image, title):
     ax.set_title(title)
     plt.tight_layout()
     if fig is not None:
-        plt.close(fig)
+        plt.close(fig) 
 
 import matplotlib.patches as patches
 
