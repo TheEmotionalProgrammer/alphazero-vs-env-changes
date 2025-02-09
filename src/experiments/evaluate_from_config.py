@@ -473,8 +473,8 @@ if __name__ == "__main__":
     parser.add_argument("--runs", type=int, default=1, help="Number of runs")
 
     # Basic search parameters
-    parser.add_argument("--tree_evaluation_policy", type=str, default="qt_max", help="Tree evaluation policy")
-    parser.add_argument("--selection_policy", type=str, default="VarUCT", help="Selection policy")
+    parser.add_argument("--tree_evaluation_policy", type=str, default="mvc", help="Tree evaluation policy")
+    parser.add_argument("--selection_policy", type=str, default="PolicyUCT", help="Selection policy")
     parser.add_argument("--puct_c", type=float, default=1, help="PUCT parameter")
 
     # Only relevant for single run evaluation
@@ -500,7 +500,7 @@ if __name__ == "__main__":
 
     # Test environment
     parser.add_argument("--test_env_id", type=str, default=f"CustomFrozenLakeNoHoles{map_size}x{map_size}-v1", help="Test environment ID")
-    parser.add_argument("--test_env_desc", type=str, default="16x16_DEAD_END", help="Environment description")
+    parser.add_argument("--test_env_desc", type=str, default=f"{map_size}x{map_size}_DEAD_END", help="Environment description")
     parser.add_argument("--test_env_is_slippery", type=bool, default=False, help="Slippery environment")
     parser.add_argument("--test_env_hole_reward", type=int, default=0, help="Hole reward")
     parser.add_argument("--test_env_terminate_on_hole", type=bool, default=False, help="Terminate on hole")

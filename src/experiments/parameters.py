@@ -160,7 +160,7 @@ fz_env_descriptions = {
         "FFFFFFFG"
     ],
 
-    "DEFAULT": [
+    "8X8_DEFAULT": [
         "SFFFFFFF",
         "FFFFFFFF",
         "FFFHFFFF",
@@ -190,7 +190,7 @@ fz_env_descriptions = {
         "FFFFFHHFFFFFFFFG"
     ],
 
-    "NARROW_SIMPLIFIED": [
+    "8x8_NARROW": [
         "SFFFFFFF",
         "FFFFFFFF",
         "HHFHHHHH",
@@ -201,7 +201,7 @@ fz_env_descriptions = {
         "FFFFFFFG"
     ],
 
-    "16x16_NARROW_SIMPLIFIED": [
+    "16x16_NARROW": [
         "SFFFFFFFFFFFFFFF",
         "FFFFFFFFFFFFFFFF",
         "FFFFFFFFFFFFFFFF",
@@ -220,7 +220,7 @@ fz_env_descriptions = {
         "FFFFFFFFFFFFFFFG"
     ],
 
-    "NARROW": [
+    "8x8_NARROW_XTREME": [
         "SFFFFFFF",
         "FFFFFFFF",
         "HHFHHHHH",
@@ -231,7 +231,7 @@ fz_env_descriptions = {
         "FFFFFFHG"
     ],
 
-    "16x16_NARROW": [
+    "16x16_NARROW_XTREME": [
         "SFFFFFFFFFFFFFFF",
         "FFFFFFFFFFFFFFFF",
         "FFFFFFFFFFFFFFFF",
@@ -250,7 +250,7 @@ fz_env_descriptions = {
         "FFFFFFFFFFHHFFFG"
     ],
 
-    "DEAD_END": [
+    "8x8_DEAD_END": [
         "SFFFFFFF",
         "FFFFFFFF",
         "FFFFFFFF",
