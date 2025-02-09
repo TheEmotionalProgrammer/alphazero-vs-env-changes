@@ -332,6 +332,8 @@ class MegaTree(AlphaZeroMCTS):
         node.value_evaluation = val
         node.prior_policy = policy
 
+        i_pred = val
+
         for i in range(n):
                 
                 value_estimate = value_estimate + (self.discount_factor**i) * node.reward
@@ -363,10 +365,13 @@ class MegaTree(AlphaZeroMCTS):
 
                 i_est = value_estimate + (self.discount_factor**(i+1)) * val
                 
-                i_pred = (
-                    self.n_step_prediction(None, i+1, original_root_node) if self.predictor == "original_env" else
-                    self.n_step_prediction(root_node, i+1, None)
-                )
+                if self.predictor == "original_env":
+                    i_pred = (
+                        self.n_step_prediction(None, i+1, original_root_node)
+                    )
+
+                if self.predictor == "current_value" and self.update_estimator and i_est > i_pred:
+                    i_pred = i_est # We found a better estimate for the value of the node, assuming we are following the optimal policy
     
                 # Add a very small delta to avoid division by zero
     
@@ -442,25 +447,23 @@ class MegaTree(AlphaZeroMCTS):
 
             temporary_root.value_evaluation = self.value_function(temporary_root)
 
-            # if self.problem_value is not None and temporary_root.value_evaluation > self.problem_value:
-            #     print("Problem solved, resume unrolling")
-            #     self.stop_unrolling = False
-            #     self.trajectory[self.problem_idx][0].problematic = False
-            #     self.trajectory = []
-            #     self.problem_idx = None
+            if self.problem_value is not None and temporary_root.value_evaluation > self.problem_value:
+                print("Problem solved, resume unrolling")
+                self.stop_unrolling = False
+                self.trajectory[self.problem_idx][0].problematic = False
+                self.trajectory = []
+                self.problem_idx = None
 
         if not self.stop_unrolling:
 
             self.accumulate_unroll(env, n, obs, reward, original_env, env_action) 
         
-            safe_length = max(len(self.trajectory)-1, 1) if self.problem_idx is not None else len(self.trajectory) 
-
             if self.value_search and self.problem_idx is not None:
                 # We initialize the value estimate of the problematic node
                 self.trajectory[self.problem_idx][0].value_evaluation = self.value_function(self.trajectory[self.problem_idx][0])
         
         if self.problem_idx is not None:
-            distance = len(self.trajectory)
+            distance = self.problem_idx - self.root_idx
 
         if not self.stop_unrolling:
             root_node = self.trajectory[self.root_idx][0] 
@@ -508,6 +511,9 @@ class MegaTree(AlphaZeroMCTS):
 
             selected_node_for_expansion, selected_action = self.traverse(root_node, candidate_actions) # Traverse the existing tree until a leaf node is reached
 
+            if selected_node_for_expansion is None:
+                return selected_action
+
             if self.value_search:
                 candidate_actions.append(selected_action)
 
@@ -527,9 +533,9 @@ class MegaTree(AlphaZeroMCTS):
                     self.value_search 
                     and self.problem_idx is not None
                     and eval_node.value_evaluation >= self.trajectory[self.problem_idx][0].value_evaluation
-                    and eval_node.value_evaluation > start_val
+                    and eval_node.observation != self.trajectory[self.problem_idx][0].observation
                     ):
-    
+
                         eval_node_env = copy.deepcopy(eval_node.env)
                         original_env_copy = copy.deepcopy(original_env)
                         obs = eval_node.observation
@@ -538,7 +544,7 @@ class MegaTree(AlphaZeroMCTS):
                         if (
                             not self.detached_unroll(eval_node_env, distance, obs, reward, original_env_copy) 
                         ): # If the unroll does not encounter the problem
-                            print("HERE")
+
                             return candidate_actions
                             
                 self.backup(eval_node, value) # Backup the value of the node
@@ -568,7 +574,24 @@ class MegaTree(AlphaZeroMCTS):
 
         if actions is not None:
             actions.append(action)
+        
+        if (
+            self.value_search
+            and self.problem_idx is not None
+            and node.value_evaluation >= self.trajectory[self.problem_idx][0].value_evaluation
+            and node.observation != self.trajectory[self.problem_idx][0].observation
+            ):
+            node_env = copy.deepcopy(node.env)
+            #original_env_copy = copy.deepcopy(original_env)
+            obs = node.observation
+            reward = node.reward
 
+            if (
+                not self.detached_unroll(node_env, self.problem_idx - self.root_idx, obs, reward, None)
+            ): # If the unroll does not encounter the problem
+
+                return None, actions
+            
         while not node.is_terminal():
             
             action = self.selection_policy.sample(node) # Select which node to step into
@@ -580,6 +603,23 @@ class MegaTree(AlphaZeroMCTS):
                 actions.append(action)
 
             node = node.step(action) # Step into the chosen node
+
+            if (
+            self.value_search
+            and self.problem_idx is not None
+            and node.value_evaluation >= self.trajectory[self.problem_idx][0].value_evaluation
+            and node.observation != self.trajectory[self.problem_idx][0].observation
+            ):
+                node_env = copy.deepcopy(node.env)
+                #original_env_copy = copy.deepcopy(original_env)
+                obs = node.observation
+                reward = node.reward
+
+                if (
+                    not self.detached_unroll(node_env, self.problem_idx - self.root_idx, obs, reward, None)
+                ): # If the unroll does not encounter the problem
+
+                    return None, actions
             
         return node, action
     

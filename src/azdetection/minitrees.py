@@ -31,7 +31,8 @@ class MiniTrees(AlphaZeroMCTS):
             root_selection_policy: Policy | None = None,
             predictor: str = "current_value",
             value_search: bool = False,
-            value_estimate: str = "nn"
+            value_estimate: str = "nn",
+            update_estimator: bool = False
     ):
         super().__init__(
             model = model,
@@ -48,6 +49,7 @@ class MiniTrees(AlphaZeroMCTS):
         self.problem_idx = None # Index of the problematic node in the trajectory, i.e. first node whose value estimate is disregarded
         self.predictor = predictor # The predictor to use for the n-step prediction
         self.value_search = value_search # If True, the agent will use the value search 
+        self.update_estimator = update_estimator # If True, the agent will update the value estimator when a better estimate is found
         
     def unroll(
             self,
@@ -114,6 +116,8 @@ class MiniTrees(AlphaZeroMCTS):
         node.value_evaluation = val
         node.prior_policy = policy
 
+        i_pred = val
+
         print(f"Value estimate: {val}, Prediction: {val}", "obs", f"({coords(node.observation)[0]}, {coords(node.observation)[1]})")
 
         for i in range(n):
@@ -147,10 +151,13 @@ class MiniTrees(AlphaZeroMCTS):
 
             i_est = value_estimate + (self.discount_factor**(i+1)) * val
             
-            i_pred = (
-                self.n_step_prediction(None, i+1, original_root_node) if self.predictor == "original_env" else
-                self.n_step_prediction(root_node, i+1, None)
-            )
+            if self.predictor == "original_env":
+                i_pred = (
+                    self.n_step_prediction(None, i+1, original_root_node)
+                )
+
+            if self.predictor == "current_value" and self.update_estimator and i_est > i_pred:
+                i_pred = i_est # We found a better estimate for the value of the node, assuming we are following the optimal policy
 
             print(f"Value estimate: {i_est}, Prediction: {i_pred}", "obs", f"({coords(node.observation)[0]}, {coords(node.observation)[1]})")
 
@@ -233,6 +240,8 @@ class MiniTrees(AlphaZeroMCTS):
         node.value_evaluation = val
         node.prior_policy = policy
 
+        i_pred = val
+
         for i in range(n):
                 
                 value_estimate = value_estimate + (self.discount_factor**i) * node.reward
@@ -266,11 +275,14 @@ class MiniTrees(AlphaZeroMCTS):
 
                 i_est = value_estimate + (self.discount_factor**(i+1)) * val
                 
-                i_pred = (
-                    self.n_step_prediction(None, i+1, original_root_node) if self.predictor == "original_env" else
-                    self.n_step_prediction(root_node, i+1, None)
-                )
-    
+                if self.predictor == "original_env":
+                    i_pred = (
+                        self.n_step_prediction(None, i+1, original_root_node)
+                    )
+
+                elif self.predictor == "current_value" and self.update_estimator and i_est > i_pred:
+                    i_pred = i_est # We found a better estimate for the value of the node, assuming we are following the optimal policy
+
                 # Add a very small delta to avoid division by zero
     
                 i_pred = i_pred + 1e-9

@@ -256,9 +256,9 @@ fz_env_descriptions = {
         "FFFFFFFF",
         "FFFFFFFF",
         "FFFFFFFF",
+        "FFHHHHHH",
         "FFFFFFFF",
         "FFFFFFFF",
-        "FFFFHHHH",
         "FFFFFFFG"
     ],
 
@@ -272,12 +272,12 @@ fz_env_descriptions = {
         "FFFFFFFFFFFFFFFF",
         "FFFFFFFFFFFFFFFF",
         "FFFFFFFFFFFFFFFF",
+        "FFFFHHHHHHHHHHHH",
+        "FFFFHHHHHHHHHHHH",
         "FFFFFFFFFFFFFFFF",
         "FFFFFFFFFFFFFFFF",
         "FFFFFFFFFFFFFFFF",
         "FFFFFFFFFFFFFFFF",
-        "FFFFFFFFFFFFFFFF",
-        "FFFFFFFFFFFFHHHH",
         "FFFFFFFFFFFFFFFG"
     ],
 
