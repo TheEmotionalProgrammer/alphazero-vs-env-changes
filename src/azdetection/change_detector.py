@@ -32,6 +32,7 @@ class AlphaZeroDetector(AlphaZeroMCTS):
             dir_alpha: float = 0.3,
             root_selection_policy: Policy | None = None,
             predictor: str = "current_value",
+            update_estimator: bool = False,
             planning_style: str = "connected",
             value_search: bool = False,
             value_estimate: str = "nn",
@@ -54,9 +55,10 @@ class AlphaZeroDetector(AlphaZeroMCTS):
         self.root_idx = None
         self.planning_style = planning_style # The planning style to use when the problem is detected
         self.predictor = predictor # The predictor to use for the n-step prediction
+        self.update_estimator = update_estimator 
         self.value_search = value_search # If True, the agent will use the value search 
         self.stop_unrolling = False
-        self.time_left = th.inf
+        #self.time_left = th.inf
         self.problem_value = None
         self.var_penalty = var_penalty
 
@@ -73,7 +75,7 @@ class AlphaZeroDetector(AlphaZeroMCTS):
             self.problem_idx = None
             start = 0
             self.root_idx = 0
-            self.time_left = th.inf
+            #self.time_left = th.inf
         
             root_node = Node(
                 env=copy.deepcopy(env),
@@ -315,7 +317,7 @@ class AlphaZeroDetector(AlphaZeroMCTS):
                     self.n_step_prediction(None, i+1, original_root_node)
                 )
 
-            if self.predictor == "current_value" and i_est > i_pred:
+            if self.predictor == "current_value" and self.update_estimator and i_est > i_pred:
                 i_pred = i_est # We found a better estimate for the value of the node, assuming we are following the optimal policy
             
             # Add a very small delta to avoid division by zero
@@ -351,7 +353,7 @@ class AlphaZeroDetector(AlphaZeroMCTS):
                 print(f"Problem detected at state ({self.coords(problem_obs)[0]}, {self.coords(problem_obs)[1]}), after {problem_index} steps ")
 
                 self.problem_idx = problem_index
-                self.time_left = (self.problem_idx - self.root_idx) + 4 # We add 4 to allow for some extra steps to solve the problem
+                #self.time_left = (self.problem_idx - self.root_idx) + 4 # We add 4 to allow for some extra steps to solve the problem
                 #print("Time left:", self.time_left)
 
                 self.problem_value = self.trajectory[self.problem_idx][0].value_evaluation
@@ -518,12 +520,12 @@ class AlphaZeroDetector(AlphaZeroMCTS):
 
             temporary_root.value_evaluation = self.value_function(temporary_root)
 
-            if self.problem_value is not None and temporary_root.value_evaluation > self.problem_value:
-                print("Problem solved, resume unrolling")
-                self.stop_unrolling = False
-                self.trajectory[self.problem_idx][0].problematic = False
-                self.trajectory = []
-                self.problem_idx = None
+            # if self.problem_value is not None and temporary_root.value_evaluation > self.problem_value:
+            #     print("Problem solved, resume unrolling")
+            #     self.stop_unrolling = False
+            #     self.trajectory[self.problem_idx][0].problematic = False
+            #     self.trajectory = []
+            #     self.problem_idx = None
 
         if not self.stop_unrolling:
 
@@ -637,7 +639,7 @@ class AlphaZeroDetector(AlphaZeroMCTS):
                             root_node.parent = None
                             new_root = False
                             self.trajectory[self.root_idx] = (root_node, None)
-                            #print("Supremo Gabibbo")
+                            print("Supremo Gabibbo")
                             break
                     
                 if new_root:

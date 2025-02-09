@@ -205,7 +205,7 @@ def run_episode(
 
         else: # If we are using azdetection, we need to check if a problem was detected
 
-            if solver.time_left <= 0 or (solver.problem_idx is None and not solver.stop_unrolling): # If no problem was detected, we act following the prior (quick)
+            if (solver.problem_idx is None and not solver.stop_unrolling): #or solver.time_left <= 0: # If no problem was detected, we act following the prior (quick)
                 print("No problem detected, acting normally.")
                 action = th.argmax(tree.prior_policy).item()
 
@@ -213,17 +213,17 @@ def run_episode(
                 print("Acting according to the planning.")
                 distribution = th.distributions.Categorical(probs=custom_softmax(policy_dist.probs, temperature, None)) # apply extra softmax
 
-                # Check if the probs are all equal, if so, we act according to the prior
-                if th.all(th.eq(distribution.probs, distribution.probs[0])):
+                # # Check if the probs are all equal, if so, we act according to the prior
+                # if th.all(th.eq(distribution.probs, distribution.probs[0])):
 
-                # Check if more than 1 prob is non-zero
-                #if th.sum(th.where(distribution.probs > 0, 1, 0)) > 1:
+                # # Check if more than 1 prob is non-zero
+                # #if th.sum(th.where(distribution.probs > 0, 1, 0)) > 1:
                     
-                    print("All probs are equal, acting according to the prior.")
-                    action = th.argmax(tree.prior_policy).item()
+                #     print("All probs are equal, acting according to the prior.")
+                #     action = th.argmax(tree.prior_policy).item()
                     
-                else:
-                    action = distribution.sample().item() # Note that if the temperature of the softmax was zero, this becomes an argmax
+                # else:
+                action = distribution.sample().item() # Note that if the temperature of the softmax was zero, this becomes an argmax
 
             print(f"Env: action = {actions_dict[action]}")
 

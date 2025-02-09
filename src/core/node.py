@@ -9,7 +9,7 @@ ObservationType = TypeVar("ObservationType")
 
 NodeType = TypeVar("NodeType", bound="Node")
 
-coords = lambda observation: (observation // 8, observation % 8) if observation is not None else None
+coords = lambda observation: (observation // 16, observation % 16) if observation is not None else None
 
 class Node(Generic[ObservationType]):
 
@@ -46,7 +46,7 @@ class Node(Generic[ObservationType]):
         self.env = env
 
         self.problematic = False
-        self.time_left = th.inf
+       # self.time_left = th.inf
         self.var_penalty = 1.0
 
     def is_terminal(self) -> bool:

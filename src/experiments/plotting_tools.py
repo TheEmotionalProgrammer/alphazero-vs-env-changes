@@ -78,9 +78,11 @@ def plot_comparison_from_csvs(filepaths, labels=None, map_size=16, max_episode_l
 if __name__ == "__main__":
     # Example usage
     filepaths = (
-        ["8x8/Algorithm_(azdetection)_EvalPol_(mvc)_SelPol_(PolicyUCT)_Predictor_(current_value)_n_(4)_eps_(0.05)_PlanningStyle_(connected)_ValueSearch_(False)_NARROW_SIMPLIFIED.csv",
-         "8x8/Algorithm_(azmcts)_EvalPol_(mvc)_SelPol_(PolicyUCT)_NARROW_SIMPLIFIED.csv"
+        ["8x8/Algorithm_(azdetection)_EvalPol_(mvc)_SelPol_(PolicyUCT)_ValueEst_(nn)_UpdateEst_False_Predictor_(current_value)_n_(4)_eps_(0.05)_PlanningStyle_(connected)_ValueSearch_(False)_DEAD_END.csv",
+         "8x8/Algorithm_(azdetection)_EvalPol_(mvc)_SelPol_(PolicyUCT)_ValueEst_(nn)_UpdateEst_True_Predictor_(current_value)_n_(4)_eps_(0.05)_PlanningStyle_(connected)_ValueSearch_(False)_DEAD_END.csv",
+         "8x8/Algorithm_(azmcts)_EvalPol_(mvc)_SelPol_(PolicyUCT)_ValueEst_(nn)_DEAD_END.csv",
+         "8x8/Algorithm_(azmcts)_EvalPol_(visit)_SelPol_(UCT)_ValueEst_(nn)_DEAD_END.csv"
         ]
     )
-    labels = ["AZD",  "AZMCTS"]
+    labels = ["AZD",  "AZD + $y^+$ updates", "AZ (MVC-UCT)", "AZ (Visit-UCT)"]
     plot_comparison_from_csvs(filepaths, labels, 8, 30)

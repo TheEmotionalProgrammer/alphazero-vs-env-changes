@@ -47,7 +47,7 @@ env_challenges = {
 
     "CustomFrozenLakeNoHoles8x8-v1": {
         "env_description": "CustomFrozenLakeNoHoles8x8-v1",
-        "max_episode_length": 30,
+        "max_episode_length": 100,
         "env_params": dict(id="CustomFrozenLakeNoHoles8x8-v1", max_episode_steps=1000000000),
         "optimal_value": 1.0 * 0.95 ** 14,
         "worst_value": 0.0,
@@ -130,10 +130,10 @@ fz_env_descriptions = {
     "SLALOM": [
         "SFFFFFFF",
         "FFFFFFFF",
-        "HHHHFFFF",
+        "HHHHHHHF",
         "FFFFFFFF",
         "FFFFFFFF",
-        "FFFFHHHH",
+        "FFFFFHHH",
         "FFFFFFFF",
         "FFFFFFFG"
     ],
@@ -276,7 +276,7 @@ fz_env_descriptions = {
         "FFFFFFFFFFFFFFFF",
         "FFFFFFFFFFFFFFFF",
         "FFFFFFFFFFFFFFFF",
-        "FFFFFFFFFFFFHHHH",
+        "FFFFFFFFFFFFFFHH",
         "FFFFFFFFFFFFFFFG"
     ],
 
@@ -332,6 +332,25 @@ fz_env_descriptions = {
         "FFFFFFFFFFFFFFFG"
     ],
 
+    "16x16_BLOCK": [
+        "SFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFHHHHHHHH",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFG"
+    ],
+
     "16x16_IMPOSSIBLE": [ # for debugging purposes
         "SFFFFFFFFFFFFFFF",
         "FFFFFFFFFFFFFFFF",
@@ -351,5 +370,102 @@ fz_env_descriptions = {
         "FFFFFFFFFFFFFFFG"
     ],
 
+    # For detection experiments
+
+    "16x16_D2": [
+        "SFFHFFFFFFFFFFFF",
+        "FFFHFFFFFFFFFFFF",
+        "FFFHFFFFFFFFFFFF",
+        "HHHHFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFG"
+    ],
     
+    "16x16_D5": [
+        "SFFFFFHFFFFFFFFF",
+        "FFFFFFHFFFFFFFFF",
+        "FFFFFFHFFFFFFFFF",
+        "FFFFFFHFFFFFFFFF",
+        "FFFFFFHFFFFFFFFF",
+        "FFFFFFHFFFFFFFFF",
+        "HHHHHHHFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFG"
+    ],
+
+    "16x16_D8": [
+        "SFFFFFFFFHFFFFFF",
+        "FFFFFFFFFHFFFFFF",
+        "FFFFFFFFFHFFFFFF",
+        "FFFFFFFFFHFFFFFF",
+        "FFFFFFFFFHFFFFFF",
+        "FFFFFFFFFHFFFFFF",
+        "FFFFFFFFFHFFFFFF",
+        "FFFFFFFFFHFFFFFF",
+        "FFFFFFFFFHFFFFFF",
+        "HHHHHHHHHHFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFG"
+    ],
+
+    "16x16_D11": [
+        "SFFFFFFFFFFFHFFF",
+        "FFFFFFFFFFFFHFFF",
+        "FFFFFFFFFFFFHFFF",
+        "FFFFFFFFFFFFHFFF",
+        "FFFFFFFFFFFFHFFF",
+        "FFFFFFFFFFFFHFFF",
+        "FFFFFFFFFFFFHFFF",
+        "FFFFFFFFFFFFHFFF",
+        "FFFFFFFFFFFFHFFF",
+        "FFFFFFFFFFFFHFFF",
+        "FFFFFFFFFFFFHFFF",
+        "FFFFFFFFFFFFHFFF",
+        "FFFFFFFFFFFFHFFF",
+        "HHHHHHHHHHHHHFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFG"
+    ],
+
+    "16x16_D14": [
+        "SFFFFFFFFFFFFFFH",
+        "FFFFFFFFFFFFFFFH",
+        "FFFFFFFFFFFFFFFH",
+        "FFFFFFFFFFFFFFFH",
+        "FFFFFFFFFFFFFFFH",
+        "FFFFFFFFFFFFFFFH",
+        "FFFFFFFFFFFFFFFH",
+        "FFFFFFFFFFFFFFFH",
+        "FFFFFFFFFFFFFFFH",
+        "FFFFFFFFFFFFFFFH",
+        "FFFFFFFFFFFFFFFH",
+        "FFFFFFFFFFFFFFFH",
+        "FFFFFFFFFFFFFFFH",
+        "FFFFFFFFFFFFFFFH",
+        "FFFFFFFFFFFFFFFH",
+        "HHHHHHHHHHHHHHHG"
+
+    ],
+
 }
