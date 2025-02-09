@@ -58,14 +58,15 @@ env_challenges = {
 
     "CustomFrozenLakeNoHoles16x16-v1": {
         "env_description": "CustomFrozenLakeNoHoles16x16-v1",
-        "max_episode_length": 300,
+        "max_episode_length": 200,
         "env_params": dict(id="CustomFrozenLakeNoHoles16x16-v1", max_episode_steps=1000000000),
         "optimal_value": 1.0 * 0.95 ** 30,
         "worst_value": 0.0,
         "discount_factor": 0.95,
         "eval_param": 10.0,
         "ncols": 16,
-        "learning_rate": 5e-3,
+        "learning_rate": 3e-3,
+        "puct_c": 1,
     },
 
     "CustomFrozenLakeNoHoles20x20-v1": {
