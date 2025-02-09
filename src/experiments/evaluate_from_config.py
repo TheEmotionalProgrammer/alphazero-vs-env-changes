@@ -15,7 +15,7 @@ from experiments.eval_agent import eval_agent
 from core.mcts import DistanceMCTS, LakeDistanceMCTS, RandomRolloutMCTS
 from environments.observation_embeddings import ObservationEmbedding, embedding_dict
 from az.azmcts import AlphaZeroMCTS
-from azdetection.change_detector import AlphaZeroDetector
+from azdetection.megatree import MegaTree
 from azdetection.octopus import Octopus
 from az.model import (
     AlphaZeroModel,
@@ -138,7 +138,7 @@ def agent_from_config(hparams: dict):
             value_estimate=hparams["value_estimate"],
         )
 
-    elif hparams["agent_type"] == "azdetection":
+    elif hparams["agent_type"] == "mega-tree":
 
         filename = hparams["model_file"]
 
@@ -155,17 +155,15 @@ def agent_from_config(hparams: dict):
 
         dir_epsilon = hparams["dir_epsilon"]
         dir_alpha = hparams["dir_alpha"]
-
+        
         threshold = hparams["threshold"]
-
-        planning_style = hparams["planning_style"]
 
         value_search = hparams["value_search"]
 
         predictor = hparams["predictor"]
 
         
-        agent = AlphaZeroDetector(
+        agent = MegaTree(
             predictor=predictor,
             root_selection_policy=root_selection_policy,
             selection_policy=selection_policy,
@@ -174,7 +172,6 @@ def agent_from_config(hparams: dict):
             dir_alpha=dir_alpha,
             discount_factor=discount_factor,
             threshold=threshold,
-            planning_style=planning_style,
             value_search=value_search,
             value_estimate=hparams["value_estimate"],
             var_penalty=hparams["var_penalty"],
@@ -272,7 +269,7 @@ def eval_from_config(
         seeds=seeds,
         temperature=hparams["eval_temp"],
         workers=workers,
-        azdetection= (hparams["agent_type"] == "azdetection"),
+        azdetection= (hparams["agent_type"] == "mega-tree"),
         unroll_budget= hparams["unroll_budget"],
         render=hparams["render"],
         return_trees=hparams["visualize_trees"],
@@ -342,8 +339,8 @@ def eval_budget_sweep(
         num_train_seeds (int): Number of training seeds.
         num_eval_seeds (int): Number of evaluation seeds.
     """
-    if config["agent_type"] == "azdetection":
-        run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_ValueEst_({config['value_estimate']})_UpdateEst_{config['update_estimator']}_Predictor_({config['predictor']})_n_({config['unroll_budget']})_eps_({config['threshold']})_PlanningStyle_({config['planning_style']})_ValueSearch_({config['value_search']})_{config['map_name']}"
+    if config["agent_type"] == "mega-tree":
+        run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_ValueEst_({config['value_estimate']})_UpdateEst_{config['update_estimator']}_Predictor_({config['predictor']})_n_({config['unroll_budget']})_eps_({config['threshold']})_ValueSearch_({config['value_search']})_{config['map_name']}"
     elif config["agent_type"] == "azmcts":
         run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_ValueEst_({config['value_estimate']})_{config['map_name']}"
     elif config["agent_type"] == "octopus":
@@ -403,7 +400,7 @@ def eval_budget_sweep(
                     seeds=seeds,
                     temperature=config_copy["eval_temp"],
                     workers=config_copy["workers"],
-                    azdetection=(config_copy["agent_type"] == "azdetection"),
+                    azdetection=(config_copy["agent_type"] == "mega-tree"),
                     unroll_budget=config_copy["unroll_budget"],
                 )
 
@@ -463,7 +460,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="AlphaZero Evaluation Configuration")
 
-    map_size = 16
+    map_size = 8
 
     parser.add_argument("--map_size", type=int, default=map_size, help="Map size")
 
@@ -478,10 +475,10 @@ if __name__ == "__main__":
     parser.add_argument("--puct_c", type=float, default=1, help="PUCT parameter")
 
     # Only relevant for single run evaluation
-    parser.add_argument("--planning_budget", type=int, default=32, help="Planning budget")
+    parser.add_argument("--planning_budget", type=int, default=16, help="Planning budget")
 
     # Search algorithm
-    parser.add_argument("--agent_type", type=str, default="azmcts", help="Agent type")
+    parser.add_argument("--agent_type", type=str, default="mega-tree", help="Agent type")
 
     # Stochasticity parameters
     parser.add_argument("--eval_temp", type=float, default=0.0, help="Temperature in tree evaluation softmax")
@@ -490,13 +487,12 @@ if __name__ == "__main__":
 
     # AZDetection detection parameters
     parser.add_argument("--threshold", type=float, default=0.05, help="Detection threshold")
-    parser.add_argument("--unroll_budget", type=int, default=5, help="Unroll budget")
+    parser.add_argument("--unroll_budget", type=int, default=4, help="Unroll budget")
 
     # AZDetection replanning parameters
-    parser.add_argument("--planning_style", type=str, default="connected", help="Planning style")
     parser.add_argument("--value_search", type=bool, default=False, help="Enable value search")
     parser.add_argument("--predictor", type=str, default="current_value", help="Predictor to use for detection")
-    parser.add_argument("--update_estimator", type=bool, default=False, help="Update the estimator")
+    parser.add_argument("--update_estimator", type=bool, default=True, help="Update the estimator")
 
     # Test environment
     parser.add_argument("--test_env_id", type=str, default=f"CustomFrozenLakeNoHoles{map_size}x{map_size}-v1", help="Test environment ID")
@@ -510,22 +506,22 @@ if __name__ == "__main__":
     parser.add_argument("--observation_embedding", type=str, default="coordinate", help="Observation embedding type")
 
     # Model file for single run evaluation
-    parser.add_argument("--model_file", type=str, default=f"hyper/AZTrain_env=CustomFrozenLakeNoHoles16x16-v1_evalpol=mvc_iterations=50_budget=16_df=0.95_lr=0.003_nstepslr=2_seed=2/checkpoint.pth", help="Path to model file")
+    parser.add_argument("--model_file", type=str, default=f"hyper/AZTrain_env=CustomFrozenLakeNoHoles16x16-v1_evalpol=mvc_iterations=50_budget=16_df=0.95_lr=0.003_nstepslr=2_seed=0/checkpoint.pth", help="Path to model file")
 
     parser.add_argument("--train_seeds", type=int, default=10, help="The number of random seeds to use for training.")
     parser.add_argument("--eval_seeds", type=int, default=1, help="The number of random seeds to use for evaluation.")
 
     # Rendering
-    parser.add_argument("--render", type=bool, default=True, help="Render the environment")
+    parser.add_argument("--render", type=bool, default=False, help="Render the environment")
 
-    parser.add_argument("--run_full_eval", type=bool, default= False, help="Run type")
+    parser.add_argument("--run_full_eval", type=bool, default= True, help="Run type")
 
     parser.add_argument("--hpc", type=bool, default=False, help="HPC flag")
 
     parser.add_argument("--value_estimate", type=str, default="nn", help="Value estimate method")
-    parser.add_argument("--visualize_trees", type=bool, default=True, help="Visualize trees")
+    parser.add_argument("--visualize_trees", type=bool, default=False, help="Visualize trees")
 
-    parser.add_argument("--var_penalty", type=float, default=1, help="Variance penalty")
+    parser.add_argument("--var_penalty", type=float, default=1000, help="Variance penalty")
 
 
     # Parse arguments
@@ -548,7 +544,6 @@ if __name__ == "__main__":
         "dir_alpha": args.dir_alpha,
         "threshold": args.threshold,
         "unroll_budget": args.unroll_budget,
-        "planning_style": args.planning_style,
         "value_search": args.value_search,
         "predictor": args.predictor,
         "map_name": args.test_env_desc,

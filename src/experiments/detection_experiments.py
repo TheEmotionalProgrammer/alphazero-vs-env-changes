@@ -30,7 +30,7 @@ from experiments.eval_agent import eval_agent
 from experiments.evaluate_from_config import agent_from_config
 from environments.observation_embeddings import ObservationEmbedding, embedding_dict
 from az.azmcts import AlphaZeroMCTS
-from azdetection.change_detector import AlphaZeroDetector
+from azdetection.megatree import MegaTree
 from azdetection.octopus import Octopus
 from az.model import (
     AlphaZeroModel,
@@ -50,7 +50,7 @@ import argparse
 from parameters import base_parameters, env_challenges, fz_env_descriptions
 
 def run_single_detection(
-        solver: AlphaZeroDetector,
+        solver: MegaTree,
         env: gym.Env,
         tree_evaluation_policy: PolicyDistribution,
         observation_embedding: ObservationEmbedding,
@@ -237,7 +237,6 @@ if __name__ == "__main__":
     args.eval_temp = 0.0
     args.dir_epsilon = 0.0
     args.dir_alpha = None
-    args.planning_style = "connected"
     args.value_search = False
     args.test_env_id = "CustomFrozenLakeNoHoles16x16-v1"
     args.observation_embedding = "coordinate"
@@ -264,7 +263,6 @@ if __name__ == "__main__":
         "dir_alpha": args.dir_alpha,
         "threshold": args.threshold,
         "unroll_budget": args.unroll_budget,
-        "planning_style": args.planning_style,
         "value_search": args.value_search,
         "observation_embedding": args.observation_embedding,
         "render": args.render,
@@ -272,7 +270,6 @@ if __name__ == "__main__":
         "visualize_trees": args.visualize_trees,
         "map_size": args.map_size,
         "var_penalty": args.var_penalty,
-
         "value_estimate": args.value_estimate,
         "predictor": args.predictor,
         "update_estimator": args.update_estimator

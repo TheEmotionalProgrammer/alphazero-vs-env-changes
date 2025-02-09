@@ -13,7 +13,7 @@ from environments.frozenlake.frozen_lake import actions_dict
 
 from policies.utility_functions import policy_value
 
-class AlphaZeroDetector(AlphaZeroMCTS):
+class MegaTree(AlphaZeroMCTS):
 
     """
     The algorithm alternates these steps after each step in the real environment:
@@ -33,7 +33,6 @@ class AlphaZeroDetector(AlphaZeroMCTS):
             root_selection_policy: Policy | None = None,
             predictor: str = "current_value",
             update_estimator: bool = False,
-            planning_style: str = "connected",
             value_search: bool = False,
             value_estimate: str = "nn",
             var_penalty: float = 1.0
@@ -53,7 +52,6 @@ class AlphaZeroDetector(AlphaZeroMCTS):
         self.problem_idx = None # Index of the problematic node in the trajectory, i.e. first node whose value estimate is disregarded
         self.last_value_estimate = None 
         self.root_idx = None
-        self.planning_style = planning_style # The planning style to use when the problem is detected
         self.predictor = predictor # The predictor to use for the n-step prediction
         self.update_estimator = update_estimator 
         self.value_search = value_search # If True, the agent will use the value search 
@@ -100,27 +98,10 @@ class AlphaZeroDetector(AlphaZeroMCTS):
 
             value_estimate = 0.0
 
-            if self.planning_style == "mini_trees":
+            node.value_evaluation = self.value_function(node)
+            self.backup(node, node.value_evaluation)
 
-                val, policy = self.model.single_observation_forward(node.observation)
-
-                node.value_evaluation = val
-                node.prior_policy = policy
-            
-            elif self.planning_style == "connected":
-                    
-                node.value_evaluation = self.value_function(node)
-                self.backup(node, node.value_evaluation)
-
-                val, policy = node.value_evaluation, node.prior_policy
-
-            elif self.planning_style == "q-directed":
-
-                node.value_evaluation = self.value_function(node)
-                # node.policy_value = th.tensor(node.value_evaluation)
-                # node.visits += 1
-                self.backup(node, node.value_evaluation)
-                val, policy = node.value_evaluation, node.prior_policy
+            val, policy = node.value_evaluation, node.prior_policy
 
             root_estimate = self.n_step_prediction(None, 0, original_root_node) if self.predictor == "original_env" else node.value_evaluation
 
@@ -207,27 +188,11 @@ class AlphaZeroDetector(AlphaZeroMCTS):
             node = root_node
 
             value_estimate = 0.0
-
-            if self.planning_style == "mini_trees":
-
-                val, policy = self.model.single_observation_forward(node.observation)
-
-                node.value_evaluation = val
-                node.prior_policy = policy
             
-            elif self.planning_style == "connected":
-                    
-                node.value_evaluation = self.value_function(node)
-                self.backup(node, node.value_evaluation)
+            node.value_evaluation = self.value_function(node)
+            self.backup(node, node.value_evaluation)
 
-                val, policy = node.value_evaluation, node.prior_policy
-
-            elif self.planning_style == "q-directed":
-                node.value_evaluation = self.value_function(node)
-                # node.policy_value = th.tensor(node.value_evaluation)
-                # node.visits += 1
-                self.backup(node, node.value_evaluation)
-                val, policy = node.value_evaluation, node.prior_policy
+            val, policy = node.value_evaluation, node.prior_policy
 
             root_estimate = self.n_step_prediction(None, 0, original_root_node) if self.predictor == "original_env" else node.value_evaluation
 
@@ -249,67 +214,24 @@ class AlphaZeroDetector(AlphaZeroMCTS):
                 self.trajectory.append((node, action))
                 ziopera = True
 
-            if self.planning_style == "mini_trees":
-
-                child_env = copy.deepcopy(node.env)
-
-                observation, reward, terminated, truncated, _ = child_env.step(action)
-
-                child_node = Node(
-                    env=child_env,
-                    parent=None,
-                    reward=reward,
-                    action_space=child_env.action_space,
-                    observation=observation,
-                    terminal=terminated,
-                )
-
-                node = child_node
-
-                if node.is_terminal():
-                    break
-
-                val, policy = self.model.single_observation_forward(node.observation)
-
-            elif self.planning_style == "connected": # connected or q-directed
-
-                if action in node.children:
-                    
-                    node = node.children[action]
+            if action in node.children:
                 
-                else:
-
-                    eval_node = self.expand(node, action)
-                    eval_node.value_evaluation = self.value_function(eval_node)
-
-                    node = eval_node
-                    self.backup(node, node.value_evaluation)
-
-                if node.is_terminal():
-                    break
-
-                val, policy = node.value_evaluation, node.prior_policy
+                node = node.children[action]
             
-            elif self.planning_style == "q-directed":
+            else:
 
-                if action in node.children:
-                    
-                    node = node.children[action]
+                eval_node = self.expand(node, action)
+                eval_node.value_evaluation = self.value_function(eval_node)
 
-                else:
-                    eval_node = self.expand(node, action)
-                    eval_node.value_evaluation = self.value_function(eval_node)
+                node = eval_node
+                self.backup(node, node.value_evaluation)
 
-                    node = eval_node
-                    # node.visits += 1
-                    # node.policy_value = th.tensor(node.value_evaluation)
-                    self.backup(node, node.value_evaluation)
+            if node.is_terminal():
+                break
 
-                if node.is_terminal():
-                    break
-
-                val, policy = node.value_evaluation, node.prior_policy
-
+            val, policy = node.value_evaluation, node.prior_policy
+            
+            
             i_est = value_estimate + (self.discount_factor**(i+1)) * val
             
             if self.predictor == "original_env":
@@ -537,267 +459,93 @@ class AlphaZeroDetector(AlphaZeroMCTS):
                 # We initialize the value estimate of the problematic node
                 self.trajectory[self.problem_idx][0].value_evaluation = self.value_function(self.trajectory[self.problem_idx][0])
         
-        if self.planning_style == "mini_trees":
+        if self.problem_idx is not None:
+            distance = len(self.trajectory)
 
-            """
-            Looks for a node with value estimate greather than the one obtained by taking the problematic action from the problematic node
-            i.e. a value higher than the child self.trajectory[self.problem_idx][0] -> self.trajectory[self.problem_idx][1]
-            If it finds such a node, unrolls the trajectory from that node to check if it still encunters the problem
-            If it doesn't, the agent will take the sequence of actions that lead to that node in the real environment
-            If it does, the agent will keep searching for a node with a higher value estimate
-            """
-            start_val = 0
+        if not self.stop_unrolling:
+            root_node = self.trajectory[self.root_idx][0] 
+            root_node.parent = None # We don't want to backtrack to nodes that are already surpassed
+        else:
 
-            for idx in range(safe_length):
+            new_root = True
+
+            if self.trajectory[self.root_idx][0].observation == obs:
+                root_node = self.trajectory[self.root_idx][0]
+                root_node.parent = None
+                new_root = False
+                self.trajectory[self.root_idx] = (root_node, None)
+                print("Same state")
+            else:
+                for _, child in self.trajectory[self.root_idx][0].children.items():
+                    if child.observation == obs:
+                        root_node = child
+                        root_node.parent = None
+                        new_root = False
+                        self.trajectory[self.root_idx] = (root_node, None)
+                        print("Supremo Gabibbo")
+                        break
                 
-                if self.value_search:
-                    taken_actions  = [action for node, action in self.trajectory[:idx]] # List of actions that have been taken so far when this is the root
-
-                root_node = self.trajectory[idx][0]
-
+            if new_root:
+                root_node = Node(
+                    env=copy.deepcopy(env),
+                    parent=None,
+                    reward=reward,
+                    action_space=env.action_space,
+                    observation=obs,
+                )
                 root_node.value_evaluation = self.value_function(root_node)
                 self.backup(root_node, root_node.value_evaluation)
+                
+        start_val = root_node.value_evaluation
 
-                if idx == 0:
-                    start_val = root_node.value_evaluation
+        counter = root_node.visits 
 
-                counter = root_node.visits # Avoids immediate stopping when we are reusing an old trajectory
-
-                while root_node.visits - counter < max(iterations//safe_length, 1):
-                                        
-                    candidate_actions = taken_actions.copy() if self.value_search else None # We reset the candidate actions to the ones takes so far
-
-                    selected_node_for_expansion, selected_action = self.traverse(root_node, candidate_actions)
-
-                    if self.value_search:
-                        candidate_actions.append(selected_action)
-
-                    if selected_node_for_expansion.is_terminal(): # If the node is terminal, set its value to 0 and backup
-
-                        if self.value_search and selected_node_for_expansion.reward >= self.trajectory[self.problem_idx][0].value_evaluation:
-                        #if self.value_search and selected_node_for_expansion.reward > start_val: # Potentially better but slower
-                            self.problem_idx = None
-                            return candidate_actions
-                            
-                        selected_node_for_expansion.value_evaluation = 0.0
-                        self.backup(selected_node_for_expansion, 0)
-                    
-                    else:
-
-                        eval_node = self.expand(selected_node_for_expansion, selected_action)
-                        eval_node.value_evaluation = self.value_function(eval_node)
-
-                        if self.value_search and eval_node.value_evaluation >= self.trajectory[self.problem_idx][0].value_evaluation:
-                        #if self.value_search and eval_node.value_evaluation > start_val: # Potentially better but slower
-
-                            # We create copies of the envs to avoid any interference with the standard ongoing planning
-                            eval_node_env = copy.deepcopy(eval_node.env)
-                            original_env_copy = copy.deepcopy(original_env)
-                            obs = eval_node.observation
-                            reward = eval_node.reward
-
-                            if (
-                                not self.detached_unroll(eval_node_env, n, obs, reward, original_env_copy) 
-                                #and self.trajectory[self.problem_idx][0].observation != eval_node.observation
-                            ): # If the unroll does not encounter the problem
-
-                                self.problem_idx = None # The problem has been solved
-                                return candidate_actions
-                                                          
-                        self.backup(eval_node, eval_node.value_evaluation)
+        diff = n if not self.stop_unrolling else 0
         
-        elif self.planning_style == "connected":
-            
-            """
-            Unlike mini_trees, here we want to keep the unrolled trajectory as the starting planning tree.
-            Therefore, we connect the nodes of such trajectory before the obstacle.
-            Then, we plan with the given planning budget by selecting the nodes with the largest value.
-            This is achieved by using the PolicyUCT selection policy and setting the c parameter to zero.
-            This method should be combined with the mvc tree evaluation policy.
-            """
+        while root_node.visits - counter + diff < iterations:
 
-            if self.problem_idx is not None:
-                distance = len(self.trajectory)
+            candidate_actions  = [] if self.value_search else None
 
-            if not self.stop_unrolling:
-                root_node = self.trajectory[self.root_idx][0] 
-                root_node.parent = None # We don't want to backtrack to nodes that are already surpassed
+            selected_node_for_expansion, selected_action = self.traverse(root_node, candidate_actions) # Traverse the existing tree until a leaf node is reached
+
+            if self.value_search:
+                candidate_actions.append(selected_action)
+
+            if selected_node_for_expansion.is_terminal(): # If the node is terminal, set its value to 0 and backup
+                
+                selected_node_for_expansion.value_evaluation = 0.0
+                self.backup(selected_node_for_expansion, 0)
+
             else:
 
-                new_root = True
+                eval_node = self.expand(selected_node_for_expansion, selected_action) # Expand the node
+                value = self.value_function(eval_node) # Estimate the value of the node
+                eval_node.value_evaluation = value # Set the value of the node
 
-                if self.trajectory[self.root_idx][0].observation == obs:
-                    root_node = self.trajectory[self.root_idx][0]
-                    root_node.parent = None
-                    new_root = False
-                    self.trajectory[self.root_idx] = (root_node, None)
-                    print("Same state")
-                else:
-                    for _, child in self.trajectory[self.root_idx][0].children.items():
-                        if child.observation == obs:
-                            root_node = child
-                            root_node.parent = None
-                            new_root = False
-                            self.trajectory[self.root_idx] = (root_node, None)
-                            print("Supremo Gabibbo")
-                            break
-                    
-                if new_root:
-                    root_node = Node(
-                        env=copy.deepcopy(env),
-                        parent=None,
-                        reward=reward,
-                        action_space=env.action_space,
-                        observation=obs,
-                    )
-                    root_node.value_evaluation = self.value_function(root_node)
-                    self.backup(root_node, root_node.value_evaluation)
-                    
-            start_val = root_node.value_evaluation
-
-            counter = root_node.visits 
-
-            diff = n if not self.stop_unrolling else 0
-            
-            while root_node.visits - counter + diff < iterations:
-
-                candidate_actions  = [] if self.value_search else None
-
-                selected_node_for_expansion, selected_action = self.traverse(root_node, candidate_actions) # Traverse the existing tree until a leaf node is reached
-
-                if self.value_search:
-                    candidate_actions.append(selected_action)
-
-                if selected_node_for_expansion.is_terminal(): # If the node is terminal, set its value to 0 and backup
-                    
-                    selected_node_for_expansion.value_evaluation = 0.0
-                    self.backup(selected_node_for_expansion, 0)
-
-                else:
-
-                    eval_node = self.expand(selected_node_for_expansion, selected_action) # Expand the node
-                    value = self.value_function(eval_node) # Estimate the value of the node
-                    eval_node.value_evaluation = value # Set the value of the node
-
-                    #if self.value_search and eval_node.value_evaluation > start_val:
-                    if (
-                        self.value_search 
-                        and self.problem_idx is not None
-                        and eval_node.value_evaluation >= self.trajectory[self.problem_idx][0].value_evaluation
-                        and eval_node.value_evaluation > start_val
-                        ):
-       
-                            eval_node_env = copy.deepcopy(eval_node.env)
-                            original_env_copy = copy.deepcopy(original_env)
-                            obs = eval_node.observation
-                            reward = eval_node.reward
-
-                            if (
-                                not self.detached_unroll(eval_node_env, distance, obs, reward, original_env_copy) 
-                            ): # If the unroll does not encounter the problem
-                                print("HERE")
-                                return candidate_actions
-                                
-                    self.backup(eval_node, value) # Backup the value of the node
-
-            return root_node # Return the root node, which will now have updated statistics after the tree has been built
-
-        elif self.planning_style == "q-directed":
-
-            # assert isinstance(self.selection_policy, PolicyUCT)
-            # assert self.selection_policy.c == 0
-
-            """
-
-            We start from the unrolled trajectory. Then, we decide which node to plan from based on its Q value estimate.
-            We compute the Q value estimate using policy_value(). 
-
-            """
-
-            safe_nodes = self.trajectory[self.root_idx:safe_length] # We only consider the nodes before the problematic node
-
-            for _ in range(iterations):
-
-                #safe_nodes = sorted(safe_nodes, key=lambda x: x[0].policy_value, reverse=True)
-
-                # We select the node with the highest Q value estimate. To do this, we need to check which
-                # node of the trajectory has the highest Q value estimate. We start from the root node.
-                max_val = -np.inf
-                chosen_node = None
-
-                if self.value_search:
-                    taken_actions = []
-                    candidate_actions  = None
-
-                for node, action in safe_nodes:
-
-                    if self.value_search:
-                        taken_actions.append(action)
-
-                    node.policy_value = policy_value(node, self.selection_policy.policy, self.discount_factor)
-                    #print(node.policy_value)
-
-                    if not node.is_fully_expanded():
-                        chosen_node = node
-                        candidate_actions = taken_actions[:-1] if self.value_search else None
-                        break
-
-                    if node.policy_value > max_val:
-                        max_val = node.policy_value
-                        chosen_node = node
-                        candidate_actions = taken_actions[:-1] if self.value_search else None
-
-                #print("Chosen node value:", chosen_node.policy_value)
-
-                # parent = chosen_node.parent
-                # chosen_node.parent = None
-
-                #print("Chosen node:", f"({chosen_node.observation // self.ncols}, {chosen_node.observation % self.ncols})")
-
-                # We traverse the tree from the chosen node
-                selected_node_for_expansion, selected_action = self.traverse(chosen_node, candidate_actions)
-
-                if self.value_search:
-                    candidate_actions.append(selected_action)
-
-                if selected_node_for_expansion.is_terminal(): # If the node is terminal, set its value to 0 and backup
-
-                    if self.value_search and selected_node_for_expansion.reward > self.trajectory[self.problem_idx][0].value_evaluation:
-                        self.problem_idx = None
-                        return candidate_actions
-                
-                    selected_node_for_expansion.value_evaluation = 0.0
-                    self.backup(selected_node_for_expansion, 0)
-
-                else:
-                        
-                    eval_node = self.expand(selected_node_for_expansion, selected_action)
-                    value = self.value_function(eval_node)
-                    eval_node.value_evaluation = value
-
-                    if self.value_search and eval_node.value_evaluation > self.trajectory[self.problem_idx][0].value_evaluation:
-                                
+                #if self.value_search and eval_node.value_evaluation > start_val:
+                if (
+                    self.value_search 
+                    and self.problem_idx is not None
+                    and eval_node.value_evaluation >= self.trajectory[self.problem_idx][0].value_evaluation
+                    and eval_node.value_evaluation > start_val
+                    ):
+    
                         eval_node_env = copy.deepcopy(eval_node.env)
                         original_env_copy = copy.deepcopy(original_env)
                         obs = eval_node.observation
                         reward = eval_node.reward
 
                         if (
-                            not self.detached_unroll(eval_node_env, n, obs, reward, original_env_copy) 
-                        ):
-                                
-                            self.problem_idx = None
+                            not self.detached_unroll(eval_node_env, distance, obs, reward, original_env_copy) 
+                        ): # If the unroll does not encounter the problem
+                            print("HERE")
                             return candidate_actions
+                            
+                self.backup(eval_node, value) # Backup the value of the node
 
-                    self.backup(eval_node, value)
-                
-                # chosen_node.parent = parent
+        return root_node # Return the root node, which will now have updated statistics after the tree has been built
 
-            return safe_nodes[0][0] # Return the root node, which will now have updated statistics after the tree has been built
-
-        else:
-
-            raise NotImplementedError("Planning style not recognized.")
+        
 
 
     def traverse(
