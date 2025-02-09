@@ -1,20 +1,24 @@
 import sys
 
 sys.path.append("src/")
-import time
 
+import os
 from tqdm import tqdm
 import numpy as np
 import multiprocessing
 import gymnasium as gym
 import wandb
+import pandas as pd
 
 from log_code.metrics import calc_metrics
 from experiments.eval_agent import eval_agent
 from core.mcts import DistanceMCTS, LakeDistanceMCTS, RandomRolloutMCTS
 from environments.observation_embeddings import ObservationEmbedding, embedding_dict
 from az.azmcts import AlphaZeroMCTS
+
 from azdetection.minitrees import MiniTrees
+from azdetection.megatree import MegaTree
+
 from az.model import (
     AlphaZeroModel,
     models_dict
@@ -31,6 +35,7 @@ import argparse
 from parameters import base_parameters, env_challenges, fz_env_descriptions
 
 from log_code.gen_renderings import save_gif_imageio
+from log_code.tree_visualizer import visualize_trees
 
 def agent_from_config(hparams: dict):
     
@@ -46,12 +51,16 @@ def agent_from_config(hparams: dict):
         value_transform=value_transform_dict[hparams["tree_value_transform"]],
     )[hparams["tree_evaluation_policy"]]
 
+    print("evaltemp",tree_evaluation_policy.temperature)
+
     selection_policy = selection_dict_fn(
         hparams["puct_c"],
         tree_evaluation_policy,
         discount_factor,
-        value_transform_dict[hparams["selection_value_transform"]],
+        value_transform=value_transform_dict[hparams["selection_value_transform"]],
     )[hparams["selection_policy"]]
+
+    print("seltemp",selection_policy.temperature)
 
     if (
         "root_selection_policy" not in hparams
@@ -66,16 +75,6 @@ def agent_from_config(hparams: dict):
         discount_factor,
         value_transform_dict[hparams["selection_value_transform"]],
     )[hparams["root_selection_policy"]]
-
-    if "estimation_policy" not in hparams or hparams["estimation_policy"] is None:
-        hparams["estimation_policy"] = "UCT"
-
-    estimation_policy = selection_dict_fn(
-        hparams["puct_c"],
-        tree_evaluation_policy,
-        discount_factor,
-        value_transform_dict[hparams["selection_value_transform"]],
-    )[hparams["estimation_policy"]]
 
     observation_embedding: ObservationEmbedding = embedding_dict[
         hparams["observation_embedding"]
@@ -130,6 +129,7 @@ def agent_from_config(hparams: dict):
         dir_epsilon = hparams["dir_epsilon"]
         dir_alpha = hparams["dir_alpha"]
 
+
         agent = AlphaZeroMCTS(
             root_selection_policy=root_selection_policy,
             selection_policy=selection_policy,
@@ -140,7 +140,7 @@ def agent_from_config(hparams: dict):
             value_estimate=hparams["value_estimate"],
         )
 
-    elif hparams["agent_type"] == "mini-trees":
+    elif hparams["agent_type"] == "mini-trees" or hparams["agent_type"] == "mega-tree":
 
         filename = hparams["model_file"]
 
@@ -157,26 +157,42 @@ def agent_from_config(hparams: dict):
 
         dir_epsilon = hparams["dir_epsilon"]
         dir_alpha = hparams["dir_alpha"]
-
+        
         threshold = hparams["threshold"]
 
         value_search = hparams["value_search"]
 
         predictor = hparams["predictor"]
 
+        if hparams["agent_type"] == "mega-tree":
+            agent = MegaTree(
+                predictor=predictor,
+                root_selection_policy=root_selection_policy,
+                selection_policy=selection_policy,
+                model=model,
+                dir_epsilon=dir_epsilon,
+                dir_alpha=dir_alpha,
+                discount_factor=discount_factor,
+                threshold=threshold,
+                value_search=value_search,
+                value_estimate=hparams["value_estimate"],
+                var_penalty=hparams["var_penalty"],
+                update_estimator=hparams["update_estimator"],
+            )
+        elif hparams["agent_type"] == "mini-trees":
 
-        agent = MiniTrees(
-            predictor=predictor,
-            root_selection_policy=root_selection_policy,
-            selection_policy=selection_policy,
-            model=model,
-            dir_epsilon=dir_epsilon,
-            dir_alpha=dir_alpha,
-            discount_factor=discount_factor,
-            threshold=threshold,
-            value_search=value_search,
-            value_estimate=hparams["value_estimate"],
-        )
+            agent = MiniTrees(
+                predictor=predictor,
+                root_selection_policy=root_selection_policy,
+                selection_policy=selection_policy,
+                model=model,
+                dir_epsilon=dir_epsilon,
+                dir_alpha=dir_alpha,
+                discount_factor=discount_factor,
+                threshold=threshold,
+                value_search=value_search,
+                value_estimate=hparams["value_estimate"],
+            )
 
     else:
 
@@ -216,19 +232,14 @@ def eval_from_config(
         agent_from_config(hparams)
     )
 
-    print(train_env.unwrapped.desc)
-    print(train_env.unwrapped.hole_reward)
-
     if "workers" not in hparams or hparams["workers"] is None:
         hparams["workers"] = multiprocessing.cpu_count()
-    workers = hparams["workers"]
+    else:
+        workers = hparams["workers"]
 
     seeds = [0] * hparams["runs"]
 
     test_env = gym.make(**hparams["test_env"])
-
-    print(test_env.unwrapped.desc)
-    print(test_env.unwrapped.hole_reward)
 
     results = eval_agent(
         agent=agent,
@@ -241,11 +252,17 @@ def eval_from_config(
         seeds=seeds,
         temperature=hparams["eval_temp"],
         workers=workers,
-        azdetection= (hparams["agent_type"] == "mini-trees"),
+        azdetection= (hparams["agent_type"] == "mini-trees" or hparams["agent_type"] == "mega-tree"),
         unroll_budget= hparams["unroll_budget"],
         render=hparams["render"],
+        return_trees=hparams["visualize_trees"],
     )
-    print(len(results))
+
+    if hparams["visualize_trees"]:
+        results, trees = results
+        trees = trees[0]
+        print(f"Visualizing {len(trees)} trees...")
+        visualize_trees(trees, "tree_visualizations")
         
     episode_returns, discounted_returns, time_steps, entropies = calc_metrics(
         results, agent.discount_factor, test_env.action_space.n
@@ -300,25 +317,24 @@ def eval_budget_sweep(
     Args:
         project_name (str): WandB project name.
         entity (str): WandB entity name.
-        job_name (str): Job name for WandB logs.
         config (dict): Base configuration for the agent.
         budgets (list): List of planning budgets to evaluate.
-        num_seeds (int): Number of seeds to run.
+        num_train_seeds (int): Number of training seeds.
+        num_eval_seeds (int): Number of evaluation seeds.
     """
-    if config["agent_type"] == "mini-trees":
-        run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_Predictor_({config['predictor']})_n_({config['unroll_budget']})_eps_({config['threshold']})_PlanningStyle_({config['planning_style']})_ValueSearch_({config['value_search']})_{config['map_name']}"
+    if config["agent_type"] == "azdetection":
+        run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_Predictor_({config['predictor']})_n_({config['unroll_budget']})_eps_({config['threshold']})_ValueSearch_({config['value_search']})_{config['map_name']}"
     elif config["agent_type"] == "azmcts":
-        run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_{config['map_name']}"
+        run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_ValueEst_({config['value_estimate']})_{config['map_name']}"
+    elif config["agent_type"] == "octopus":
+        run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_ValueEst_({config['value_estimate']})_Predictor_({config['predictor']})_eps_({config['threshold']})_{config['map_name']}"
 
     if budgets is None:
-        budgets = [
-            8, 16, 32, 64, 128             
-        ]  # Default budgets to sweep
+        budgets = [8, 16, 32, 64, 128]  # Default budgets to sweep
 
     use_wandb = config["wandb_logs"]
-    
+
     if use_wandb:
-        # Initialize WandB run
         run = wandb.init(
             project=project_name, 
             entity=entity, 
@@ -330,33 +346,32 @@ def eval_budget_sweep(
     else:
         hparams = config
 
-    # Register custom environments
-    register_all()
+    register_all()  # Register custom environments
 
     # Store results for plotting
-    budget_results = []
+    results_data = []
 
     for model_seed in range(num_train_seeds):
 
-        model_file = f"{"hyper" if not hparams["hpc"] else "scratch/itamassia"}/AZTrain_env=CustomFrozenLakeNoHoles8x8-v1_iterations=50_budget=64_seed={model_seed}/checkpoint.pth"
+        if config["map_size"] == 8:
+            model_file = f"{"hyper" if not hparams["hpc"] else "scratch/itamassia"}/AZTrain_env=CustomFrozenLakeNoHoles8x8-v1_evalpol=visit_iterations=50_budget=64_df=0.95_lr=0.001_nstepslr=2_seed={model_seed}/checkpoint.pth"
+        elif config["map_size"] == 16:
+            model_file = f"{"hyper" if not hparams["hpc"] else "scratch/itamassia"}/AZTrain_env=CustomFrozenLakeNoHoles16x16-v1_evalpol=visit_iterations=60_budget=128_df=0.95_lr=0.003_nstepslr=2_seed={model_seed}/checkpoint.pth"
 
-        for seed in range(num_eval_seeds):
+        for budget in budgets:
+            eval_results = []  # Store results across evaluation seeds for a given training seed
 
-            for budget in budgets:
-                # Make a copy of the base configuration to avoid modifying the original
+            for seed in range(num_eval_seeds):
                 config_copy = dict(hparams)
-
                 config_copy["model_file"] = model_file
                 config_copy["planning_budget"] = budget
-                
+
                 print(f"Running evaluation for planning_budget={budget}")
 
-                # Evaluate the agent
                 agent, train_env, tree_evaluation_policy, observation_embedding, planning_budget = agent_from_config(config_copy)
                 test_env = gym.make(**config_copy["test_env"])
-                #seeds = [None] * config_copy["runs"]
                 seeds = [seed]
-                
+
                 results = eval_agent(
                     agent=agent,
                     env=test_env,
@@ -368,63 +383,85 @@ def eval_budget_sweep(
                     seeds=seeds,
                     temperature=config_copy["eval_temp"],
                     workers=config_copy["workers"],
-                    azdetection=(config_copy["agent_type"] == "mini-trees"),
+                    azdetection=(config_copy["agent_type"] == "mini-trees" or config_copy["agent_type"] == "mega-tree"),
                     unroll_budget=config_copy["unroll_budget"],
                 )
 
-                # Calculate metrics
                 episode_returns, discounted_returns, time_steps, _ = calc_metrics(
                     results, agent.discount_factor, test_env.action_space.n
                 )
 
-                # Compute mean discounted return
-                mean_discounted_return = discounted_returns.mean().item()
-                mean_return = episode_returns.mean().item()
-                mean_time_steps = time_steps.mean().item()
-                budget_results.append((budget, mean_discounted_return, mean_return, mean_time_steps))
+                eval_results.append([
+                    discounted_returns.mean().item(),
+                    episode_returns.mean().item(),
+                    time_steps.mean().item()
+                ])
 
-                if use_wandb:
-                    wandb.log({"Planning_Budget": budget, f"Mean_Discounted_Return_trainseed={model_seed}_evalseed={seed}": mean_discounted_return})
-                    wandb.log({"Planning_Budget": budget, f"Mean_Return_trainseed={model_seed}_evalseed={seed}": mean_return})
-                    wandb.log({"Planning_Budget": budget, f"Mean_Episode_Length_trainseed={model_seed}_evalseed={seed}": mean_time_steps})
+            # Compute mean across evaluation seeds for this training seed
+            eval_results = np.array(eval_results)
+            train_seed_mean = eval_results.mean(axis=0)  # Mean of evaluation seeds
+            results_data.append([budget, model_seed] + list(train_seed_mean))
 
-                else:
-                    print(f"Mean Discounted Return: {mean_discounted_return}")
-                    print(f"Mean Return: {mean_return}")
-                    print(f"Mean Episode Length: {mean_time_steps}")
-        
     if use_wandb:
         run.finish()
-    else:
-        # Print the mean of the results for each budget
-        for budget in budgets:
-            budget_results = np.array(budget_results)
-            mean_discounted_return = np.mean(budget_results[budget_results[:, 0] == budget, 1])
-            mean_return = np.mean(budget_results[budget_results[:, 0] == budget, 2])
-            mean_time_steps = np.mean(budget_results[budget_results[:, 0] == budget, 3])
-            print(f"Planning Budget: {budget}")
-            print(f"Mean Discounted Return: {mean_discounted_return}")
-            print(f"Mean Return: {mean_return}")
-            print(f"Mean Episode Length: {mean_time_steps}")
+
+    # Convert results into DataFrame
+    df = pd.DataFrame(results_data, columns=["Budget", "Training Seed", "Discounted Return", "Return", "Episode Length"])
+
+    # Compute final mean and standard deviation across training seeds
+    df_grouped = df.groupby("Budget").agg(["mean", "std"])
+    df_grouped.columns = [f"{col[0]} {col[1]}" for col in df_grouped.columns]  # Flatten MultiIndex
+    df_grouped.reset_index(inplace=True)  # Restore "Budget" as a column
+
+    # Print to debug column names
+    print("Column names after grouping:", df_grouped.columns)
+
+    # Compute standard error across training seeds
+    num_train_seeds = len(df["Training Seed"].unique())
+    for metric in ["Discounted Return", "Return", "Episode Length"]:
+        df_grouped[f"{metric} SE"] = df_grouped[f"{metric} std"] / np.sqrt(num_train_seeds)
+    
+    # Drop the "Training Seed mean" column and the "Training Seed std" column
+    df_grouped.drop(columns=["Training Seed mean", "Training Seed std"], inplace=True)
+
+    # If directory does not exist, create it
+    if not os.path.exists(f"{config_copy['map_size']}x{config_copy['map_size']}"):
+        os.makedirs(f"{config_copy['map_size']}x{config_copy['map_size']}")
+
+    # Save results
+    df_grouped.to_csv(f"{config_copy['map_size']}x{config_copy['map_size']}/{run_name}.csv", index=False)
+
+    # Print final averages with standard errors
+    for budget in budgets:
+        row = df_grouped[df_grouped["Budget"] == budget]
+        print(f"Planning Budget: {budget}")
+        print(f"Avg Discounted Return: {row['Discounted Return mean'].values[0]:.3f} ± {row['Discounted Return SE'].values[0]:.3f}")
+        print(f"Avg Return: {row['Return mean'].values[0]:.3f} ± {row['Return SE'].values[0]:.3f}")
+        print(f"Avg Episode Length: {row['Episode Length mean'].values[0]:.3f} ± {row['Episode Length SE'].values[0]:.3f}")
 
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="AlphaZero Evaluation Configuration")
 
+    map_size = 8
+
+    parser.add_argument("--map_size", type=int, default=map_size, help="Map size")
+
     # Run configurations
     parser.add_argument("--wandb_logs", type=bool, default=False, help="Enable wandb logging")
-    parser.add_argument("--workers", type=int, default=6, help="Number of workers")
+    parser.add_argument("--workers", type=int, default=1, help="Number of workers")
     parser.add_argument("--runs", type=int, default=1, help="Number of runs")
 
     # Basic search parameters
-    parser.add_argument("--tree_evaluation_policy", type=str, default="visit", help="Tree evaluation policy")
-    parser.add_argument("--selection_policy", type=str, default="PUCT", help="Selection policy")
-    parser.add_argument("--planning_budget", type=int, default=32, help="Planning budget")
-    parser.add_argument("--puct_c", type=float, default=1.0, help="PUCT parameter")
+    parser.add_argument("--tree_evaluation_policy", type=str, default="mvc", help="Tree evaluation policy")
+    parser.add_argument("--selection_policy", type=str, default="PolicyUCT", help="Selection policy")
+    parser.add_argument("--puct_c", type=float, default=1, help="PUCT parameter")
+
+    # Only relevant for single run evaluation
+    parser.add_argument("--planning_budget", type=int, default=16, help="Planning budget")
 
     # Search algorithm
-    parser.add_argument("--agent_type", type=str, default="mini-trees", help="Agent type")
-    parser.add_argument("--depth_estimation", type=bool, default=False, help="Use tree depth estimation")
+    parser.add_argument("--agent_type", type=str, default="mega-tree", help="Agent type")
 
     # Stochasticity parameters
     parser.add_argument("--eval_temp", type=float, default=0.0, help="Temperature in tree evaluation softmax")
@@ -432,18 +469,19 @@ if __name__ == "__main__":
     parser.add_argument("--dir_alpha", type=float, default=None, help="Dirichlet noise parameter alpha")
 
     # AZDetection detection parameters
-    parser.add_argument("--threshold", type=float, default=0.01, help="Detection threshold")
+    parser.add_argument("--threshold", type=float, default=0.05, help="Detection threshold")
     parser.add_argument("--unroll_budget", type=int, default=4, help="Unroll budget")
 
     # AZDetection replanning parameters
-    parser.add_argument("--value_search", type=bool, default=True, help="Enable value search")
-    parser.add_argument("--predictor", type=str, default="original_env", help="Predictor to use for detection")
+    parser.add_argument("--value_search", type=bool, default=False, help="Enable value search")
+    parser.add_argument("--predictor", type=str, default="current_value", help="Predictor to use for detection")
+    parser.add_argument("--update_estimator", type=bool, default=True, help="Update the estimator")
 
     # Test environment
-    parser.add_argument("--test_env_id", type=str, default="CustomFrozenLakeNoHoles8x8-v1", help="Test environment ID")
-    parser.add_argument("--test_env_desc", type=str, default="DEFAULT", help="Environment description")
-    parser.add_argument("--test_env_is_slippery", type=bool, default=False, help="Environment slippery flag")
-    parser.add_argument("--test_env_hole_reward", type=int, default=0.0, help="Hole reward")
+    parser.add_argument("--test_env_id", type=str, default=f"CustomFrozenLakeNoHoles{map_size}x{map_size}-v1", help="Test environment ID")
+    parser.add_argument("--test_env_desc", type=str, default=f"{map_size}x{map_size}_DEAD_END", help="Environment description")
+    parser.add_argument("--test_env_is_slippery", type=bool, default=False, help="Slippery environment")
+    parser.add_argument("--test_env_hole_reward", type=int, default=0, help="Hole reward")
     parser.add_argument("--test_env_terminate_on_hole", type=bool, default=False, help="Terminate on hole")
     parser.add_argument("--deviation_type", type=str, default="bump", help="Deviation type")
 
@@ -451,24 +489,28 @@ if __name__ == "__main__":
     parser.add_argument("--observation_embedding", type=str, default="coordinate", help="Observation embedding type")
 
     # Model file for single run evaluation
-    parser.add_argument("--model_file", type=str, default=f"hyper/AZTrain_env=CustomFrozenLakeNoHoles8x8-v1_evalpol=visit_iterations=50_budget=64_df=0.95_lr=0.001_nstepslr=2_seed=3/checkpoint.pth", help="Path to model file")
+    parser.add_argument("--model_file", type=str, default=f"hyper/AZTrain_env=CustomFrozenLakeNoHoles16x16-v1_evalpol=mvc_iterations=50_budget=16_df=0.95_lr=0.003_nstepslr=2_seed=0/checkpoint.pth", help="Path to model file")
 
     parser.add_argument("--train_seeds", type=int, default=10, help="The number of random seeds to use for training.")
-    parser.add_argument("--eval_seeds", type=int, default=10, help="The number of random seeds to use for evaluation.")
+    parser.add_argument("--eval_seeds", type=int, default=1, help="The number of random seeds to use for evaluation.")
 
     # Rendering
-    parser.add_argument("--render", type=bool, default=True, help="Render the environment")
+    parser.add_argument("--render", type=bool, default=False, help="Render the environment")
 
-    parser.add_argument("--run_full_eval", type=bool, default= False, help="Run type")
+    parser.add_argument("--run_full_eval", type=bool, default= True, help="Run type")
 
     parser.add_argument("--hpc", type=bool, default=False, help="HPC flag")
 
     parser.add_argument("--value_estimate", type=str, default="nn", help="Value estimate method")
+    parser.add_argument("--visualize_trees", type=bool, default=False, help="Visualize trees")
+
+    parser.add_argument("--var_penalty", type=float, default=1000, help="Variance penalty")
+
 
     # Parse arguments
     args = parser.parse_args()
 
-    challenge = env_challenges["CustomFrozenLakeNoHoles8x8-v1"]  # Training environment
+    challenge = env_challenges[f"CustomFrozenLakeNoHoles{map_size}x{map_size}-v1"]  # Training environment
 
     # Construct the config
     config_modifications = {
@@ -480,7 +522,6 @@ if __name__ == "__main__":
         "planning_budget": args.planning_budget,
         "puct_c": args.puct_c,
         "agent_type": args.agent_type,
-        "depth_estimation": args.depth_estimation,
         "eval_temp": args.eval_temp,
         "dir_epsilon": args.dir_epsilon,
         "dir_alpha": args.dir_alpha,
@@ -502,6 +543,11 @@ if __name__ == "__main__":
         "render": args.render,
         "hpc": args.hpc,
         "value_estimate": args.value_estimate,
+        "visualize_trees": args.visualize_trees,
+        "map_size": args.map_size,
+        "var_penalty": args.var_penalty,
+        "update_estimator": args.update_estimator,
+
     }
 
     run_config = {**base_parameters, **challenge, **config_modifications}
@@ -509,6 +555,6 @@ if __name__ == "__main__":
     # Execute the evaluation
 
     if args.run_full_eval:
-        eval_budget_sweep(config=run_config, num_train_seeds=args.train_seeds, num_eval_seeds=args.eval_seeds)
+        eval_budget_sweep(config=run_config, budgets= [8,16,32],  num_train_seeds=args.train_seeds, num_eval_seeds=args.eval_seeds)
     else:
         eval_from_config(config=run_config)

@@ -47,7 +47,7 @@ env_challenges = {
 
     "CustomFrozenLakeNoHoles8x8-v1": {
         "env_description": "CustomFrozenLakeNoHoles8x8-v1",
-        "max_episode_length": 100,
+        "max_episode_length": 30,
         "env_params": dict(id="CustomFrozenLakeNoHoles8x8-v1", max_episode_steps=1000000000),
         "optimal_value": 1.0 * 0.95 ** 14,
         "worst_value": 0.0,
@@ -58,7 +58,7 @@ env_challenges = {
 
     "CustomFrozenLakeNoHoles16x16-v1": {
         "env_description": "CustomFrozenLakeNoHoles16x16-v1",
-        "max_episode_length": 200,
+        "max_episode_length": 100,
         "env_params": dict(id="CustomFrozenLakeNoHoles16x16-v1", max_episode_steps=1000000000),
         "optimal_value": 1.0 * 0.95 ** 30,
         "worst_value": 0.0,
@@ -117,17 +117,6 @@ fz_env_descriptions = {
         "FFFFFFFG"
     ],
 
-    "DEFAULT": [
-        "SFFFFFFF",
-        "FFFFFFFF",
-        "FFFHFFFF",
-        "FFFFFHFF",
-        "FFFHFFFF",
-        "FHHFFFHF",
-        "FHFFHFHF",
-        "FFFHFFFG"
-    ],
-
     "MINI_SLALOM": [
         "SFFFFFFF",
         "FFFFFFFF",
@@ -142,10 +131,10 @@ fz_env_descriptions = {
     "SLALOM": [
         "SFFFFFFF",
         "FFFFFFFF",
-        "HHHHFFFF",
+        "HHHHHHHF",
         "FFFFFFFF",
         "FFFFFFFF",
-        "FFFFHHHH",
+        "FFFFFHHH",
         "FFFFFFFF",
         "FFFFFFFG"
     ],
@@ -172,37 +161,124 @@ fz_env_descriptions = {
         "FFFFFFFG"
     ],
 
-    "NARROW": [
+    "8X8_DEFAULT": [
+        "SFFFFFFF",
+        "FFFFFFFF",
+        "FFFHFFFF",
+        "FFFFFHFF",
+        "FFFHFFFF",
+        "FHHFFFHF",
+        "FHFFHFHF",
+        "FFFHFFFG"
+    ],
+
+    "16x16_DEFAULT": [
+        "SFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFHHFFFFFFFFFF",
+        "FFFFHHFFFFFFFFFF",
+        "FFFFFFFFHHFFFFFF",
+        "FFFFFFFFHHFFFFFF",
+        "FFFFHHFFFFFFFFFF",
+        "FFFFHHFFFFFFFFFF",
+        "FFFFFFFFFFFFHHFF",
+        "FFHHFFFFFFFFHHFF",
+        "FFHFFFFFHHFFHHFF",
+        "FFHFFFFFHHFFHHFF",
+        "FFHFFFFFFFFFFFFF",
+        "FFFFFHHFFFFFFFFF",
+        "FFFFFHHFFFFFFFFG"
+    ],
+
+    "8x8_NARROW": [
         "SFFFFFFF",
         "FFFFFFFF",
         "HHFHHHHH",
         "HHFHHHHH",
         "FFFFFFFF",
-        "FFFFFFHF",
+        "FFFFFFFF",
+        "FFFFFFFF",
+        "FFFFFFFG"
+    ],
+
+    "16x16_NARROW": [
+        "SFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "HHHHFFHHHHHHHHHH",
+        "HHHHFFHHHHHHHHHH",
+        "HHHHFFHHHHHHHHHH",
+        "HHHHFFHHHHHHHHHH",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFG"
+    ],
+
+    "8x8_NARROW_XTREME": [
+        "SFFFFFFF",
+        "FFFFFFFF",
+        "HHFHHHHH",
+        "HHFHHHHH",
+        "FFFFFFFF",
+        "FFFFFFFF",
         "FFFFFFHF",
         "FFFFFFHG"
     ],
 
-    "NARROW_SIMPLIFIED": [
+    "16x16_NARROW_XTREME": [
+        "SFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "HHHHFFHHHHHHHHHH",
+        "HHHHFFHHHHHHHHHH",
+        "HHHHFFHHHHHHHHHH",
+        "HHHHFFHHHHHHHHHH",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFHHFFFF",
+        "FFFFFFFFFFHHFFFF",
+        "FFFFFFFFFFHHFFFF",
+        "FFFFFFFFFFHHFFFG"
+    ],
+
+    "8x8_DEAD_END": [
         "SFFFFFFF",
         "FFFFFFFF",
-        "HHFHHHHH",
-        "HHFHHHHH",
         "FFFFFFFF",
         "FFFFFFFF",
         "FFFFFFFF",
+        "FFFFFFFF",
+        "FFFFHHHH",
         "FFFFFFFG"
     ],
 
-    "DEAD_END": [
-        "SFFFFFFF",
-        "FFFFFFFF",
-        "FFFFFFFF",
-        "FFFFFFFF",
-        "FFHHHHHH",
-        "FFFFFFFF",
-        "FFFFFFFF",
-        "FFFFFFFG"
+    "16x16_DEAD_END": [
+        "SFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFHHHH",
+        "FFFFFFFFFFFFFFFG"
     ],
 
     "INVERSE_DEAD_END": [
@@ -257,22 +333,22 @@ fz_env_descriptions = {
         "FFFFFFFFFFFFFFFG"
     ],
 
-    "16x16_DEFAULT": [
+    "16x16_BLOCK": [
         "SFFFFFFFFFFFFFFF",
         "FFFFFFFFFFFFFFFF",
         "FFFFFFFFFFFFFFFF",
         "FFFFFFFFFFFFFFFF",
-        "FFFFHHHFFFFFFFFF",
-        "FFFFFFHFFFFFFFFF",
         "FFFFFFFFFFFFFFFF",
         "FFFFFFFFFFFFFFFF",
-        "FFFFFFFFFHHHFFFF",
-        "FFFFFFFFFFFFFFFF",
-        "FFHHHHFFFFFFFFFF",
         "FFFFFFFFFFFFFFFF",
         "FFFFFFFFFFFFFFFF",
-        "FFFFFFFFFFFHFFFF",
-        "FFFFFFFFFFHHFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFHHHHHHHH",
+        "FFFFFFFFFFFFFFFF",
         "FFFFFFFFFFFFFFFG"
     ],
 
@@ -295,6 +371,102 @@ fz_env_descriptions = {
         "FFFFFFFFFFFFFFFG"
     ],
 
+    # For detection experiments
 
+    "16x16_D2": [
+        "SFFHFFFFFFFFFFFF",
+        "FFFHFFFFFFFFFFFF",
+        "FFFHFFFFFFFFFFFF",
+        "HHHHFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFG"
+    ],
+    
+    "16x16_D5": [
+        "SFFFFFHFFFFFFFFF",
+        "FFFFFFHFFFFFFFFF",
+        "FFFFFFHFFFFFFFFF",
+        "FFFFFFHFFFFFFFFF",
+        "FFFFFFHFFFFFFFFF",
+        "FFFFFFHFFFFFFFFF",
+        "HHHHHHHFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFG"
+    ],
+
+    "16x16_D8": [
+        "SFFFFFFFFHFFFFFF",
+        "FFFFFFFFFHFFFFFF",
+        "FFFFFFFFFHFFFFFF",
+        "FFFFFFFFFHFFFFFF",
+        "FFFFFFFFFHFFFFFF",
+        "FFFFFFFFFHFFFFFF",
+        "FFFFFFFFFHFFFFFF",
+        "FFFFFFFFFHFFFFFF",
+        "FFFFFFFFFHFFFFFF",
+        "HHHHHHHHHHFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFG"
+    ],
+
+    "16x16_D11": [
+        "SFFFFFFFFFFFHFFF",
+        "FFFFFFFFFFFFHFFF",
+        "FFFFFFFFFFFFHFFF",
+        "FFFFFFFFFFFFHFFF",
+        "FFFFFFFFFFFFHFFF",
+        "FFFFFFFFFFFFHFFF",
+        "FFFFFFFFFFFFHFFF",
+        "FFFFFFFFFFFFHFFF",
+        "FFFFFFFFFFFFHFFF",
+        "FFFFFFFFFFFFHFFF",
+        "FFFFFFFFFFFFHFFF",
+        "FFFFFFFFFFFFHFFF",
+        "FFFFFFFFFFFFHFFF",
+        "HHHHHHHHHHHHHFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFG"
+    ],
+
+    "16x16_D14": [
+        "SFFFFFFFFFFFFFFH",
+        "FFFFFFFFFFFFFFFH",
+        "FFFFFFFFFFFFFFFH",
+        "FFFFFFFFFFFFFFFH",
+        "FFFFFFFFFFFFFFFH",
+        "FFFFFFFFFFFFFFFH",
+        "FFFFFFFFFFFFFFFH",
+        "FFFFFFFFFFFFFFFH",
+        "FFFFFFFFFFFFFFFH",
+        "FFFFFFFFFFFFFFFH",
+        "FFFFFFFFFFFFFFFH",
+        "FFFFFFFFFFFFFFFH",
+        "FFFFFFFFFFFFFFFH",
+        "FFFFFFFFFFFFFFFH",
+        "FFFFFFFFFFFFFFFH",
+        "HHHHHHHHHHHHHHHG"
+
+    ],
 
 }

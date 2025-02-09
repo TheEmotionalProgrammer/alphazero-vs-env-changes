@@ -184,16 +184,19 @@ class MCTS:
         node = start_node
         cumulative_reward = value
 
+        #problem_vicinity = 1.0
         while node is not None: # The parent is None if node is the root
             cumulative_reward *= self.discount_factor
             cumulative_reward += node.reward
             node.subtree_sum += cumulative_reward
             node.visits += new_visits
-        
-            # NEW: reset the prior policy and value evaluation (mark as needing update)
-            node.variance = None
+
+            # Reset the prior policy and value evaluation (mark as needing update)
             node.policy_value = None
+            node.variance = None
+            
             node = node.parent
+
 
 class RandomRolloutMCTS(MCTS):
     def __init__(self, rollout_budget=40, *args, **kwargs):
@@ -228,8 +231,6 @@ class RandomRolloutMCTS(MCTS):
             discount *= self.discount_factor
 
         return accumulated_reward
-
-
 
 class DistanceMCTS(MCTS):
     def __init__(self, embedding: CoordinateEmbedding, goal_state: int | None = None, *args, **kwargs):

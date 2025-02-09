@@ -1,0 +1,254 @@
+{
+    "16x16_NO_OBSTACLES": {
+        "0": {
+            "distance_init_obst": null,
+            "distance_from_init": "inf"
+        },
+        "1": {
+            "distance_init_obst": null,
+            "distance_from_init": "inf"
+        },
+        "2": {
+            "distance_init_obst": null,
+            "distance_from_init": "inf"
+        },
+        "3": {
+            "distance_init_obst": null,
+            "distance_from_init": "inf"
+        },
+        "4": {
+            "distance_init_obst": null,
+            "distance_from_init": "inf"
+        },
+        "5": {
+            "distance_init_obst": null,
+            "distance_from_init": "inf"
+        },
+        "6": {
+            "distance_init_obst": null,
+            "distance_from_init": "inf"
+        },
+        "7": {
+            "distance_init_obst": null,
+            "distance_from_init": "inf"
+        },
+        "8": {
+            "distance_init_obst": null,
+            "distance_from_init": "inf"
+        },
+        "9": {
+            "distance_init_obst": null,
+            "distance_from_init": "inf"
+        }
+    },
+    "16x16_D2": {
+        "0": {
+            "distance_init_obst": 4,
+            "distance_from_init": 0
+        },
+        "1": {
+            "distance_init_obst": 5,
+            "distance_from_init": 1
+        },
+        "2": {
+            "distance_init_obst": 4,
+            "distance_from_init": 1
+        },
+        "3": {
+            "distance_init_obst": 4,
+            "distance_from_init": 1
+        },
+        "4": {
+            "distance_init_obst": 5,
+            "distance_from_init": 1
+        },
+        "5": {
+            "distance_init_obst": 4,
+            "distance_from_init": 1
+        },
+        "6": {
+            "distance_init_obst": 5,
+            "distance_from_init": 1
+        },
+        "7": {
+            "distance_init_obst": 4,
+            "distance_from_init": 0
+        },
+        "8": {
+            "distance_init_obst": 4,
+            "distance_from_init": 1
+        },
+        "9": {
+            "distance_init_obst": 7,
+            "distance_from_init": 1
+        }
+    },
+    "16x16_D5": {
+        "0": {
+            "distance_init_obst": 8,
+            "distance_from_init": 2
+        },
+        "1": {
+            "distance_init_obst": 9,
+            "distance_from_init": 2
+        },
+        "2": {
+            "distance_init_obst": 10,
+            "distance_from_init": 3
+        },
+        "3": {
+            "distance_init_obst": 10,
+            "distance_from_init": 2
+        },
+        "4": {
+            "distance_init_obst": 13,
+            "distance_from_init": 3
+        },
+        "5": {
+            "distance_init_obst": 8,
+            "distance_from_init": 2
+        },
+        "6": {
+            "distance_init_obst": 11,
+            "distance_from_init": 3
+        },
+        "7": {
+            "distance_init_obst": 12,
+            "distance_from_init": 3
+        },
+        "8": {
+            "distance_init_obst": 14,
+            "distance_from_init": 4
+        },
+        "9": {
+            "distance_init_obst": 13,
+            "distance_from_init": 4
+        }
+    },
+    "16x16_D8": {
+        "0": {
+            "distance_init_obst": 13,
+            "distance_from_init": 4
+        },
+        "1": {
+            "distance_init_obst": 24,
+            "distance_from_init": 7
+        },
+        "2": {
+            "distance_init_obst": 28,
+            "distance_from_init": 8
+        },
+        "3": {
+            "distance_init_obst": 15,
+            "distance_from_init": 4
+        },
+        "4": {
+            "distance_init_obst": 19,
+            "distance_from_init": 5
+        },
+        "5": {
+            "distance_init_obst": 21,
+            "distance_from_init": 6
+        },
+        "6": {
+            "distance_init_obst": 27,
+            "distance_from_init": 8
+        },
+        "7": {
+            "distance_init_obst": 20,
+            "distance_from_init": 6
+        },
+        "8": {
+            "distance_init_obst": 22,
+            "distance_from_init": 7
+        },
+        "9": {
+            "distance_init_obst": 28,
+            "distance_from_init": 9
+        }
+    },
+    "16x16_D11": {
+        "0": {
+            "distance_init_obst": 30,
+            "distance_from_init": 9
+        },
+        "1": {
+            "distance_init_obst": 34,
+            "distance_from_init": 10
+        },
+        "2": {
+            "distance_init_obst": 34,
+            "distance_from_init": 11
+        },
+        "3": {
+            "distance_init_obst": 34,
+            "distance_from_init": 11
+        },
+        "4": {
+            "distance_init_obst": 37,
+            "distance_from_init": 11
+        },
+        "5": {
+            "distance_init_obst": 28,
+            "distance_from_init": 9
+        },
+        "6": {
+            "distance_init_obst": 35,
+            "distance_from_init": 11
+        },
+        "7": {
+            "distance_init_obst": 27,
+            "distance_from_init": 8
+        },
+        "8": {
+            "distance_init_obst": 29,
+            "distance_from_init": 9
+        },
+        "9": {
+            "distance_init_obst": 35,
+            "distance_from_init": 11
+        }
+    },
+    "16x16_D14": {
+        "0": {
+            "distance_init_obst": 38,
+            "distance_from_init": 12
+        },
+        "1": {
+            "distance_init_obst": 38,
+            "distance_from_init": 12
+        },
+        "2": {
+            "distance_init_obst": 39,
+            "distance_from_init": 12
+        },
+        "3": {
+            "distance_init_obst": 41,
+            "distance_from_init": 13
+        },
+        "4": {
+            "distance_init_obst": 42,
+            "distance_from_init": 13
+        },
+        "5": {
+            "distance_init_obst": 34,
+            "distance_from_init": 11
+        },
+        "6": {
+            "distance_init_obst": 43,
+            "distance_from_init": 14
+        },
+        "7": {
+            "distance_init_obst": 34,
+            "distance_from_init": 10
+        },
+        "8": {
+            "distance_init_obst": 34,
+            "distance_from_init": 11
+        },
+        "9": {
+            "distance_init_obst": 41,
+            "distance_from_init": 13
+        }
+    }
+}

@@ -28,9 +28,16 @@ def collect_trajectories(tasks, workers=1):
             # Run the tasks using map
             results = pool.map(run_episode_process, tasks)
     else:
-        results = [run_episode_process(task) for task in tasks]
-    res_tensor =  th.stack(results)
-    return res_tensor
+        results = [run_episode_process(task) for task in tasks] 
+
+    # check if the results are tuples, if so, unpack them
+    if all(isinstance(result, tuple) for result in results):
+        trajectories, trees = zip(*results)
+        res_tensor = th.stack(trajectories)
+        return res_tensor, trees
+    else:
+        res_tensor =  th.stack(results)
+        return res_tensor
 
 @th.no_grad()
 def run_episode(
@@ -100,18 +107,17 @@ def run_episode(
     
     if azdetection: # Calls the search function of azdetection
 
-        tree = solver.search(env,planning_budget, observation, 0.0, original_env = original_env, n=unroll_steps)
+        tree = solver.search(env,planning_budget, observation, 0.0, original_env = original_env, n=unroll_steps, env_action=None)
         
     else: # Calls the standard search function
 
         tree = solver.search(env,planning_budget, observation, 0.0)
 
     step = 0
-
+    
     while step < max_steps:
         
         if azdetection and solver.value_search and isinstance(tree, list):
-
             """
             If the agent is using the value search planning style and the search returned a list of actions,
             then we want to just follow those actions.
@@ -176,7 +182,10 @@ def run_episode(
             tree.value_evaluation = solver.value_function(tree)
 
             solver.backup(tree, tree.value_evaluation)
-                       
+
+            solver.problem_idx = None # Reset the problem index
+            solver.stop_unrolling = False # Reset the stop unrolling flag
+            solver.trajectory = [] # Reset the trajectory 
 
         root_value = tree.value_evaluation # Contains the value estimate of the root node computed by the planning step
 
@@ -185,7 +194,8 @@ def run_episode(
         policy_dist = tree_evaluation_policy.softmaxed_distribution(tree) # Evaluates the tree using the given evaluation policy (e.g., visitation counts)
 
         if return_trees:
-            trees.append(tree)
+            tree_copy = copy.deepcopy(tree) 
+            trees.append(tree_copy)
 
         if not azdetection: # We sample the action from the eval policy distribution
         
@@ -196,12 +206,12 @@ def run_episode(
 
         else: # If we are using azdetection, we need to check if a problem was detected
 
-            if solver.problem_idx is None: # If no problem was detected, we act following the prior (quick)
+            if (solver.problem_idx is None and not solver.stop_unrolling): #or solver.time_left <= 0: # If no problem was detected, we act following the prior (quick)
                 print("No problem detected, acting normally.")
                 action = th.argmax(tree.prior_policy).item()
 
             else: # If a problem was detected, we act following the policy distribution
-
+                print("Acting according to the planning.")
                 distribution = th.distributions.Categorical(probs=custom_softmax(policy_dist.probs, temperature, None)) # apply extra softmax
                 print(distribution.probs)
                 
@@ -210,8 +220,8 @@ def run_episode(
                     print("Not enough visits, following the prior")
                     action = th.argmax(tree.prior_policy).item()
                     
-                else:
-                    action = distribution.sample().item() # Note that if the temperature of the softmax was zero, this becomes an argmax
+                # else:
+                action = distribution.sample().item() # Note that if the temperature of the softmax was zero, this becomes an argmax
 
             print(f"Env: action = {actions_dict[action]}")
 
@@ -248,7 +258,7 @@ def run_episode(
             break
         
         if azdetection:
-            tree = solver.search(env, planning_budget, new_obs, reward, original_env=original_env, n=unroll_steps) 
+            tree = solver.search(env, planning_budget, new_obs, reward, original_env=original_env, n=unroll_steps, env_action=action) 
 
         else:
             tree = solver.search(env, planning_budget, new_obs, reward)
@@ -262,11 +272,11 @@ def run_episode(
     # trajectory.append((observation, None, None, None, None))
     # observations.append(observation)
     # convert render to tensor
-
-    if return_trees:
-        return trajectory, trees
     
     if render:
         save_gif_imageio(frames, output_path=f"gifs/output.gif", fps=5)
+
+    if return_trees:
+        return trajectory, trees
 
     return trajectory
