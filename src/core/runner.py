@@ -14,6 +14,8 @@ import copy
 
 from log_code.gen_renderings import save_gif_imageio
 
+from policies.utility_functions import get_children_visits
+
 def run_episode_process(args):
 
     """Wrapper function for multiprocessing that unpacks arguments and runs a single episode."""
@@ -173,7 +175,6 @@ def run_episode(
             # We still compute the standard value eval to avoid breaking code but this shouldn't be needed
             tree.value_evaluation = solver.value_function(tree)
 
-            tree.backup_visits = 1 # For mcts-t only
             solver.backup(tree, tree.value_evaluation)
                        
 
@@ -202,14 +203,11 @@ def run_episode(
             else: # If a problem was detected, we act following the policy distribution
 
                 distribution = th.distributions.Categorical(probs=custom_softmax(policy_dist.probs, temperature, None)) # apply extra softmax
-
-                # Check if the probs are all equal, if so, we act according to the prior
-                if th.all(th.eq(distribution.probs, distribution.probs[0])):
-
-                # Check if more than 1 prob is non-zero
-                #if th.sum(th.where(distribution.probs > 0, 1, 0)) > 1:
-                    
-                    print("All probs are equal, acting according to the prior.")
+                print(distribution.probs)
+                
+                # Check if any children has zero visits
+                if th.any(get_children_visits(tree) == 0):
+                    print("Not enough visits, following the prior")
                     action = th.argmax(tree.prior_policy).item()
                     
                 else:

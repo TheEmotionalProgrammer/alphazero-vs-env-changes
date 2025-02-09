@@ -2,7 +2,7 @@ import torch as th
 
 from core.node import Node
 from policies.policies import PolicyDistribution, custom_softmax
-from policies.utility_functions import Q_theta_tensor, get_children_policy_values, get_children_policy_values_and_inverse_variance, get_children_inverse_variances, get_children_visits, get_transformed_default_values, get_transformed_mcts_t_values, puct_multiplier, value_evaluation_variance
+from policies.utility_functions import Q_theta_tensor, get_children_policy_values, get_children_policy_values_and_inverse_variance, get_children_inverse_variances, get_children_visits, get_transformed_default_values, puct_multiplier
 from policies.value_transforms import IdentityValueTransform, ValueTransform
 
 
@@ -14,7 +14,9 @@ class VistationPolicy(PolicyDistribution):
     """
     
     def _probs(self, node: Node) -> th.Tensor:
-        return get_children_visits(node)
+        visits = get_children_visits(node)
+        print("visits", visits)
+        return visits
     
 class TUCTValuePolicy(PolicyDistribution):
     """

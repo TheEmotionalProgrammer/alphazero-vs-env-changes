@@ -163,13 +163,6 @@ def get_children_visits(node: Node) -> th.Tensor:
 
     return visits
 
-def get_children_subtree_depth(node: Node) -> th.Tensor:
-    estimates = th.ones(int(node.action_space.n), dtype=th.float32)
-    for action, child in node.children.items():
-        estimates[action] = child.subtree_depth
-
-    return estimates
-
 def get_transformed_default_values(node: Node, transform: ValueTransform = IdentityValueTransform) -> th.Tensor:
 
     """
@@ -183,39 +176,6 @@ def get_transformed_default_values(node: Node, transform: ValueTransform = Ident
         vals[action] = child.default_value()
 
     return transform.normalize(vals)
-
-def get_transformed_mcts_t_values(node: Node, discount_factor: float , transform: ValueTransform = IdentityValueTransform) -> th.Tensor:
-    
-        """
-        Returns the value estimates of the children of the node.
-        The default estimate is used, which is the total reward of the subtree divided by the number of visits.
-        """
-    
-        vals = th.ones(int(node.action_space.n), dtype=th.float32) * -th.inf 
-    
-        for action, child in node.children.items():
-            vals[action] = compute_q_mcts_t(child, discount_factor)
-    
-        return transform.normalize(vals)
-
-def compute_q_mcts_t(node: Node, discount_factor: float) -> float:
-
-    if node.terminal:
-        val = th.tensor(node.reward, dtype=th.float32)
-        node.policy_value = val
-        return val
-    
-    if node.policy_value:
-        return node.policy_value
-    
-    normalized_value = 0
-    for _, child in node.children.items():
-        normalized_value += child.backup_visits * compute_q_mcts_t(child, discount_factor)
-
-    val = node.reward + discount_factor * (normalized_value / node.backup_visits )
-    node.policy_value = val
-    return val
-
 
 def puct_multiplier(c: float, node: Node):
 
