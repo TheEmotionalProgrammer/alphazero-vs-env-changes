@@ -43,6 +43,7 @@ class Node(Generic[ObservationType]):
         self.terminal = terminal
         self.observation = observation
         self.env = env
+        self.problematic = False
 
     def is_terminal(self) -> bool:
         return self.terminal

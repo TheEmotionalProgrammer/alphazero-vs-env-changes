@@ -18,21 +18,6 @@ class VistationPolicy(PolicyDistribution):
         print("visits", visits)
         return visits
     
-class TUCTValuePolicy(PolicyDistribution):
-    """
-    Determinstic policy that selects the action with the highest value
-    """
-    def __init__(self, discount_factor = 1.0, **kwargs):
-
-        super().__init__(**kwargs)
-        self.discount_factor = discount_factor
-        self.temperature = 0.0
- 
-    def _probs(self, node: Node) -> th.Tensor:
-        vals = get_transformed_mcts_t_values(node, self.discount_factor, self.value_transform)
-        return vals
-
-
 class InverseVarianceTreeEvaluator(PolicyDistribution):
     """
     Selects the action with the highest inverse variance of the q value.
@@ -91,7 +76,7 @@ class ValuePolicy(PolicyDistribution):
     """
     def _probs(self, node: Node) -> th.Tensor:
         
-        vals = get_children_policy_values(node, self, self.discount_factor, self.value_transform)
+        vals = get_transformed_default_values(node, self.value_transform)
 
         return vals
 
@@ -301,5 +286,4 @@ tree_eval_dict = lambda param, discount, c=1.0, temperature=None, value_transfor
     'bellman_prior_std': BellmanPriorStdPolicy(sigma=param, temperature=temperature, value_transform=value_transform),
     'mvcp': MinimalVarianceConstraintPolicyPrior(discount_factor=discount, beta=param, temperature=temperature, value_transform=value_transform),
     'surprise': QSuprisePolicy(beta=param, discount_factor=discount, temperature=temperature, value_transform=value_transform),
-    'tuct': TUCTValuePolicy(discount_factor=discount, value_transform=value_transform),
 }

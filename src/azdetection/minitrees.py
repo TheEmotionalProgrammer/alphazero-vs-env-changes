@@ -31,7 +31,7 @@ class MiniTrees(AlphaZeroMCTS):
             root_selection_policy: Policy | None = None,
             predictor: str = "current_value",
             value_search: bool = False,
-            value_estimate: str = "nn",
+            value_estimate: str = "nn"
     ):
         super().__init__(
             model = model,

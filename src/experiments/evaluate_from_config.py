@@ -322,7 +322,7 @@ def eval_budget_sweep(
         num_train_seeds (int): Number of training seeds.
         num_eval_seeds (int): Number of evaluation seeds.
     """
-    if config["agent_type"] == "azdetection":
+    if config["agent_type"] == "mini-trees" or config["agent_type"] == "mega-tree":
         run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_Predictor_({config['predictor']})_n_({config['unroll_budget']})_eps_({config['threshold']})_ValueSearch_({config['value_search']})_{config['map_name']}"
     elif config["agent_type"] == "azmcts":
         run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_ValueEst_({config['value_estimate']})_{config['map_name']}"
@@ -453,15 +453,15 @@ if __name__ == "__main__":
     parser.add_argument("--runs", type=int, default=1, help="Number of runs")
 
     # Basic search parameters
-    parser.add_argument("--tree_evaluation_policy", type=str, default="mvc", help="Tree evaluation policy")
-    parser.add_argument("--selection_policy", type=str, default="PolicyUCT", help="Selection policy")
+    parser.add_argument("--tree_evaluation_policy", type=str, default="visit", help="Tree evaluation policy")
+    parser.add_argument("--selection_policy", type=str, default="UCT", help="Selection policy")
     parser.add_argument("--puct_c", type=float, default=1, help="PUCT parameter")
 
     # Only relevant for single run evaluation
     parser.add_argument("--planning_budget", type=int, default=16, help="Planning budget")
 
     # Search algorithm
-    parser.add_argument("--agent_type", type=str, default="mega-tree", help="Agent type")
+    parser.add_argument("--agent_type", type=str, default="azmcts", help="Agent type")
 
     # Stochasticity parameters
     parser.add_argument("--eval_temp", type=float, default=0.0, help="Temperature in tree evaluation softmax")
@@ -469,17 +469,17 @@ if __name__ == "__main__":
     parser.add_argument("--dir_alpha", type=float, default=None, help="Dirichlet noise parameter alpha")
 
     # AZDetection detection parameters
-    parser.add_argument("--threshold", type=float, default=0.05, help="Detection threshold")
+    parser.add_argument("--threshold", type=float, default=0.01, help="Detection threshold")
     parser.add_argument("--unroll_budget", type=int, default=4, help="Unroll budget")
 
     # AZDetection replanning parameters
-    parser.add_argument("--value_search", type=bool, default=False, help="Enable value search")
-    parser.add_argument("--predictor", type=str, default="current_value", help="Predictor to use for detection")
+    parser.add_argument("--value_search", type=bool, default=True, help="Enable value search")
+    parser.add_argument("--predictor", type=str, default="original_env", help="Predictor to use for detection")
     parser.add_argument("--update_estimator", type=bool, default=True, help="Update the estimator")
 
     # Test environment
     parser.add_argument("--test_env_id", type=str, default=f"CustomFrozenLakeNoHoles{map_size}x{map_size}-v1", help="Test environment ID")
-    parser.add_argument("--test_env_desc", type=str, default=f"{map_size}x{map_size}_DEAD_END", help="Environment description")
+    parser.add_argument("--test_env_desc", type=str, default=f"{map_size}x{map_size}_DEFAULT", help="Environment description")
     parser.add_argument("--test_env_is_slippery", type=bool, default=False, help="Slippery environment")
     parser.add_argument("--test_env_hole_reward", type=int, default=0, help="Hole reward")
     parser.add_argument("--test_env_terminate_on_hole", type=bool, default=False, help="Terminate on hole")
@@ -555,6 +555,6 @@ if __name__ == "__main__":
     # Execute the evaluation
 
     if args.run_full_eval:
-        eval_budget_sweep(config=run_config, budgets= [8,16,32],  num_train_seeds=args.train_seeds, num_eval_seeds=args.eval_seeds)
+        eval_budget_sweep(config=run_config, budgets= [8,16,32,64],  num_train_seeds=args.train_seeds, num_eval_seeds=args.eval_seeds)
     else:
         eval_from_config(config=run_config)
