@@ -68,7 +68,7 @@ class AlphaZeroModel(th.nn.Module):
 
         self.state_dim = self.observation_embedding.obs_dim() 
 
-        print("Embedding dim:", self.state_dim)
+        #print("Embedding dim:", self.state_dim)
 
         self.action_dim = gym.spaces.flatdim(env.action_space)
         self.nlayers = nlayers
@@ -99,12 +99,12 @@ class AlphaZeroModel(th.nn.Module):
             None
         """
         # print the model parameters
-        print(f"Model initialized on {self.device} with the following parameters:")
+        #print(f"Model initialized on {self.device} with the following parameters:")
         total_params = 0
         for name, param in self.named_parameters():
-            print(name, param.numel())
+            #print(name, param.numel())
             total_params += param.numel()
-        print(f"Total number of trainable parameters: {total_params}")
+        #print(f"Total number of trainable parameters: {total_params}")
 
     def forward(self, x: th.Tensor) -> Tuple[th.Tensor, th.Tensor]:
         """

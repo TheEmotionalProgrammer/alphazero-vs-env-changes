@@ -73,15 +73,15 @@ class MiniTrees(AlphaZeroMCTS):
 
         if len_traj >= 1 and self.problem_idx is not None:
             if obs == self.trajectory[0][0].observation:
-                print("Reusing Trajectory: ")
-                print([(self.trajectory[i][0].observation // self.ncols, self.trajectory[i][0].observation % self.ncols) for i in range(len(self.trajectory))])
+                #print("Reusing Trajectory: ")
+                #print([(self.trajectory[i][0].observation // self.ncols, self.trajectory[i][0].observation % self.ncols) for i in range(len(self.trajectory))])
                 return
             elif len_traj > 1 and obs == self.trajectory[1][0].observation:
-                print("Reusing Trajectory: ")
+                #print("Reusing Trajectory: ")
                 start_idx = 1
                 self.trajectory = self.trajectory[start_idx:] 
                 self.problem_idx -= start_idx
-                print([(self.trajectory[i][0].observation // self.ncols, self.trajectory[i][0].observation % self.ncols) for i in range(len(self.trajectory))])
+                #print([(self.trajectory[i][0].observation // self.ncols, self.trajectory[i][0].observation % self.ncols) for i in range(len(self.trajectory))])
                 return
         
         self.trajectory = []

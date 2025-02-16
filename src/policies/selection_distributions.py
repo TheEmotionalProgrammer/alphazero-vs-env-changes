@@ -4,7 +4,7 @@ import torch as th
 
 from core.node import Node
 from policies.policies import PolicyDistribution
-from policies.utility_functions import get_children_policy_values, get_children_visits, get_transformed_default_values
+from policies.utility_functions import get_children_policy_values, get_children_visits, get_transformed_default_values, get_children_policy_values_and_inverse_variance, value_evaluation_variance
 
 class SelectionPolicy(PolicyDistribution):
 

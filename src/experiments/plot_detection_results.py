@@ -28,20 +28,30 @@ if __name__ == "__main__":
             errors_nn_current_value_false[env][seed] = nn_current_value_false[env][seed]["distance_init_obst"] - nn_original_env[env][seed]["distance_init_obst"]
             errors_nn_current_value_true[env][seed] = nn_current_value_true[env][seed]["distance_init_obst"] - nn_original_env[env][seed]["distance_init_obst"]
     
-    # Compute the mean errors
+    # Compute the mean and standard deviation of errors
     mean_errors_nn_current_value_false = {env: np.mean(list(errors_nn_current_value_false[env].values())) for env in errors_nn_current_value_false}
     mean_errors_nn_current_value_true = {env: np.mean(list(errors_nn_current_value_true[env].values())) for env in errors_nn_current_value_true}
+    std_errors_nn_current_value_false = {env: np.std(list(errors_nn_current_value_false[env].values())) for env in errors_nn_current_value_false}
+    std_errors_nn_current_value_true = {env: np.std(list(errors_nn_current_value_true[env].values())) for env in errors_nn_current_value_true}
     
     custom_labels = ["Empty", "D3", "D6", "D9", "D12", "D15"]
 
-    # Plot Accuracy Error
+    # Plot Accuracy Error with standard deviation as shaded area
     plt.figure()
-    plt.plot(mean_errors_nn_current_value_false.keys(), mean_errors_nn_current_value_false.values(), label="standard")
-    plt.plot(mean_errors_nn_current_value_true.keys(), mean_errors_nn_current_value_true.values(), label="$y^+$ updates")
+    envs = list(mean_errors_nn_current_value_false.keys())
+    mean_false = list(mean_errors_nn_current_value_false.values())
+    std_false = list(std_errors_nn_current_value_false.values())
+    mean_true = list(mean_errors_nn_current_value_true.values())
+    std_true = list(std_errors_nn_current_value_true.values())
+
+    plt.plot(envs, mean_false, label="standard")
+    plt.fill_between(envs, np.array(mean_false) - np.array(std_false), np.array(mean_false) + np.array(std_false), alpha=0.2)
+    plt.plot(envs, mean_true, label="$y^{max}_{n}$")
+    plt.fill_between(envs, np.array(mean_true) - np.array(std_true), np.array(mean_true) + np.array(std_true), alpha=0.2)
     plt.title("Accuracy Error")
     plt.legend()
     plt.xticks(np.arange(len(custom_labels)), custom_labels)
-    plt.xlabel("Environments")
+    plt.xlabel("Configuration")
     plt.grid(True)
     plt.savefig("accuracy_error.png")
 
@@ -64,17 +74,27 @@ if __name__ == "__main__":
             errors_nn_current_value_false[env][seed] = nn_current_value_false[env][seed]["distance_from_init"] - nn_original_env[env][seed]["distance_from_init"]
             errors_nn_current_value_true[env][seed] = nn_current_value_true[env][seed]["distance_from_init"] - nn_original_env[env][seed]["distance_from_init"]
     
-    # Compute the mean errors
+    # Compute the mean and standard deviation of errors
     mean_errors_nn_current_value_false = {env: np.mean(list(errors_nn_current_value_false[env].values())) for env in errors_nn_current_value_false}
     mean_errors_nn_current_value_true = {env: np.mean(list(errors_nn_current_value_true[env].values())) for env in errors_nn_current_value_true}
+    std_errors_nn_current_value_false = {env: np.std(list(errors_nn_current_value_false[env].values())) for env in errors_nn_current_value_false}
+    std_errors_nn_current_value_true = {env: np.std(list(errors_nn_current_value_true[env].values())) for env in errors_nn_current_value_true}
 
-    # Plot Sensitivity Error
+    # Plot Sensitivity Error with standard deviation as shaded area
     plt.figure()
-    plt.plot(mean_errors_nn_current_value_false.keys(), mean_errors_nn_current_value_false.values(), label="standard")
-    plt.plot(mean_errors_nn_current_value_true.keys(), mean_errors_nn_current_value_true.values(), label="$y^+$ updates")
+    envs = list(mean_errors_nn_current_value_false.keys())
+    mean_false = list(mean_errors_nn_current_value_false.values())
+    std_false = list(std_errors_nn_current_value_false.values())
+    mean_true = list(mean_errors_nn_current_value_true.values())
+    std_true = list(std_errors_nn_current_value_true.values())
+
+    plt.plot(envs, mean_false, label="standard")
+    plt.fill_between(envs, np.array(mean_false) - np.array(std_false), np.array(mean_false) + np.array(std_false), alpha=0.2)
+    plt.plot(envs, mean_true, label="$y^{max}_{n}$")
+    plt.fill_between(envs, np.array(mean_true) - np.array(std_true), np.array(mean_true) + np.array(std_true), alpha=0.2)
     plt.title("Sensitivity Error")
     plt.legend()
     plt.xticks(np.arange(len(custom_labels)), custom_labels)
-    plt.xlabel("Environments")
+    plt.xlabel("Configuration")
     plt.grid(True)
     plt.savefig("sensitivity_error.png")
