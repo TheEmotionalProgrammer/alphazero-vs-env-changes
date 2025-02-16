@@ -468,7 +468,7 @@ if __name__ == "__main__":
 
     # Run configurations
     parser.add_argument("--wandb_logs", type=bool, default=False, help="Enable wandb logging")
-    parser.add_argument("--workers", type=int, default=1, help="Number of workers")
+    parser.add_argument("--workers", type=int, default=6, help="Number of workers")
     parser.add_argument("--runs", type=int, default=1, help="Number of runs")
 
     # Basic search parameters
