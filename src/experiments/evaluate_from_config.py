@@ -466,7 +466,7 @@ if __name__ == "__main__":
     parser.add_argument("--map_size", type=int, default=map_size, help="Map size")
 
     # Run configurations
-    parser.add_argument("--wandb_logs", type=bool, default=True, help="Enable wandb logging")
+    parser.add_argument("--wandb_logs", type=bool, default=False, help="Enable wandb logging")
     parser.add_argument("--workers", type=int, default=6, help="Number of workers")
     parser.add_argument("--runs", type=int, default=1, help="Number of runs")
 

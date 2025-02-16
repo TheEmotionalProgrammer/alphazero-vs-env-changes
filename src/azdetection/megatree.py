@@ -60,7 +60,8 @@ class MegaTree(AlphaZeroMCTS):
         self.problem_value = None
         self.var_penalty = var_penalty
 
-        self.coords = lambda observ: (observ // self.ncols, observ % self.ncols) if observ is not None else None
+    def coords(self, observ):
+        return (observ // self.ncols, observ % self.ncols) if observ is not None else None
         
     def accumulate_unroll(self, env: gym.Env, n: int, obs, reward: float, original_env: None | gym.Env, env_action = None) -> None:
 
@@ -143,7 +144,7 @@ class MegaTree(AlphaZeroMCTS):
                 if obs == self.trajectory[self.root_idx][0].observation:
                     print("Reusing Trajectory: ")
                     self.trajectory[self.root_idx][0].parent = None
-                    print([(self.trajectory[i][0].observation // self.ncols, self.trajectory[i][0].observation % self.ncols) for i in range(len(self.trajectory))])
+                    print([(self.coords(self.trajectory[i][0].observation)[0], self.coords(self.trajectory[i][0].observation)[1]) for i in range(len(self.trajectory))])
                     return
                 elif len_traj > 1 and obs == self.trajectory[self.root_idx+1][0].observation:
                     print("Reusing Trajectory: ")
@@ -197,7 +198,7 @@ class MegaTree(AlphaZeroMCTS):
             root_estimate = self.n_step_prediction(None, 0, original_root_node) if self.predictor == "original_env" else node.value_evaluation
 
         print("Current Trajectory: ")
-        print([(self.trajectory[i][0].observation // self.ncols, self.trajectory[i][0].observation % self.ncols) for i in range(len(self.trajectory))])
+        print([(self.coords(self.trajectory[i][0].observation)[0], self.coords(self.trajectory[i][0].observation)[1]) for i in range(len(self.trajectory))])
         
         new_end = start + n
         i_pred = root_estimate
@@ -628,5 +629,4 @@ class MegaTree(AlphaZeroMCTS):
                     return None, actions
             
         return node, action
-    
-    
+

@@ -50,7 +50,8 @@ class Octopus(AlphaZeroMCTS):
         self.var_penalty = var_penalty
         self.policy_det_rule = policy_det_rule
 
-        self.coords = lambda observ: (observ // self.ncols, observ % self.ncols) if observ is not None else None
+    def coords(self, observ):
+        return (observ // self.ncols, observ % self.ncols) if observ is not None else None
 
     def n_step_prediction(self, node: Node | None, n: int, original_node: None | Node) -> float:
 
