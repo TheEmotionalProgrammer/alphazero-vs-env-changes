@@ -462,12 +462,12 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="AlphaZero Evaluation Configuration")
 
-    map_size = 16
+    map_size = 8
 
     parser.add_argument("--map_size", type=int, default=map_size, help="Map size")
 
     # Run configurations
-    parser.add_argument("--wandb_logs", type=bool, default=True, help="Enable wandb logging")
+    parser.add_argument("--wandb_logs", type=bool, default=False, help="Enable wandb logging")
     parser.add_argument("--workers", type=int, default=1, help="Number of workers")
     parser.add_argument("--runs", type=int, default=1, help="Number of runs")
 
@@ -514,7 +514,7 @@ if __name__ == "__main__":
     parser.add_argument("--eval_seeds", type=int, default=10, help="The number of random seeds to use for evaluation.")
 
     # Rendering
-    parser.add_argument("--render", type=bool, default=True, help="Render the environment")
+    parser.add_argument("--render", type=bool, default=False, help="Render the environment")
 
     parser.add_argument("--run_full_eval", type=bool, default= True, help="Run type")
 
@@ -574,6 +574,6 @@ if __name__ == "__main__":
     # Execute the evaluation
 
     if args.run_full_eval:
-        eval_budget_sweep(config=run_config, budgets= [8, 16, 32, 64],  num_train_seeds=args.train_seeds, num_eval_seeds=args.eval_seeds)
+        eval_budget_sweep(config=run_config, budgets= [8, 16, 32, 64, 128],  num_train_seeds=args.train_seeds, num_eval_seeds=args.eval_seeds)
     else:
         eval_from_config(config=run_config)
