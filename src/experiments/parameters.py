@@ -66,7 +66,6 @@ env_challenges = {
         "eval_param": 10.0,
         "ncols": 16,
         "learning_rate": 3e-3,
-        "puct_c": 1,
     },
 
     "CustomFrozenLakeNoHoles20x20-v1": {
@@ -271,9 +270,9 @@ fz_env_descriptions = {
         "FFFFFFFFFFFFFFFF",
         "FFFFFFFFFFFFFFFF",
         "FFFFFFFFFFFFFFFF",
+        "FFFFHHHHHHHHHHHH",
+        "FFFFHHHHHHHHHHHH",
         "FFFFFFFFFFFFFFFF",
-        "FFFFHHHHHHHHHHHH",
-        "FFFFHHHHHHHHHHHH",
         "FFFFFFFFFFFFFFFF",
         "FFFFFFFFFFFFFFFF",
         "FFFFFFFFFFFFFFFF",
