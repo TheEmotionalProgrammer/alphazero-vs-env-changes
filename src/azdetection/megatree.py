@@ -159,7 +159,7 @@ class MegaTree(AlphaZeroMCTS):
             if env_action in self.trajectory[self.root_idx][0].children:
                 root_node = self.trajectory[self.root_idx][0].children[env_action]
                 root_node.parent = None
-                print("Gabibbo")
+                #print("Gabibbo")
             else:
                 root_node = Node(
                     env=copy.deepcopy(env),
@@ -381,7 +381,7 @@ class MegaTree(AlphaZeroMCTS):
                 if i_est/i_pred < 1 - self.threshold:
                     return True # If a problem is detected, return True
 
-        print("Clear detached unroll")
+        #print("Clear detached unroll")
         return False # No problem detected in the unroll
 
     def n_step_prediction(self, node: Node | None, n: int, original_node: None | Node) -> float:
@@ -448,11 +448,17 @@ class MegaTree(AlphaZeroMCTS):
             temporary_root.value_evaluation = self.value_function(temporary_root)
 
             if self.problem_value is not None and temporary_root.value_evaluation > self.problem_value:
-                print("Problem solved, resume unrolling")
-                self.stop_unrolling = False
-                self.trajectory[self.problem_idx][0].problematic = False
-                self.trajectory = []
-                self.problem_idx = None
+                
+                prob = self.detached_unroll(copy.deepcopy(env), n, obs, reward, copy.deepcopy(original_env))
+                
+                if not prob:
+                    #print("Problem solved, resume unrolling")
+                    self.stop_unrolling = False
+                    self.trajectory[self.problem_idx][0].problematic = False
+                    self.trajectory = []
+                    self.problem_idx = None
+                else:
+                    pass
 
         if not self.stop_unrolling:
 
@@ -477,7 +483,7 @@ class MegaTree(AlphaZeroMCTS):
                 root_node.parent = None
                 new_root = False
                 self.trajectory[self.root_idx] = (root_node, None)
-                print("Same state")
+                #print("Same state")
             else:
                 for _, child in self.trajectory[self.root_idx][0].children.items():
                     if child.observation == obs:
@@ -485,7 +491,7 @@ class MegaTree(AlphaZeroMCTS):
                         root_node.parent = None
                         new_root = False
                         self.trajectory[self.root_idx] = (root_node, None)
-                        print("Supremo Gabibbo")
+                        #print("Supremo Gabibbo")
                         break
                 
             if new_root:

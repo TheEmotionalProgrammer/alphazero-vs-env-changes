@@ -1,5 +1,7 @@
 slurm*
 
+*.csv
+*.png
 8x8/
 16x16/
 tree_visualizations/
