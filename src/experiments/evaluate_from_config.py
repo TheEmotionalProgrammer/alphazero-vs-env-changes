@@ -344,7 +344,7 @@ def eval_budget_sweep(
     elif config["agent_type"] == "azmcts":
         run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_ValueEst_({config['value_estimate']})_{config['map_name']}"
     elif config["agent_type"] == "octopus":
-        run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_ValueEst_({config['value_estimate']})_Predictor_({config['predictor']})_eps_({config['threshold']})_{config['map_name']}"
+        run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_ValueEst_({config['value_estimate']})_Predictor_({config['predictor']})_eps_({config['threshold']})_ValueEst_({config['value_estimate']})_{config['map_name']}"
 
     if budgets is None:
         budgets = [8, 16, 32, 64, 128]  # Default budgets to sweep
@@ -372,9 +372,9 @@ def eval_budget_sweep(
         print(f"Training Seed: {model_seed}")
 
         if config["map_size"] == 8:
-            model_file = f"{"hyper" if not hparams["hpc"] else "scratch/itamassia"}/AZTrain_env=CustomFrozenLakeNoHoles8x8-v1_evalpol=visit_iterations=50_budget=64_df=0.95_lr=0.001_nstepslr=2_seed={model_seed}/checkpoint.pth"
+            model_file = f"{'hyper' if not hparams['hpc'] else 'scratch/itamassia/hyper'}/AZTrain_env=CustomFrozenLakeNoHoles8x8-v1_evalpol=visit_iterations=50_budget=64_df=0.95_lr=0.001_nstepslr=2_seed={model_seed}/checkpoint.pth"
         elif config["map_size"] == 16:
-            model_file = f"{"hyper" if not hparams["hpc"] else "scratch/itamassia"}/AZTrain_env=CustomFrozenLakeNoHoles16x16-v1_evalpol=visit_iterations=60_budget=128_df=0.95_lr=0.003_nstepslr=2_seed={model_seed}/checkpoint.pth"
+            model_file = f"{'hyper' if not hparams['hpc'] else 'scratch/itamassia/hyper'}/AZTrain_env=CustomFrozenLakeNoHoles16x16-v1_evalpol=visit_iterations=60_budget=128_df=0.95_lr=0.003_nstepslr=2_seed={model_seed}/checkpoint.pth"
 
         for budget in budgets:
             eval_results = []  # Store results across evaluation seeds for a given training seed
@@ -461,13 +461,13 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="AlphaZero Evaluation Configuration")
 
-    map_size = 16
+    map_size = 8
 
     parser.add_argument("--map_size", type=int, default=map_size, help="Map size")
 
     # Run configurations
-    parser.add_argument("--wandb_logs", type=bool, default=False, help="Enable wandb logging")
-    parser.add_argument("--workers", type=int, default=1, help="Number of workers")
+    parser.add_argument("--wandb_logs", type=bool, default=True, help="Enable wandb logging")
+    parser.add_argument("--workers", type=int, default=6, help="Number of workers")
     parser.add_argument("--runs", type=int, default=1, help="Number of runs")
 
     # Basic search parameters
