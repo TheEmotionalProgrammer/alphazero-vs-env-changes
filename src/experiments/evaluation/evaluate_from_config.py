@@ -473,14 +473,15 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="AlphaZero Evaluation Configuration")
 
-    map_size = 16
+    map_size = 8
     CONFIG = "NARROW"
 
     parser.add_argument("--map_size", type=int, default=map_size, help="Map size")
+    parser.add_argument("--config", type=str, default=CONFIG, help="Config desc name")
 
     # Run configurations
     parser.add_argument("--wandb_logs", type=bool, default=False, help="Enable wandb logging")
-    parser.add_argument("--workers", type=int, default=1, help="Number of workers")
+    parser.add_argument("--workers", type=int, default=6, help="Number of workers")
     parser.add_argument("--runs", type=int, default=1, help="Number of runs")
 
     # Basic search parameters
@@ -509,8 +510,6 @@ if __name__ == "__main__":
     parser.add_argument("--update_estimator", type=bool, default=True, help="Update the estimator")
 
     # Test environment
-    parser.add_argument("--test_env_id", type=str, default=f"CustomFrozenLakeNoHoles{map_size}x{map_size}-v1", help="Test environment ID")
-    parser.add_argument("--test_env_desc", type=str, default=f"{map_size}x{map_size}_{CONFIG}", help="Environment description")
     parser.add_argument("--test_env_is_slippery", type=bool, default=False, help="Slippery environment")
     parser.add_argument("--test_env_hole_reward", type=int, default=0, help="Hole reward")
     parser.add_argument("--test_env_terminate_on_hole", type=bool, default=False, help="Terminate on hole")
@@ -533,7 +532,7 @@ if __name__ == "__main__":
     parser.add_argument("--hpc", type=bool, default=False, help="HPC flag")
 
     parser.add_argument("--value_estimate", type=str, default="perfect", help="Value estimate method")
-    parser.add_argument("--visualize_trees", type=bool, default=True, help="Visualize trees")
+    parser.add_argument("--visualize_trees", type=bool, default=False, help="Visualize trees")
 
     parser.add_argument("--var_penalty", type=float, default=1, help="Variance penalty")
 
@@ -541,8 +540,10 @@ if __name__ == "__main__":
 
     # Parse arguments
     args = parser.parse_args()
+    args.test_env_id = f"CustomFrozenLakeNoHoles{args.map_size}x{args.map_size}-v1"
+    args.test_env_desc = f"{args.map_size}x{args.map_size}_{args.config}"
 
-    challenge = env_challenges[f"CustomFrozenLakeNoHoles{map_size}x{map_size}-v1"]  # Training environment
+    challenge = env_challenges[f"CustomFrozenLakeNoHoles{args.map_size}x{args.map_size}-v1"]  # Training environment
 
     # Construct the config
     config_modifications = {
