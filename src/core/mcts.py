@@ -52,6 +52,7 @@ class MCTS:
             reward=reward,
             action_space=env.action_space,
             observation=obs,
+            ncols=self.ncols
         )
 
         root_node.value_evaluation = self.value_function(root_node) # Estimate the value of the root node

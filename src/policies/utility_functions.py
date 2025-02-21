@@ -62,12 +62,12 @@ def reward_variance(node: Node):
 
 def value_evaluation_variance(node: Node):
 
+    if node.terminal:
+        return (1 / float(node.visits))
+
     if node.problematic:
 
         return node.var_penalty
-
-    if node.terminal:
-        return 1 / float(node.visits)
 
     return 1.0 
     

@@ -168,6 +168,7 @@ class Octopus(AlphaZeroMCTS):
                 action_space = env.action_space,
                 observation = obs,
                 terminal = False,
+                ncols=self.ncols
             )
 
             self.previous_root = root_node
@@ -200,6 +201,7 @@ class Octopus(AlphaZeroMCTS):
                     action_space = env.action_space,
                     observation = obs,
                     terminal = False,
+                    ncols=self.ncols
                 )
 
                 self.previous_root = root_node

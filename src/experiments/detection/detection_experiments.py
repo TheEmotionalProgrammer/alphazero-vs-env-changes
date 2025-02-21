@@ -9,55 +9,33 @@ This script can be used to test the detection accuracy of AZDetection in differe
 
 """
 
-
-
 import sys
 
 sys.path.append("src/")
 
 import json
 import os
-from tqdm import tqdm
 import numpy as np
-import multiprocessing
 import gymnasium as gym
-import wandb
-import pandas as pd
-import matplotlib.pyplot as plt
 
-from log_code.metrics import calc_metrics
-from experiments.eval_agent import eval_agent
-from experiments.evaluate_from_config import agent_from_config
-from environments.observation_embeddings import ObservationEmbedding, embedding_dict
-from az.azmcts import AlphaZeroMCTS
+from experiments.evaluation.evaluate_from_config import agent_from_config
+from environments.observation_embeddings import ObservationEmbedding
 from azdetection.megatree import MegaTree
-from azdetection.octopus import Octopus
-from az.model import (
-    AlphaZeroModel,
-    models_dict
-)
-from policies.tree_policies import tree_eval_dict
-from policies.selection_distributions import selection_dict_fn
-from policies.value_transforms import value_transform_dict
-from policies.policies import PolicyDistribution
 
 import torch as th
 
 import copy
 from environments.register import register_all
 
-import argparse
 from parameters import base_parameters, env_challenges, fz_env_descriptions
 
 def run_single_detection(
         solver: MegaTree,
         env: gym.Env,
-        tree_evaluation_policy: PolicyDistribution,
         observation_embedding: ObservationEmbedding,
         planning_budget = 1000,
         max_steps = 1000,
         seed=None,
-        temperature=None,
         original_env: gym.Env | None = None,
         unroll_budget=5,
     ):
@@ -70,13 +48,15 @@ def run_single_detection(
     """
 
     assert isinstance(env.action_space, gym.spaces.Discrete) # For now, only supports discrete action spaces
-    n = int(env.action_space.n)
 
     if seed is not None:
         th.manual_seed(seed)
         np.random.seed(seed)
 
     observation, _ = env.reset(seed=seed)
+
+    #pos_col, pos_row = observation // observation_embedding.ncols, observation % observation_embedding.ncols
+    #print(f"Env: obs = ({pos_row}, {pos_col})")
 
     old_obs = observation
 
@@ -101,10 +81,9 @@ def run_single_detection(
     
         new_obs, reward, terminated, truncated, _ = env.step(action)
 
-        new_pos_row = new_obs // observation_embedding.ncols
-        new_pos_col = new_obs % observation_embedding.ncols
-
-        print(f"Env: obs = ({new_pos_row}, {new_pos_col}), reward = {reward}, terminated = {terminated}, truncated = {truncated}")
+        #new_pos_row = new_obs // observation_embedding.ncols
+        #new_pos_col = new_obs % observation_embedding.ncols
+        #print(f"Env: obs = ({new_pos_row}, {new_pos_col}), reward = {reward}, terminated = {terminated}, truncated = {truncated}")
 
         if original_env is not None:
                 if new_obs != old_obs:
@@ -185,7 +164,7 @@ def run_all(run_configs, num_seeds):
                 observation_embedding=observation_embedding,
                 planning_budget=planning_budget,
                 max_steps=1000,
-                seed=0,
+                seed=0, # Since we are only unrolling the prior, the evaluation seed does not really matter
                 temperature=config_copy["eval_temp"],
                 original_env=train_env,
                 unroll_budget=config_copy["unroll_budget"],
@@ -203,77 +182,66 @@ if __name__ == "__main__":
 
     register_all()
 
-    parser = argparse.ArgumentParser(description="AlphaZero Evaluation Configuration")
+    threshold = 0.05  # Detection threshold
+    unroll_budget = 4  # Unroll budget
 
-    # AZDetection detection parameters
-    parser.add_argument("--threshold", type=float, default=0.05, help="Detection threshold")
-    parser.add_argument("--unroll_budget", type=int, default=4, help="Unroll budget")
+    train_seeds = 10  # The number of random seeds to use for training.
+    eval_seeds = 1  # The number of random seeds to use for evaluation.
 
-    parser.add_argument("--train_seeds", type=int, default=10, help="The number of random seeds to use for training.")
-    parser.add_argument("--eval_seeds", type=int, default=1, help="The number of random seeds to use for evaluation.")
+    test_env_is_slippery = False  # Slippery environment
+    test_env_hole_reward = 0  # Hole reward
+    test_env_terminate_on_hole = False  # Terminate on hole
+    deviation_type = "bump"  # Deviation type
 
-    parser.add_argument("--test_env_is_slippery", type=bool, default=False, help="Slippery environment")
-    parser.add_argument("--test_env_hole_reward", type=int, default=0, help="Hole reward")
-    parser.add_argument("--test_env_terminate_on_hole", type=bool, default=False, help="Terminate on hole")
-    parser.add_argument("--deviation_type", type=str, default="bump", help="Deviation type")
+    value_estimate = "nn"  # Value estimate: nn or perfect
+    predictor = "current_value"  # Predictor: original_env or current_value
+    update_estimator = True  # Update estimator: True for y^max and False for standard
 
-    parser.add_argument("--value_estimate", type=str, default="nn", help="Value estimate")
-    parser.add_argument("--predictor", type=str, default="current_value", help="Predictor")
-    parser.add_argument("--update_estimator", type=bool, default=True, help="Update estimator")
-
-    # Parse arguments
-    args = parser.parse_args()
-
-    # Add fixed parameters (do not modify)
-
-    args.wandb_logs = False
-    args.workers = 1
-    args.runs = 1
-    args.tree_evaluation_policy = "mvc"
-    args.selection_policy = "PolicyUCT"
-    args.planning_budget = args.unroll_budget + 1
-    args.puct_c = 1.0
-    args.agent_type = "azdetection"
-    args.eval_temp = 0.0
-    args.dir_epsilon = 0.0
-    args.dir_alpha = None
-    args.value_search = False
-    args.test_env_id = "CustomFrozenLakeNoHoles16x16-v1"
-    args.observation_embedding = "coordinate"
-    args.render = False
-    args.hpc = False
-    args.map_size = 16
-    args.visualize_trees = False
-    args.var_penalty = 1.0
+    # Fixed parameters (do not modify)
+    wandb_logs = False
+    workers = 1
+    runs = 1
+    tree_evaluation_policy = "mvc"
+    selection_policy = "PolicyUCT"
+    planning_budget = unroll_budget + 1
+    puct_c = 1.0
+    agent_type = "azdetection"
+    eval_temp = 0.0
+    dir_epsilon = 0.0
+    dir_alpha = None
+    value_search = False
+    test_env_id = "CustomFrozenLakeNoHoles16x16-v1"
+    observation_embedding = "coordinate"
+    render = False
+    hpc = False
+    map_size = 16
+    visualize_trees = False
+    var_penalty = 1.0
 
     challenge = env_challenges["CustomFrozenLakeNoHoles16x16-v1"]  # Training environment
 
-    # Construct the config
+ # Construct the config
     config_modifications = {
-        "wandb_logs": args.wandb_logs,
-        "workers": args.workers,
-        "runs": args.runs,
-        "tree_evaluation_policy": args.tree_evaluation_policy,
-        "selection_policy": args.selection_policy,
-        "planning_budget": args.planning_budget,
-        "puct_c": args.puct_c,
-        "agent_type": args.agent_type,
-        "eval_temp": args.eval_temp,
-        "dir_epsilon": args.dir_epsilon,
-        "dir_alpha": args.dir_alpha,
-        "threshold": args.threshold,
-        "unroll_budget": args.unroll_budget,
-        "value_search": args.value_search,
-        "observation_embedding": args.observation_embedding,
-        "render": args.render,
-        "hpc": args.hpc,
-        "visualize_trees": args.visualize_trees,
-        "map_size": args.map_size,
-        "var_penalty": args.var_penalty,
-        "value_estimate": args.value_estimate,
-        "predictor": args.predictor,
-        "update_estimator": args.update_estimator
-        
+        "wandb_logs": wandb_logs,
+        "workers": workers,
+        "runs": runs,
+        "tree_evaluation_policy": tree_evaluation_policy,
+        "selection_policy": selection_policy,
+        "planning_budget": planning_budget,
+        "puct_c": puct_c,
+        "agent_type": agent_type,
+        "eval_temp": eval_temp,
+        "dir_epsilon": dir_epsilon,
+        "dir_alpha": dir_alpha,
+        "threshold": threshold,
+        "unroll_budget": unroll_budget,
+        "value_search": value_search,
+        "observation_embedding": observation_embedding,
+        "render": render,
+        "hpc": hpc,
+        "visualize_trees": visualize_trees,
+        "map_size": map_size,
+        "var_penalty": var_penalty,
     }
 
     run_config = {**base_parameters, **challenge, **config_modifications}
@@ -282,12 +250,12 @@ if __name__ == "__main__":
 
     test_env_config_dict = {
         key: {
-            "id": args.test_env_id,
+            "id": test_env_id,
             "desc": fz_env_descriptions[key],
-            "is_slippery": args.test_env_is_slippery,
-            "hole_reward": args.test_env_hole_reward,
-            "terminate_on_hole": args.test_env_terminate_on_hole,
-            "deviation_type": args.deviation_type
+            "is_slippery": test_env_is_slippery,
+            "hole_reward": test_env_hole_reward,
+            "terminate_on_hole": test_env_terminate_on_hole,
+            "deviation_type": deviation_type
         }
         for key in test_env_configs
     }
@@ -334,7 +302,7 @@ if __name__ == "__main__":
             for key in detection_params:
                 run_configs[run_config][key] = detection_params[key]
 
-        results = run_all(run_configs, args.train_seeds)
+        results = run_all(run_configs, train_seeds)
 
         # If the directory does not exist, create it
         if not os.path.exists("detection_results"):

@@ -3,13 +3,12 @@ from typing import Dict, Generic, List, TypeVar, Optional, Any, Callable, Tuple
 import gymnasium as gym
 import numpy as np
 import torch as th
+import graphviz
 from environments.frozenlake.frozen_lake import actions_dict
 
 ObservationType = TypeVar("ObservationType")
 
 NodeType = TypeVar("NodeType", bound="Node")
-
-coords = lambda observation: (observation // 8, observation % 8) if observation is not None else None
 
 class Node(Generic[ObservationType]):
 
@@ -34,6 +33,7 @@ class Node(Generic[ObservationType]):
         action_space: gym.spaces.Discrete,
         observation: Optional[ObservationType],
         terminal: bool = False,
+        ncols: int = 8,
     ):
         
         self.children = {} # dictionary of children where key is action, value is the child node
@@ -44,6 +44,11 @@ class Node(Generic[ObservationType]):
         self.observation = observation
         self.env = env
         self.problematic = False
+
+        self.ncols = ncols
+
+    def coords(self, observ):
+        return (observ // self.ncols, observ % self.ncols) if observ is not None else None
 
     def is_terminal(self) -> bool:
         return self.terminal
@@ -105,11 +110,10 @@ class Node(Generic[ObservationType]):
         var_fn: Optional[Callable[["Node[ObservationType]"], Any]] = None,
         max_depth: Optional[int] = None,
     ) -> None:
-        import graphviz
-
-        dot = graphviz.Digraph(comment="MCTS Tree")
+        
+        dot = graphviz.Digraph(comment="Planning Tree")
         self._add_node_to_graph(dot, var_fn, max_depth=max_depth)
-        dot.render(filename="mcts_tree.gv", view=True)
+        dot.render(filename="plan_tree.gv", view=True)
 
 
     def _add_node_to_graph(
@@ -120,7 +124,7 @@ class Node(Generic[ObservationType]):
     ) -> None:
         if max_depth is not None and max_depth == 0:
             return
-        label = f"O: {coords(self.observation)}, R: {self.reward}, MS: {self.default_value(): .2f}, V: {self.value_evaluation: .2f}\nVisit: {self.visits}, T: {int(self.terminal)}"
+        label = f"O: {self.coords(self.observation)}, R: {self.reward}, MS: {self.default_value(): .2f}, V: {self.value_evaluation: .2f}\nVisit: {self.visits}, T: {int(self.terminal)}"
         if var_fn is not None:
             label += f", VarFn: {var_fn(self)}"
 
@@ -193,6 +197,12 @@ class Node(Generic[ObservationType]):
         self.policy_value = None
         for child in self.children.values():
             child.reset_var_val()
+
+    def reset_visits(self):
+        self.visits = 1
+        for child in self.children.values():
+            child.visits = 1
+            child.reset_visits()
 
     def __str__(self):
         return f"Visits: {self.visits}, ter: {int(self.terminal)}\nR: {self.reward}\n Value_Estimate: {self.value_evaluation}, Mean_Value: {self.default_value()}"

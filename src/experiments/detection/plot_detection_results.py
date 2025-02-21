@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 if __name__ == "__main__":   
+    
     nn_current_value_true = json.load(open("detection_results/value_estimate=nn__predictor=current_value__update_estimator=True.json", "r"))
     nn_current_value_false = json.load(open("detection_results/value_estimate=nn__predictor=current_value__update_estimator=False.json", "r"))
     nn_original_env = json.load(open("detection_results/value_estimate=nn__predictor=original_env__update_estimator=False.json", "r"))
@@ -46,7 +47,7 @@ if __name__ == "__main__":
 
     plt.plot(envs, mean_false, label="standard")
     plt.fill_between(envs, np.array(mean_false) - np.array(std_false), np.array(mean_false) + np.array(std_false), alpha=0.2)
-    plt.plot(envs, mean_true, label="$y^{max}_{n}$")
+    plt.plot(envs, mean_true, label="$y^{max}$")
     plt.fill_between(envs, np.array(mean_true) - np.array(std_true), np.array(mean_true) + np.array(std_true), alpha=0.2)
     plt.title("Accuracy Error")
     plt.legend()
@@ -90,7 +91,7 @@ if __name__ == "__main__":
 
     plt.plot(envs, mean_false, label="standard")
     plt.fill_between(envs, np.array(mean_false) - np.array(std_false), np.array(mean_false) + np.array(std_false), alpha=0.2)
-    plt.plot(envs, mean_true, label="$y^{max}_{n}$")
+    plt.plot(envs, mean_true, label="$y^{max}$")
     plt.fill_between(envs, np.array(mean_true) - np.array(std_true), np.array(mean_true) + np.array(std_true), alpha=0.2)
     plt.title("Sensitivity Error")
     plt.legend()

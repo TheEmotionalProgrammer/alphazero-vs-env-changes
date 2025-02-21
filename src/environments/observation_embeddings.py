@@ -28,9 +28,12 @@ class ObservationEmbedding(ABC):
     def tensor_to_obs(observation) -> th.Tensor:
         pass
 
-
-
 class DefaultEmbedding(ObservationEmbedding):
+
+    """
+    Embedding that simply turns any observation into a flat tensor.
+    """
+
     def obs_to_tensor(self, observation, *args, **kwargs):
         return th.tensor(
             gym.spaces.flatten(self.observation_space, observation),

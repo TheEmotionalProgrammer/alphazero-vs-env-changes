@@ -82,6 +82,8 @@ class MegaTree(AlphaZeroMCTS):
                 reward=reward,
                 action_space=env.action_space,
                 observation=obs,
+                ncols=self.ncols
+
             )
             
             original_root_node = (
@@ -92,6 +94,7 @@ class MegaTree(AlphaZeroMCTS):
                     reward=0,
                     action_space=original_env.action_space,
                     observation=obs,
+                    ncols=self.ncols
                 )
             )
 
@@ -130,6 +133,7 @@ class MegaTree(AlphaZeroMCTS):
                 reward=0,
                 action_space=original_env.action_space,
                 observation=self.trajectory[0][0].observation,
+                ncols=self.ncols
             )
 
             original_root_node.env.unwrapped.s = self.trajectory[0][0].env.unwrapped.s # Set the state of the original environment to the state of the current environment
@@ -168,6 +172,7 @@ class MegaTree(AlphaZeroMCTS):
                     reward=reward,
                     action_space=env.action_space,
                     observation=obs,
+                    ncols=self.ncols
                 )
 
             self.trajectory = []
@@ -183,6 +188,7 @@ class MegaTree(AlphaZeroMCTS):
                     reward=0,
                     action_space=original_env.action_space,
                     observation=obs,
+                    ncols=self.ncols
                 )
             )
 
@@ -310,6 +316,7 @@ class MegaTree(AlphaZeroMCTS):
             reward=reward,
             action_space=env.action_space,
             observation=obs,
+            ncols=self.ncols
         )
 
         original_root_node = (
@@ -320,6 +327,7 @@ class MegaTree(AlphaZeroMCTS):
                 reward=0,
                 action_space=original_env.action_space,
                 observation=obs,
+                ncols=self.ncols
             )
         )
 
@@ -354,6 +362,7 @@ class MegaTree(AlphaZeroMCTS):
                     action_space=child_env.action_space,
                     observation=observation,
                     terminal=terminated,
+                    ncols=self.ncols
                 )
     
                 node = child_node
@@ -444,6 +453,7 @@ class MegaTree(AlphaZeroMCTS):
                 reward=reward,
                 action_space=env.action_space,
                 observation=obs,
+                ncols=self.ncols
             )
 
             temporary_root.value_evaluation = self.value_function(temporary_root)
@@ -502,6 +512,7 @@ class MegaTree(AlphaZeroMCTS):
                     reward=reward,
                     action_space=env.action_space,
                     observation=obs,
+                    ncols=self.ncols
                 )
                 root_node.value_evaluation = self.value_function(root_node)
                 self.backup(root_node, root_node.value_evaluation)

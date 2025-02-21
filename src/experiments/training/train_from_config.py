@@ -1,4 +1,4 @@
-from re import I
+
 import sys
 
 sys.path.append("src/")
@@ -19,7 +19,6 @@ import wandb
 import experiments.parameters as parameters
 from environments.observation_embeddings import ObservationEmbedding, embedding_dict
 from environments.minigrid.mini_grid import ObstaclesGridEnv
-from minigrid.wrappers import FullyObsWrapper, ImgObsWrapper
 from environments.minigrid.utilities.wrappers import SparseActionsWrapper, gym_wrapper
 from az.alphazero import AlphaZeroController
 from az.azmcts import AlphaZeroMCTS

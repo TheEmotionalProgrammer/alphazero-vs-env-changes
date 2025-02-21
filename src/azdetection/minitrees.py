@@ -93,6 +93,7 @@ class MiniTrees(AlphaZeroMCTS):
             reward=reward,
             action_space=env.action_space,
             observation=obs,
+            ncols=self.ncols
         )
         
         original_root_node = (
@@ -103,6 +104,7 @@ class MiniTrees(AlphaZeroMCTS):
                 reward=0,
                 action_space=original_env.action_space,
                 observation=obs,
+                ncols=self.ncols
             )
         )
 
@@ -139,6 +141,8 @@ class MiniTrees(AlphaZeroMCTS):
                 action_space=child_env.action_space,
                 observation=observation,
                 terminal=terminated,
+                ncols=self.ncols
+
             )
 
             node = child_node
@@ -217,6 +221,7 @@ class MiniTrees(AlphaZeroMCTS):
             reward=reward,
             action_space=env.action_space,
             observation=obs,
+            ncols=self.ncols
         )
 
         original_root_node = (
@@ -227,6 +232,7 @@ class MiniTrees(AlphaZeroMCTS):
                 reward=0,
                 action_space=original_env.action_space,
                 observation=obs,
+                ncols=self.ncols
             )
         )
 
@@ -261,6 +267,7 @@ class MiniTrees(AlphaZeroMCTS):
                     action_space=child_env.action_space,
                     observation=observation,
                     terminal=terminated,
+                    ncols=self.ncols
                 )
     
                 node = child_node

@@ -3,7 +3,6 @@ import sys
 sys.path.append("src/")
 
 import os
-from tqdm import tqdm
 import numpy as np
 import multiprocessing
 import gymnasium as gym
@@ -11,7 +10,7 @@ import wandb
 import pandas as pd
 
 from log_code.metrics import calc_metrics
-from experiments.eval_agent import eval_agent
+from experiments.evaluation.eval_agent import eval_agent
 from core.mcts import DistanceMCTS, LakeDistanceMCTS, RandomRolloutMCTS
 from environments.observation_embeddings import ObservationEmbedding, embedding_dict
 from az.azmcts import AlphaZeroMCTS
@@ -24,18 +23,17 @@ from az.model import (
     AlphaZeroModel,
     models_dict
 )
+
 from policies.tree_policies import tree_eval_dict
 from policies.selection_distributions import selection_dict_fn
-from policies.value_transforms import value_transform_dict
-import torch as th
 
-import copy
+from policies.value_transforms import value_transform_dict
+
 from environments.register import register_all
 
 import argparse
-from parameters import base_parameters, env_challenges, fz_env_descriptions
+from experiments.parameters import base_parameters, env_challenges, fz_env_descriptions
 
-from log_code.gen_renderings import save_gif_imageio
 from log_code.tree_visualizer import visualize_trees
 
 def agent_from_config(hparams: dict):
@@ -327,6 +325,7 @@ def eval_budget_sweep(
     budgets=None,
     num_train_seeds=None,
     num_eval_seeds=None,
+    final = False
 ):
     """
     Evaluate the agent with increasing planning budgets and log the results.
@@ -341,11 +340,10 @@ def eval_budget_sweep(
     """
     if config["agent_type"] == "mini-trees" or config["agent_type"] == "mega-tree":
         run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_c_({config['puct_c']})_Predictor_({config['predictor']})_n_({config['unroll_budget']})_eps_({config['threshold']})_ValueSearch_({config['value_search']})_ValueEst_({config['value_estimate']})_UpdateEst_({config['update_estimator']})_{config['map_name']}"
-        run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_c_({config['puct_c']})_Predictor_({config['predictor']})_n_({config['unroll_budget']})_eps_({config['threshold']})_ValueSearch_({config['value_search']})_ValueEst_({config['value_estimate']})_UpdateEst_({config['update_estimator']})_{config['map_name']}"
     elif config["agent_type"] == "azmcts":
         run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_c_({config['puct_c']})_ValueEst_({config['value_estimate']})_{config['map_name']}"
     elif config["agent_type"] == "octopus":
-        run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_c_({config['puct_c']})_ValueEst_({config['value_estimate']})_Predictor_({config['predictor']})_eps_({config['threshold']})_ValueEst_({config['value_estimate']})_({config['update_estimator']})_{config['map_name']}"
+        run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_c_({config['puct_c']})_Predictor_({config['predictor']})_eps_({config['threshold']})_ValueEst_({config['value_estimate']})_({config['update_estimator']})_{config['map_name']}"
 
     if budgets is None:
         budgets = [8, 16, 32, 64, 128]  # Default budgets to sweep
@@ -443,14 +441,27 @@ def eval_budget_sweep(
     # Drop the "Training Seed mean" column and the "Training Seed std" column
     df_grouped.drop(columns=["Training Seed mean", "Training Seed std"], inplace=True)
 
-    # If directory does not exist, create it
-    if not os.path.exists(f"{config_copy['map_size']}x{config_copy['map_size']}"):
-        os.makedirs(f"{config_copy['map_size']}x{config_copy['map_size']}")
+    if final:
+        # Check if the folder final exists
+        if not os.path.exists("final"):
+            os.makedirs("final")
+        # Check if the folder map_size exists
+        if not os.path.exists(f"final/{config_copy['map_size']}x{config_copy['map_size']}"):
+            os.makedirs(f"final/{config_copy['map_size']}x{config_copy['map_size']}")
 
-    # Save results
-    df_grouped.to_csv(f"{config_copy['map_size']}x{config_copy['map_size']}/{run_name}.csv", index=False)
+        # Save results
+        df_grouped.to_csv(f"final/{config_copy['map_size']}x{config_copy['map_size']}/{run_name}.csv", index=False)
+
+    else:
+        # If directory does not exist, create it
+        if not os.path.exists(f"{config_copy['map_size']}x{config_copy['map_size']}"):
+            os.makedirs(f"{config_copy['map_size']}x{config_copy['map_size']}")
+
+        # Save results
+        df_grouped.to_csv(f"{config_copy['map_size']}x{config_copy['map_size']}/{run_name}.csv", index=False)
 
     # Print final averages with standard errors
+    print(f"Final results for {run_name}")
     for budget in budgets:
         row = df_grouped[df_grouped["Budget"] == budget]
         print(f"Planning Budget: {budget}")
@@ -462,22 +473,23 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="AlphaZero Evaluation Configuration")
 
-    map_size = 8
+    map_size = 16
+    CONFIG = "NARROW"
 
     parser.add_argument("--map_size", type=int, default=map_size, help="Map size")
 
     # Run configurations
     parser.add_argument("--wandb_logs", type=bool, default=False, help="Enable wandb logging")
-    parser.add_argument("--workers", type=int, default=6, help="Number of workers")
+    parser.add_argument("--workers", type=int, default=1, help="Number of workers")
     parser.add_argument("--runs", type=int, default=1, help="Number of runs")
 
     # Basic search parameters
-    parser.add_argument("--tree_evaluation_policy", type=str, default="mvc", help="Tree evaluation policy")
-    parser.add_argument("--selection_policy", type=str, default="PolicyUCT", help="Selection policy")
-    parser.add_argument("--puct_c", type=float, default=0, help="PUCT parameter")
+    parser.add_argument("--tree_evaluation_policy", type=str, default="qt_max", help="Tree evaluation policy")
+    parser.add_argument("--selection_policy", type=str, default="PolicyUCT_Var", help="Selection policy")
+    parser.add_argument("--puct_c", type=float, default=1, help="PUCT parameter")
 
     # Only relevant for single run evaluation
-    parser.add_argument("--planning_budget", type=int, default=256, help="Planning budget")
+    parser.add_argument("--planning_budget", type=int, default=16, help="Planning budget")
 
     # Search algorithm
     parser.add_argument("--agent_type", type=str, default="octopus", help="Agent type")
@@ -498,7 +510,7 @@ if __name__ == "__main__":
 
     # Test environment
     parser.add_argument("--test_env_id", type=str, default=f"CustomFrozenLakeNoHoles{map_size}x{map_size}-v1", help="Test environment ID")
-    parser.add_argument("--test_env_desc", type=str, default=f"{map_size}x{map_size}_NARROW_XTREME", help="Environment description")
+    parser.add_argument("--test_env_desc", type=str, default=f"{map_size}x{map_size}_{CONFIG}", help="Environment description")
     parser.add_argument("--test_env_is_slippery", type=bool, default=False, help="Slippery environment")
     parser.add_argument("--test_env_hole_reward", type=int, default=0, help="Hole reward")
     parser.add_argument("--test_env_terminate_on_hole", type=bool, default=False, help="Terminate on hole")
@@ -508,13 +520,13 @@ if __name__ == "__main__":
     parser.add_argument("--observation_embedding", type=str, default="coordinate", help="Observation embedding type")
 
     # Model file for single run evaluation
-    parser.add_argument("--model_file", type=str, default=f"hyper/AZTrain_env=CustomFrozenLakeNoHoles8x8-v1_evalpol=visit_iterations=50_budget=64_df=0.95_lr=0.001_nstepslr=2_seed=4/checkpoint.pth", help="Path to model file")
+    parser.add_argument("--model_file", type=str, default=f"hyper/AZTrain_env=CustomFrozenLakeNoHoles8x8-v1_evalpol=visit_iterations=50_budget=64_df=0.95_lr=0.001_nstepslr=2_seed=0/checkpoint.pth", help="Path to model file")
 
-    parser.add_argument("--train_seeds", type=int, default=10, help="The number of random seeds to use for training.")
+    parser.add_argument( "--train_seeds", type=int, default=1, help="The number of random seeds to use for training.")
     parser.add_argument("--eval_seeds", type=int, default=10, help="The number of random seeds to use for evaluation.")
 
     # Rendering
-    parser.add_argument("--render", type=bool, default=False, help="Render the environment")
+    parser.add_argument("--render", type=bool, default=True, help="Render the environment")
 
     parser.add_argument("--run_full_eval", type=bool, default= True, help="Run type")
 
@@ -523,8 +535,9 @@ if __name__ == "__main__":
     parser.add_argument("--value_estimate", type=str, default="perfect", help="Value estimate method")
     parser.add_argument("--visualize_trees", type=bool, default=True, help="Visualize trees")
 
-    parser.add_argument("--var_penalty", type=float, default=5, help="Variance penalty")
+    parser.add_argument("--var_penalty", type=float, default=1, help="Variance penalty")
 
+    parser.add_argument("--final", type=bool, default=False)
 
     # Parse arguments
     args = parser.parse_args()
@@ -574,6 +587,6 @@ if __name__ == "__main__":
     # Execute the evaluation
 
     if args.run_full_eval:
-        eval_budget_sweep(config=run_config, budgets= [8, 16, 32, 64, 128],  num_train_seeds=args.train_seeds, num_eval_seeds=args.eval_seeds)
+        eval_budget_sweep(config=run_config, budgets= [8, 16, 32, 64, 128],  num_train_seeds=args.train_seeds, num_eval_seeds=args.eval_seeds, final = args.final)
     else:
         eval_from_config(config=run_config)

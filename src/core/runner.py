@@ -20,24 +20,6 @@ from log_code.gen_renderings import save_gif_imageio
 
 from policies.utility_functions import get_children_visits
 
-def run_episode_process(args):
-
-    """Wrapper function for multiprocessing that unpacks arguments and runs a single episode."""
-
-    agent = args[0]
-
-    if isinstance(agent, MegaTree):
-        return run_episode_megatree(*args)
-    
-    elif isinstance(agent, MiniTrees):
-        return run_episode_minitrees(*args)
-
-    elif isinstance(agent, Octopus):
-        return run_episode_octopus(*args)
-    
-    elif isinstance(agent, AlphaZeroMCTS):
-        return run_episode_azmcts(*args)
-
 
 def collect_trajectories(tasks, workers=1):
     if workers > 1:
@@ -55,8 +37,25 @@ def collect_trajectories(tasks, workers=1):
     else:
         res_tensor =  th.stack(results)
         return res_tensor
-    
 
+def run_episode_process(args):
+
+    """Wrapper function for multiprocessing that unpacks arguments and runs a single episode with the specified algorithm."""
+
+    agent = args[0]
+
+    if isinstance(agent, MegaTree):
+        return run_episode_megatree(*args)
+    
+    elif isinstance(agent, MiniTrees):
+        return run_episode_minitrees(*args)
+
+    elif isinstance(agent, Octopus):
+        return run_episode_octopus(*args)
+    
+    elif isinstance(agent, AlphaZeroMCTS):
+        return run_episode_azmcts(*args)
+    
 @th.no_grad()
 def run_episode_azmcts(
     solver: MCTS,
@@ -285,7 +284,7 @@ def run_episode_octopus(
         
         if next_terminal or truncated:
             break
-        
+
         tree = solver.search(env, planning_budget, new_obs, reward)
 
         new_observation_tensor = observation_embedding.obs_to_tensor(new_obs, dtype=th.float32)

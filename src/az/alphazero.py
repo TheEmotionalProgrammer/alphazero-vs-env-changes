@@ -14,7 +14,7 @@ from tqdm import tqdm
 from az.azmcts import AlphaZeroMCTS
 from az.learning import calculate_visit_counts, n_step_value_targets
 from core.runner import collect_trajectories
-from experiments.eval_agent import eval_agent
+from experiments.evaluation.eval_agent import eval_agent
 from log_code.metrics import calc_metrics
 from log_code.t_board import (
     add_training_metrics,
@@ -28,7 +28,7 @@ from log_code.wandb_logs import (
     show_model_in_wandb,
 )
 from policies.policies import PolicyDistribution
-from policies.tree_policies import VistationPolicy
+from policies.tree_policies import VisitationPolicy
 
 
 class AlphaZeroController:
@@ -43,7 +43,7 @@ class AlphaZeroController:
         optimizer: th.optim.Optimizer,
         replay_buffer=TensorDictReplayBuffer(),
         training_epochs=10,
-        tree_evaluation_policy: PolicyDistribution = VistationPolicy(),
+        tree_evaluation_policy: PolicyDistribution = VisitationPolicy(),
         planning_budget=100,
         max_episode_length=500,
         writer: SummaryWriter = SummaryWriter(),

@@ -5,13 +5,14 @@ sys.path.append("src/")
 from experiments.parameters import fz_env_descriptions
 
 
-def visualize_frozenlake(desc):
+def visualize_frozenlake(name, desc):
     """
     Visualize a FrozenLake environment configuration with borders around each square.
     
     Args:
         desc (list of str): The description of the environment grid.
     """
+
     # Define a color map for visualization
     color_map = {
         'S': 'green',   # Start
@@ -42,9 +43,11 @@ def visualize_frozenlake(desc):
     ax.set_xticks([])
     ax.set_yticks([])
     ax.set_aspect('equal')
-    plt.title("FrozenLake Environment Visualization")
+    plt.title(f"FrozenLake {name} Configuration")
     plt.show()
 
 
-# Visualize a specific environment
-visualize_frozenlake(fz_env_descriptions["BLOCKS"])
+if __name__ == "__main__":
+
+    CONFIG = "8x8_NARROW"
+    visualize_frozenlake(CONFIG, fz_env_descriptions[CONFIG])

@@ -4,7 +4,7 @@ from core.mcts import MCTS
 from az.model import AlphaZeroModel
 from core.node import Node
 from policies.policies import Policy
-from environments.frozenlake.utils import fz_compute_distances, fz_perfect_value
+from environments.frozenlake.heuristic_value import fz_compute_distances, fz_perfect_value
 
 
 class AlphaZeroMCTS(MCTS):

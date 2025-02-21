@@ -93,7 +93,7 @@ def visualize_gameplay(
             norm_entropy = policy_dist.entropy() / np.log(n)
             print(f"Policy: {policy_dist.probs}, Norm Entropy: {norm_entropy: .2f}")
             print(f"{step}. O: {observation}, A: {action}, R: {reward}, T: {terminal}")
-            # default = VistationPolicy()
+            # default = VisitationPolicy()
             # print(f"default {default.softmaxed_distribution(tree).probs }")
             # diff = default.softmaxed_distribution(tree).probs - policy_dist.probs
             # print(f"diff {(diff ** 2).sum()}, {diff}")
