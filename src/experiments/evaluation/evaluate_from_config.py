@@ -207,6 +207,7 @@ def agent_from_config(hparams: dict):
                 value_estimate=hparams["value_estimate"],
                 update_estimator=hparams["update_estimator"],
                 var_penalty=hparams["var_penalty"],
+                value_penalty=hparams["value_penalty"],
             )
 
     else:
@@ -343,7 +344,7 @@ def eval_budget_sweep(
     elif config["agent_type"] == "azmcts":
         run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_c_({config['puct_c']})_ValueEst_({config['value_estimate']})_{config['map_name']}"
     elif config["agent_type"] == "octopus":
-        run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_c_({config['puct_c']})_Predictor_({config['predictor']})_eps_({config['threshold']})_ValueEst_({config['value_estimate']})_({config['update_estimator']})_{config['var_penalty']}_{config['map_name']}"
+        run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_c_({config['puct_c']})_Predictor_({config['predictor']})_eps_({config['threshold']})_ValueEst_({config['value_estimate']})_({config['update_estimator']})_Value_Penalty_{config['value_penalty']}_{config['map_name']}"
 
     if budgets is None:
         budgets = [8, 16, 32, 64, 128]  # Default budgets to sweep
@@ -474,23 +475,23 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="AlphaZero Evaluation Configuration")
 
     map_size = 8
-    CONFIG = "NARROW"
-
+    CONFIG = "NARROW_XTREME"
+    
     parser.add_argument("--map_size", type=int, default=map_size, help="Map size")
     parser.add_argument("--config", type=str, default=CONFIG, help="Config desc name")
 
     # Run configurations
     parser.add_argument("--wandb_logs", type=bool, default=False, help="Enable wandb logging")
-    parser.add_argument("--workers", type=int, default=6, help="Number of workers")
+    parser.add_argument("--workers", type=int, default=1, help="Number of workers")
     parser.add_argument("--runs", type=int, default=1, help="Number of runs")
 
     # Basic search parameters
     parser.add_argument("--tree_evaluation_policy", type=str, default="qt_max", help="Tree evaluation policy")
-    parser.add_argument("--selection_policy", type=str, default="PolicyUCT_Var", help="Selection policy")
-    parser.add_argument("--puct_c", type=float, default=1, help="PUCT parameter")
+    parser.add_argument("--selection_policy", type=str, default="PolicyUCT", help="Selection policy")
+    parser.add_argument("--puct_c", type=float, default=0, help="PUCT parameter")
 
     # Only relevant for single run evaluation
-    parser.add_argument("--planning_budget", type=int, default=16, help="Planning budget")
+    parser.add_argument("--planning_budget", type=int, default=32, help="Planning budget")
 
     # Search algorithm
     parser.add_argument("--agent_type", type=str, default="octopus", help="Agent type")
@@ -519,10 +520,11 @@ if __name__ == "__main__":
     parser.add_argument("--observation_embedding", type=str, default="coordinate", help="Observation embedding type")
 
     # Model file for single run evaluation
-    parser.add_argument("--model_file", type=str, default=f"hyper/AZTrain_env=CustomFrozenLakeNoHoles8x8-v1_evalpol=visit_iterations=50_budget=64_df=0.95_lr=0.001_nstepslr=2_seed=0/checkpoint.pth", help="Path to model file")
+    parser.add_argument("--model_file", type=str, default=f"hyper/AZTrain_env=CustomFrozenLakeNoHoles8x8-v1_evalpol=visit_iterations=50_budget=64_df=0.95_lr=0.001_nstepslr=2_seed=1/checkpoint.pth", help="Path to model file")
+    #parser.add_argument("--model_file", type=str, default=f"hyper/AZTrain_env=CustomFrozenLakeNoHoles16x16-v1_evalpol=visit_iterations=60_budget=128_df=0.95_lr=0.003_nstepslr=2_seed=1/checkpoint.pth", help="Path to model file")
 
-    parser.add_argument( "--train_seeds", type=int, default=1, help="The number of random seeds to use for training.")
-    parser.add_argument("--eval_seeds", type=int, default=10, help="The number of random seeds to use for evaluation.")
+    parser.add_argument( "--train_seeds", type=int, default=10, help="The number of random seeds to use for training.")
+    parser.add_argument("--eval_seeds", type=int, default=3, help="The number of random seeds to use for evaluation.")
 
     # Rendering
     parser.add_argument("--render", type=bool, default=True, help="Render the environment")
@@ -531,10 +533,11 @@ if __name__ == "__main__":
 
     parser.add_argument("--hpc", type=bool, default=False, help="HPC flag")
 
-    parser.add_argument("--value_estimate", type=str, default="perfect", help="Value estimate method")
-    parser.add_argument("--visualize_trees", type=bool, default=False, help="Visualize trees")
+    parser.add_argument("--value_estimate", type=str, default="nn", help="Value estimate method")
+    parser.add_argument("--visualize_trees", type=bool, default=True, help="Visualize trees")
 
     parser.add_argument("--var_penalty", type=float, default=1, help="Variance penalty")
+    parser.add_argument("--value_penalty", type=float, default=0, help="Value penalty")
 
     parser.add_argument("--final", type=bool, default=False)
 
@@ -579,6 +582,7 @@ if __name__ == "__main__":
         "visualize_trees": args.visualize_trees,
         "map_size": args.map_size,
         "var_penalty": args.var_penalty,
+        "value_penalty": args.value_penalty,
         "update_estimator": args.update_estimator,
 
     }
@@ -588,6 +592,6 @@ if __name__ == "__main__":
     # Execute the evaluation
 
     if args.run_full_eval:
-        eval_budget_sweep(config=run_config, budgets= [8, 16, 32, 64, 128],  num_train_seeds=args.train_seeds, num_eval_seeds=args.eval_seeds, final = args.final)
+        eval_budget_sweep(config=run_config, budgets= [64],  num_train_seeds=args.train_seeds, num_eval_seeds=args.eval_seeds, final = args.final)
     else:
         eval_from_config(config=run_config)

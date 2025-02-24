@@ -24,6 +24,7 @@ class Node(Generic[ObservationType]):
     env: Optional[gym.Env]
     variance: float | None = None
     policy_value: float | None = None
+    uniform: bool = False
     
     def __init__(
         self,
@@ -34,6 +35,7 @@ class Node(Generic[ObservationType]):
         observation: Optional[ObservationType],
         terminal: bool = False,
         ncols: int = 8,
+    
     ):
         
         self.children = {} # dictionary of children where key is action, value is the child node

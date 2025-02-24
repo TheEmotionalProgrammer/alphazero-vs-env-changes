@@ -166,8 +166,8 @@ class MCTS:
             action_space=node.action_space,
             terminal=terminal,
             observation=observation,
+            ncols=self.ncols
         )
-
 
         node.children[action] = new_child # Add the new node to the children of the parent node
 

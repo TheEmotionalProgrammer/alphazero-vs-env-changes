@@ -321,6 +321,8 @@ def run_episode_minitrees(
     Outputs the trajectory and optionally the trees that were generated during the episode.
     """
 
+    total_planning = 0
+
     assert isinstance(env.action_space, gym.spaces.Discrete) # For now, only supports discrete action spaces
     n = int(env.action_space.n)
 
@@ -363,7 +365,11 @@ def run_episode_minitrees(
     if return_trees:
         trees = []
 
-    tree = solver.search(env,planning_budget, observation, 0.0, original_env = original_env, n=unroll_steps)
+    tree, net_planning = solver.search(env,planning_budget, observation, 0.0, original_env = original_env, n=unroll_steps)
+
+    print(f"Net planning step 0: {net_planning}")
+
+    total_planning += net_planning
 
     step = 0
 
@@ -496,7 +502,10 @@ def run_episode_minitrees(
             break
 
 
-        tree = solver.search(env, planning_budget, new_obs, reward, original_env=original_env, n=unroll_steps) 
+        tree, net_planning = solver.search(env, planning_budget, new_obs, reward, original_env=original_env, n=unroll_steps) 
+
+        print(f"Net planning step {step+1}: {net_planning}")
+        total_planning += net_planning
 
         new_observation_tensor = observation_embedding.obs_to_tensor(new_obs, dtype=th.float32)
         observation_tensor = new_observation_tensor
@@ -508,6 +517,9 @@ def run_episode_minitrees(
 
     if return_trees:
         return trajectory, trees
+
+    print(f"Total planning steps: {total_planning}")
+    print("Average planning steps per action: ", total_planning/step)
 
     return trajectory
 

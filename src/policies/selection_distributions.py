@@ -4,7 +4,7 @@ import torch as th
 from core.node import Node
 from policies.policies import PolicyDistribution
 from policies.tree_policies import MinimalVarianceConstraintPolicy
-from policies.utility_functions import get_children_policy_values, get_children_visits, get_transformed_default_values, get_children_policy_values_and_inverse_variance, value_evaluation_variance
+from policies.utility_functions import get_children_policy_values, get_children_visits, get_transformed_default_values, get_children_policy_values_and_inverse_variance, value_evaluation_variance, reward_variance
 from policies.value_transforms import IdentityValueTransform
 
 class SelectionPolicy(PolicyDistribution):
@@ -78,10 +78,10 @@ class PolicyUCT(UCT):
         
 class PolicyUCT_Var(UCT):
 
-    def __init__(self, *args, discount_factor: float = 1.0, **kwargs):
+    def __init__(self, *args, policy, discount_factor: float = 1.0, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.policy = MinimalVarianceConstraintPolicy(beta = 10.0, discount_factor=discount_factor, temperature=None, value_transform=IdentityValueTransform)
+        self.policy = policy
         self.discount_factor = discount_factor
 
     def Q(self, node: Node) -> float:
@@ -96,13 +96,30 @@ class PolicyUCT_Var(UCT):
             return children_visits == 0
 
         Qs, inv_vars = get_children_policy_values_and_inverse_variance(node, self.policy, self.discount_factor, self.value_transform)
-        vars = 1/inv_vars
-        inv_variance = th.tensor(1/value_evaluation_variance(node))
+        children_vars = 1/inv_vars
+
+        if isinstance(self.policy, th.distributions.Categorical):
+            pi = self.policy
+        else:
+            pi = self.policy.softmaxed_distribution(node, include_self=True)
+
+        probabilities_squared = pi.probs**2  # type: ignore
+        own_propability_squared = probabilities_squared[-1]
+        child_propabilities_squared = probabilities_squared[:-1]
+
+        var_root = reward_variance(node) + self.discount_factor**2 * (
+            own_propability_squared * value_evaluation_variance(node)
+            + (child_propabilities_squared * children_vars).sum()
+        )
+
+        inv_variance = th.tensor(1/var_root)
         
         if th.log(inv_variance) < 0: # Avoids taking the square root of a negative number
             inv_variance = th.tensor(1)
-
-        return Qs + self.c * th.sqrt(th.log(inv_variance)) * th.sqrt(vars)
+        
+        # print(inv_variance)
+        
+        return Qs + self.c * th.sqrt(th.log(inv_variance)) * th.sqrt(children_vars)
 
 
 class PUCT(UCT):
@@ -155,6 +172,6 @@ selection_dict_fn = lambda c, policy, discount, value_transform: {
     "PUCT": PUCT(c, temperature=0.0, value_transform=value_transform),
     "PolicyUCT": PolicyUCT(c, policy=policy, discount_factor=discount,temperature=0.0, value_transform=value_transform),
     "PolicyPUCT": PolicyPUCT(c, policy=policy, discount_factor=discount,temperature=0.0, value_transform=value_transform),
-    "PolicyUCT_Var": PolicyUCT_Var(c, discount_factor=discount,temperature=0.0, value_transform=value_transform),
+    "PolicyUCT_Var": PolicyUCT_Var(c, policy=policy, discount_factor=discount,temperature=0.0, value_transform=value_transform),
     "PolicyPUCT_Var": PolicyPUCT_Var(c, policy=policy, discount_factor=discount,temperature=0.0, value_transform=value_transform),
 }

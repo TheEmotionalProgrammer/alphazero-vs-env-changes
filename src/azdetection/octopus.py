@@ -27,6 +27,7 @@ class Octopus(AlphaZeroMCTS):
             predictor: str = "current_value",
             value_estimate: str = "nn",
             var_penalty: float = 1.0,
+            value_penalty: float = 0.0,
             update_estimator: bool = False,
             policy_det_rule: bool = False
     ):
@@ -48,6 +49,7 @@ class Octopus(AlphaZeroMCTS):
         self.previous_root = None
         self.update_estimator = update_estimator
         self.var_penalty = var_penalty
+        self.value_penalty = value_penalty
         self.policy_det_rule = policy_det_rule
 
     def coords(self, observ):
@@ -215,7 +217,17 @@ class Octopus(AlphaZeroMCTS):
             
             selected_node_for_expansion, selected_action, cumulated_reward, i, i_pred, obss, prior_ok = self.traverse(root_node) # Traverse the existing tree until a leaf node is reached
 
-            predictor_rootval = i_pred
+            predictor_rootval = i_pred + 1e-9
+            i_root  = cumulated_reward + (self.discount_factor**(i)) * selected_node_for_expansion.value_evaluation
+
+            if prior_ok and i_root/predictor_rootval < 1 - self.threshold:
+                        
+                #print("Problem detected at node", self.coords(selected_node_for_expansion.observation), "i_root:", i_root, "i_pred:", predictor_rootval)
+                selected_node_for_expansion.problematic = True
+                selected_node_for_expansion.var_penalty = self.var_penalty
+                selected_node_for_expansion.value_evaluation  = max(0, selected_node_for_expansion.value_evaluation - self.value_penalty)
+                #print("Problem detected on trajectory:", obss, "i_root:", i_root, "i_pred:", predictor_rootval)
+
             # Predict the value of the node n steps into the future
 
             if selected_node_for_expansion.is_terminal(): # If the node is terminal, set its value to 0 and backup
@@ -230,16 +242,16 @@ class Octopus(AlphaZeroMCTS):
                 value = self.value_function(eval_node) # Estimate the value of the node
                 eval_node.value_evaluation = value # Set the value of the node
 
-                cumulated_reward += (self.discount_factor**(i)) * eval_node.reward
+                # cumulated_reward += (self.discount_factor**(i)) * eval_node.reward
 
-                i_root = cumulated_reward + (self.discount_factor**(i+1)) * value
+                # i_root = cumulated_reward + (self.discount_factor**(i+1)) * value
 
-                if prior_ok and i_root/predictor_rootval < 1 - self.threshold:
+                # if prior_ok and i_root/predictor_rootval < 1 - self.threshold:
         
-                    #print("Problem detected at node", self.coords(eval_node.observation), "i_root:", i_root, "i_pred:", predictor_rootval)
-                    eval_node.problematic = True
-                    eval_node.var_penalty = self.var_penalty
-                    #print("Problem detected on trajectory:", obss, "i_root:", i_root, "i_pred:", predictor_rootval)
+                #     #print("Problem detected at node", self.coords(eval_node.observation), "i_root:", i_root, "i_pred:", predictor_rootval)
+                #     eval_node.problematic = True
+                #     eval_node.var_penalty = self.var_penalty
+                #     #print("Problem detected on trajectory:", obss, "i_root:", i_root, "i_pred:", predictor_rootval)
                 self.backup(eval_node, value) # Backup the value of the node
 
         return root_node # Return the root node, which will now have updated statistics after the tree has been built

@@ -517,8 +517,6 @@ class MegaTree(AlphaZeroMCTS):
                 root_node.value_evaluation = self.value_function(root_node)
                 self.backup(root_node, root_node.value_evaluation)
                 
-        start_val = root_node.value_evaluation
-
         counter = root_node.visits 
 
         diff = n if not self.stop_unrolling else 0
@@ -546,7 +544,6 @@ class MegaTree(AlphaZeroMCTS):
                 value = self.value_function(eval_node) # Estimate the value of the node
                 eval_node.value_evaluation = value # Set the value of the node
 
-                #if self.value_search and eval_node.value_evaluation > start_val:
                 if (
                     self.value_search 
                     and self.problem_idx is not None
