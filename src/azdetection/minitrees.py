@@ -50,6 +50,8 @@ class MiniTrees(AlphaZeroMCTS):
         self.predictor = predictor # The predictor to use for the n-step prediction
         self.value_search = value_search # If True, the agent will use the value search 
         self.update_estimator = update_estimator # If True, the agent will update the value estimator when a better estimate is found
+
+        self.checked_obs = [] # List of observations that have been checked for detached unroll
         
     def unroll(
             self,
@@ -380,20 +382,22 @@ class MiniTrees(AlphaZeroMCTS):
         
         safe_length = max(len(self.trajectory)-1, 1) # Excludes the problematic node, we don't want to plan from there
 
-        net_planning += safe_length * (iterations//safe_length)
+        #net_planning += safe_length * (iterations//safe_length)
 
         for idx in range(safe_length):
             
             if self.value_search:
                 taken_actions  = [action for node, action in self.trajectory[:idx]] # List of actions that have been taken so far when this is the root
 
-            root_node = self.trajectory[idx][0]
+            root_node = self.trajectory[idx][0] # The node we are planning from 
 
             self.backup(root_node, root_node.value_evaluation) # Note that the value estimate of the root node is already set in the unrolling
 
             counter = root_node.visits # Avoids immediate stopping when we are reusing an old trajectory
 
-            while root_node.visits - counter < max(iterations//safe_length, 1):
+            individual_iterations = iterations//safe_length
+
+            while root_node.visits - counter < max((individual_iterations), 1) and net_planning < iterations:
                                     
                 candidate_actions = taken_actions.copy() if self.value_search else None # We reset the candidate actions to the ones takes so far
 
@@ -411,27 +415,33 @@ class MiniTrees(AlphaZeroMCTS):
 
                     eval_node = self.expand(selected_node_for_expansion, selected_action)
                     eval_node.value_evaluation = self.value_function(eval_node)
+                    net_planning += 1
 
                     if (
                         self.value_search 
+                        and net_planning <= iterations - n
                         and self.trajectory[self.problem_idx][0].observation != eval_node.observation
                         and eval_node.value_evaluation >= self.trajectory[self.problem_idx][0].value_evaluation
+                        and eval_node.observation not in self.checked_obs
                     ):
                         #print("Candidate obs:", coords(eval_node.observation))
-
+                        
                         # We create copies of the envs to avoid any interference with the standard ongoing planning
                         eval_node_env = copy.deepcopy(eval_node.env)
                         original_env_copy = copy.deepcopy(original_env)
                         obs = eval_node.observation
                         reward = eval_node.reward
 
-                        problem, num_calls = self.detached_unroll(eval_node_env, n, obs, reward, eval_node.value_evaluation , eval_node.prior_policy ,original_env_copy)      
-
+                        problem, num_calls = self.detached_unroll(eval_node_env, n, obs, reward, eval_node.value_evaluation , eval_node.prior_policy ,original_env_copy)
+                        
                         net_planning += num_calls          
 
                         if not problem:
                             self.problem_idx = None # The problem has been solved
+                            self.checked_obs = [] # Reset the checked observations
                             return candidate_actions, net_planning
+                        else:
+                            self.checked_obs.append(eval_node.observation)
                                                         
                     self.backup(eval_node, eval_node.value_evaluation)
         
