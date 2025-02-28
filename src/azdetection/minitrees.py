@@ -75,11 +75,11 @@ class MiniTrees(AlphaZeroMCTS):
 
         if len_traj >= 1 and self.problem_idx is not None:
             if obs == self.trajectory[0][0].observation:
-                #print("Reusing Trajectory: ")
+                print("Reusing Trajectory: ")
                 #print([(self.trajectory[i][0].observation // self.ncols, self.trajectory[i][0].observation % self.ncols) for i in range(len(self.trajectory))])
                 return 0
             elif len_traj > 1 and obs == self.trajectory[1][0].observation:
-                #print("Reusing Trajectory: ")
+                print("Reusing Trajectory: ")
                 start_idx = 1
                 self.trajectory = self.trajectory[start_idx:] 
                 self.problem_idx -= start_idx
@@ -382,8 +382,6 @@ class MiniTrees(AlphaZeroMCTS):
         
         safe_length = max(len(self.trajectory)-1, 1) # Excludes the problematic node, we don't want to plan from there
 
-        #net_planning += safe_length * (iterations//safe_length)
-
         for idx in range(safe_length):
             
             if self.value_search:
@@ -420,7 +418,7 @@ class MiniTrees(AlphaZeroMCTS):
                     if (
                         self.value_search 
                         and net_planning <= iterations - n
-                        and self.trajectory[self.problem_idx][0].observation != eval_node.observation
+                        and eval_node.observation != self.trajectory[self.problem_idx][0].observation
                         and eval_node.value_evaluation >= self.trajectory[self.problem_idx][0].value_evaluation
                         and eval_node.observation not in self.checked_obs
                     ):
