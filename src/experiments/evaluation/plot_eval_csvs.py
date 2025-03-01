@@ -45,19 +45,23 @@ def plot_comparison_from_csvs(filepaths, labels=None, map_size=16, max_episode_l
                 print(f"Skipping {label}: Missing required columns in {filepaths}")
                 continue
 
-            if label == "MINI-TREES-VS":
-                color = None
-            elif label == "MVC":
-                color = "green"
-            elif label == "MEGA-TREE":
-                color = "red"
-            elif label == "OCTOPUS":
-                color = "black"
+            # Determine color and linestyle based on label
+            if "AZ" in label:
+                color = "blue"
+            elif "MTVS" in label:
+                color = "orange"
             else:
                 color = None
-            
+
+            if "PUCT" in label:
+                linestyle = "-"
+            elif "UCT" in label:
+                linestyle = "--"
+            else:
+                linestyle = "-"
+
             # Plot mean values
-            plt.plot(df["Budget"], df[f"{metric} mean"], marker="o", linestyle="-", color=color)#, label=label)
+            plt.plot(df["Budget"], df[f"{metric} mean"], marker="o", linestyle=linestyle, color=color, label=label)
 
             # Fill shaded area for standard error
             plt.fill_between(df["Budget"], 
@@ -77,12 +81,12 @@ def plot_comparison_from_csvs(filepaths, labels=None, map_size=16, max_episode_l
 
         # Add a horizontal reference line for optimal values (if applicable)
         if metric in optimal_values:
-            plt.axhline(optimal_values[metric], color='red', linestyle='dotted', linewidth=1.5)#, label="Optimal Value")
+            plt.axhline(optimal_values[metric], color='red', linestyle='dotted', linewidth=1.5 , label="Optimal Value")
 
         plt.xlabel("Planning Budget (log scale)", fontsize=12)
         plt.ylabel(metric, fontsize=12)
         #plt.title(f"{metric} vs Planning Budget (Comparison)")
-        #plt.legend()
+        plt.legend()
         plt.grid(True, which="both", linestyle="--", linewidth=0.5)
         plt.savefig(f"comparison_{metric.replace(' ', '_').lower()}.png")
         plt.show()
@@ -90,18 +94,23 @@ def plot_comparison_from_csvs(filepaths, labels=None, map_size=16, max_episode_l
 if __name__ == "__main__":
 
     map_size = 8
-    CONFIG = "SLALOM"
+    CONFIG = "DEAD_END"
     vfunc = "nn"
     # Example usage
     filepaths = (
         [   
-            f"{map_size}x{map_size}/Algorithm_(azmcts)_EvalPol_(visit)_SelPol_(UCT)_c_(1.0)_ValueEst_({vfunc})_{map_size}x{map_size}_{CONFIG}.csv",
-            f"{map_size}x{map_size}/Algorithm_(azmcts)_EvalPol_(mvc)_SelPol_(PolicyUCT)_c_(1.0)_ValueEst_({vfunc})_{map_size}x{map_size}_{CONFIG}.csv",
+            f"final/{map_size}x{map_size}/az/Algorithm_(azmcts)_EvalPol_(visit)_SelPol_(UCT)_ValueEst_({vfunc})_{map_size}x{map_size}_{CONFIG}.csv",
+            f"final/{map_size}x{map_size}/az/Algorithm_(azmcts)_EvalPol_(visit)_SelPol_(PUCT)_ValueEst_({vfunc})_{map_size}x{map_size}_{CONFIG}.csv",
+
+            f"{map_size}x{map_size}/Algorithm_(mini-trees)_EvalPol_(visit)_SelPol_(UCT)_c_(1.0)_Predictor_(current_value)_n_(4)_eps_(0.05)_ValueSearch_(True)_ValueEst_({vfunc})_UpdateEst_(True)_{map_size}x{map_size}_{CONFIG}.csv",
+            f"{map_size}x{map_size}/Algorithm_(mini-trees)_EvalPol_(visit)_SelPol_(PUCT)_c_(1.0)_Predictor_(current_value)_n_(4)_eps_(0.05)_ValueSearch_(True)_ValueEst_({vfunc})_UpdateEst_(True)_{map_size}x{map_size}_{CONFIG}.csv"
+            #f"{map_size}x{map_size}/Algorithm_(azmcts)_EvalPol_(mvc)_SelPol_(PolicyUCT)_c_(1.0)_ValueEst_({vfunc})_{map_size}x{map_size}_{CONFIG}.csv",
             #f"final/{map_size}x{map_size}/Algorithm_(mini-trees)_EvalPol_(visit)_SelPol_(UCT)_Predictor_(current_value)_n_(4)_eps_(0.05)_ValueSearch_(True)_ValueEst_({vfunc})_UpdateEst_(True)_{map_size}x{map_size}_{CONFIG}.csv"
             #f"{map_size}x{map_size}/Algorithm_(mega-tree)_EvalPol_(mvc)_SelPol_(PolicyUCT)_c_(0.0)_Predictor_(current_value)_n_(4)_eps_(0.05)_ValueSearch_(False)_ValueEst_({vfunc})_UpdateEst_(True)_{map_size}x{map_size}_{CONFIG}.csv"
-            f"{map_size}x{map_size}/Algorithm_(octopus)_EvalPol_(qt_max)_SelPol_(PolicyUCT)_c_(0.0)_Predictor_(current_value)_eps_(0.05)_ValueEst_({vfunc})_(True)_1_{map_size}x{map_size}_{CONFIG}.csv"
+            # f"{map_size}x{map_size}/Algorithm_(octopus)_EvalPol_(qt_max)_SelPol_(PolicyUCT)_c_(0.0)_Predictor_(current_value)_eps_(0.05)_ValueEst_({vfunc})_(True)_1_{map_size}x{map_size}_{CONFIG}.csv",
+            # f"{map_size}x{map_size}/Algorithm_(octopus)_EvalPol_(qt_max)_SelPol_(PolicyUCT)_c_(0.0)_Predictor_(current_value)_eps_(0.05)_ValueEst_({vfunc})_(True)_Value_Penalty_1_{map_size}x{map_size}_{CONFIG}.csv"
         ]
         #16x16/Algorithm_(octopus)_EvalPol_(mvc)_SelPol_(PolicyUCT)_c_(0)_Predictor_(current_value)_eps_(0.05)_ValueEst_(perfect)_(True)_16x16_NARROW_XTREME.csv
     )
-    labels = ["AZ", "MVC", "OCTOPUS"]
+    labels = ["AZ + UCT", "AZ + PUCT", "MTVS + UCT", "MTVS + PUCT"]
     plot_comparison_from_csvs(filepaths, labels, map_size, 100)
