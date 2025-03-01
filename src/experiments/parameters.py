@@ -336,6 +336,78 @@ fz_env_descriptions = {
         "FFFFFFFG"
     ],
 
+    "8x8_MAZE_LL": [
+        "SFFFFFFF",
+        "FFFFFFFF",
+        "HFFHHHHH",
+        "FFFFFFFF",
+        "FFFFFFFF",
+        "HFFHHHHH",
+        "FFFFFFFF",
+        "FFFFFFFG"
+    ],
+
+    "8x8_MAZE_RR": [
+        "SFFFFFFF",
+        "FFFFFFFF",
+        "HHHHHFFH",
+        "FFFFFFFF",
+        "FFFFFFFF",
+        "HHHHHFFH",
+        "FFFFFFFF",
+        "FFFFFFFG"
+    ],
+
+    "8x8_MAZE_RC": [
+        "SFFFFFFF",
+        "FFFFFFFF",
+        "HHHHHFFH",
+        "FFFFFFFF",
+        "FFFFFFFF",
+        "HHHFFHHH",
+        "FFFFFFFF",
+        "FFFFFFFG"
+    ],
+
+    "16x16_MAZE_RL": [
+        "SFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "HHHHHHHHHHFFFFHH",
+        "HHHHHHHHHHFFFFHH",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "HHFFFFHHHHHHHHHH",
+        "HHFFFFHHHHHHHHHH",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFG"
+    ],
+
+    "16x16_MAZE_LR": [
+        "SFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "HHFFFFHHHHHHHHHH",
+        "HHFFFFHHHHHHHHHH",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "HHHHHHHHHHFFFFHH",
+        "HHHHHHHHHHFFFFHH",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFG"
+    ],
+
+
     "16x16_NO_OBSTACLES": [
         "SFFFFFFFFFFFFFFF",
         "FFFFFFFFFFFFFFFF",
