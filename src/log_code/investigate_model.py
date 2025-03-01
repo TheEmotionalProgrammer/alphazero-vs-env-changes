@@ -43,7 +43,7 @@ def plot_image(fig, ax, image, title):
 
 import matplotlib.patches as patches
 
-def plot_value_network(outputs, nrows, ncols, title="Value Network"):
+def plot_value_network(outputs, nrows, ncols, desc, title="Value Network"):
     plt.ioff()
     grid = np.zeros((nrows, ncols))
     for state, value in outputs.items():
@@ -51,15 +51,15 @@ def plot_value_network(outputs, nrows, ncols, title="Value Network"):
         grid[row, col] = value[0]
     
     fig, ax = plt.subplots()
-    #ax.grid(False)
 
     for i in range(nrows):
         for j in range(ncols):
-            # Add text in the cell
-            ax.text(j, i, f"{grid[i, j]:.2f}", ha="center", va="center", color="red", fontsize=7)
-            # Add a rectangle around the cell for the border
-            # rect = patches.Rectangle((j - 0.5, i - 0.5), 1, 1, linewidth=0.5, edgecolor='black', facecolor='none')
-            # ax.add_patch(rect)
+            if desc[i][j].decode('utf-8') == 'H':
+                # Black cell for obstacles
+                ax.add_patch(patches.Rectangle((j - 0.5, i - 0.5), 1, 1, color='black'))
+            else:
+                # Add text in the cell
+                ax.text(j, i, f"{grid[i, j]:.2f}", ha="center", va="center", color="red", fontsize=7)
 
     ax.imshow(grid, interpolation="nearest")
     ax.set_title(title)
@@ -78,7 +78,7 @@ def plot_value_network(outputs, nrows, ncols, title="Value Network"):
 
 import matplotlib.patches as patches
 
-def plot_policy_network(outputs, nrows=4, ncols=12, title="Policy Network"):
+def plot_policy_network(outputs, nrows, ncols, desc, title="Policy Network"):
     plt.ioff()
     action_arrows = {3: "↑", 2: "→", 1: "↓", 0: "←"}
     preferred_actions = np.zeros((nrows, ncols), dtype="<U2")
@@ -96,8 +96,12 @@ def plot_policy_network(outputs, nrows=4, ncols=12, title="Policy Network"):
     # Add text and cell borders
     for i in range(nrows):
         for j in range(ncols):
-            # Add preferred action text
-            ax.text(j, i, f"{preferred_actions[i, j]}", ha="center", va="center", color="red", fontsize=14)
+            if desc[i][j].decode('utf-8') == 'H':
+                # Black cell for obstacles
+                ax.add_patch(patches.Rectangle((j - 0.5, i - 0.5), 1, 1, color='black'))
+            else:
+                # Add preferred action text
+                ax.text(j, i, f"{preferred_actions[i, j]}", ha="center", va="center", color="red", fontsize=14)
     
     ax.set_title(title)
 
@@ -119,6 +123,7 @@ def plot_visits_with_counter(
     visit_counts: Counter,
     observation_embedding: CoordinateEmbedding | MiniGridEmbedding,
     step,
+    desc,
     title="State Visit Counts",
 ):  
     if isinstance(observation_embedding, CoordinateEmbedding):
@@ -140,13 +145,17 @@ def plot_visits_with_counter(
         # Add text and cell borders
         for obs in range(observation_embedding.observation_space.n):
             row, col = divmod(obs, observation_embedding.ncols)
-            # Add visit count as text
-            ax.text(
-                col, row, f"{grid[row, col]:.0f}", ha="center", va="center", color="red", fontsize=6
-            )
-            # Add a rectangle around the cell for the border
-            rect = patches.Rectangle((col - 0.5, row - 0.5), 1, 1, linewidth=0.5, edgecolor='black', facecolor='none')
-            ax.add_patch(rect)
+            if desc[row][col].decode('utf-8') == 'H':
+                # Black cell for obstacles
+                ax.add_patch(patches.Rectangle((col - 0.5, row - 0.5), 1, 1, color='black'))
+            else:
+                # Add visit count as text
+                ax.text(
+                    col, row, f"{grid[row, col]:.0f}", ha="center", va="center", color="red", fontsize=6
+                )
+                # Add a rectangle around the cell for the border
+                rect = patches.Rectangle((col - 0.5, row - 0.5), 1, 1, linewidth=0.5, edgecolor='black', facecolor='none')
+                ax.add_patch(rect)
         
         # Adjust the grid for clarity
         ax.set_xlim(-0.5, observation_embedding.ncols - 0.5)
@@ -180,8 +189,12 @@ def plot_visits_with_counter(
         ax.set_title(f"{title}, Step: {step}")
         for row in range(observation_embedding.height):
             for col in range(observation_embedding.width):
-                ax.text(
-                    col, row, f"{grid[row, col]:.0f}", ha="center", va="center", color="white"
-                )
+                if desc[row][col].decode('utf-8') == 'H':
+                    # Black cell for obstacles
+                    ax.add_patch(patches.Rectangle((col - 0.5, row - 0.5), 1, 1, color='black'))
+                else:
+                    ax.text(
+                        col, row, f"{grid[row, col]:.0f}", ha="center", va="center", color="white"
+                    )
         plt.tight_layout()
         return fig

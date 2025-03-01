@@ -9,10 +9,11 @@ from log_code.investigate_model import investigate_model, plot_policy_network, p
 
 from environments.observation_embeddings import CoordinateEmbedding, MiniGridEmbedding, ObservationEmbedding
 
-def show_model_in_tensorboard(model: AlphaZeroModel, writer, step):
+def show_model_in_tensorboard(model: AlphaZeroModel, writer, step, desc):
+
     outputs = investigate_model(model)
-    value_fig = plot_value_network(outputs, nrows=model.observation_embedding.nrows, ncols=model.observation_embedding.ncols)
-    policy_fig = plot_policy_network(outputs, nrows=model.observation_embedding.nrows, ncols=model.observation_embedding.ncols)
+    value_fig = plot_value_network(outputs, nrows=model.observation_embedding.nrows, ncols=model.observation_embedding.ncols, desc=desc)
+    policy_fig = plot_policy_network(outputs, nrows=model.observation_embedding.nrows, ncols=model.observation_embedding.ncols, desc=desc)
     writer.add_figure("value_network", value_fig, global_step=step)
     writer.add_figure("policy_network", policy_fig, global_step=step)
     plt.close(value_fig)

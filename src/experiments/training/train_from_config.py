@@ -34,7 +34,7 @@ from policies.value_transforms import value_transform_dict
 
 from environments.register import register_all
 
-from parameters import base_parameters, env_challenges
+from experiments.parameters import base_parameters, env_challenges, fz_env_descriptions
 
 def train_from_config(
     project_name="AlphaZeroTraining", entity=None, job_name=None, config=None, performance=True, tags = None, seed = None
@@ -49,7 +49,7 @@ def train_from_config(
     # Initialize Weights & Biases
     settings = wandb.Settings(job_name=job_name)
 
-    run_name = f"AZTrain_env={config['env_description']}_evalpol={config['tree_evaluation_policy']}_iterations={config['iterations']}_budget={config['planning_budget']}_df={config['discount_factor']}_lr={config['learning_rate']}_nstepslr={config['n_steps_learning']}_seed={seed}_{datetime.datetime.now().strftime('%Y%m%d-%H%M%S')}"
+    run_name = f"AZTrain_env={config['name_config']}_evalpol={config['tree_evaluation_policy']}_iterations={config['iterations']}_budget={config['planning_budget']}_df={config['discount_factor']}_lr={config['learning_rate']}_nstepslr={config['n_steps_learning']}_c={config['puct_c']}_seed={seed}"
 
     run = wandb.init(
         project=project_name, name= run_name,entity=entity, settings=settings, config=config, tags=tags
@@ -60,9 +60,7 @@ def train_from_config(
 
     register_all()
 
-    env = gym.make(
-        **hparams["env_params"],
-    )
+    env = gym.make(**hparams["env_params"])
 
     if isinstance(env, ObstaclesGridEnv):
         env = gym_wrapper(env)
@@ -212,20 +210,36 @@ if __name__ == "__main__":
     # Parse the train seed from command line
     parser = argparse.ArgumentParser(description="AlphaZero Training with a specific seed.")
     parser.add_argument("--workers", type=int, default=6, help="Number of workers")
-    parser.add_argument("--tree_evaluation_policy", type=str, default="mvc", help="Tree evaluation policy")
-    parser.add_argument("--selection_policy", type=str, default="PolicyPUCT", help="Selection policy")
-    parser.add_argument("--planning_budget", type=int, default=16, help="Planning budget")
-    parser.add_argument("--iterations", type=int, default=60, help="Number of iterations")
+    parser.add_argument("--tree_evaluation_policy", type=str, default="visit", help="Tree evaluation policy")
+    parser.add_argument("--selection_policy", type=str, default="PUCT", help="Selection policy")
+    parser.add_argument("--planning_budget", type=int, default=64, help="Planning budget")
+    parser.add_argument("--iterations", type=int, default=100, help="Number of iterations")
     parser.add_argument("--observation_embedding", type=str, default="coordinate", help="Observation embedding type")
     parser.add_argument("--n_steps_learning", type=int, default=2, help="Number of steps for learning")
+
+    parser.add_argument("--train_env_desc", type=str, default="8x8_MAZE_LR", help="The description of the environment.")
+    parser.add_argument("--train_slippery", type=bool, default=False, help="Whether the environment is slippery.")
+    parser.add_argument("--train_hole_reward", type=float, default=0.0, help="The reward for falling into a hole.")
+    parser.add_argument("--train_terminate_on_hole", type=bool, default=False, help="Whether to terminate on falling into a hole.")
+    parser.add_argument("--train_deviation_type", type=str, default="bump", help="The type of deviation to use.")
     
     parser.add_argument("--train_seed", type=int, default=0, help="The random seed to use for training.")
+
+    parser.add_argument("--puct_c", type=float, default=1.0, help="PUCT constant")
 
     args = parser.parse_args()
 
     # Construct run configuration
 
-    challenge = env_challenges["CustomFrozenLakeNoHoles16x16-v1"]
+    challenge = env_challenges["CustomFrozenLakeNoHoles8x8-v1"]
+
+    # Modify the training environment parameters
+    challenge["env_params"]["desc"] = fz_env_descriptions[args.train_env_desc]
+    challenge["env_params"]["is_slippery"] = args.train_slippery
+    challenge["env_params"]["hole_reward"] = args.train_hole_reward
+    challenge["env_params"]["terminate_on_hole"] = args.train_terminate_on_hole
+    challenge["env_params"]["deviation_type"] = args.train_deviation_type
+    
     
     config_modifications = {
         "workers": args.workers,
@@ -235,6 +249,8 @@ if __name__ == "__main__":
         "iterations": args.iterations,
         "observation_embedding": args.observation_embedding,
         "n_steps_learning": args.n_steps_learning,
+        "name_config": args.train_env_desc,
+        "puct_c": args.puct_c
     }
 
     run_config = {**base_parameters, **challenge, **config_modifications}

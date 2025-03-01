@@ -36,7 +36,7 @@ env_challenges = {
 
     "CustomFrozenLakeNoHoles4x4-v1": {
         "env_description": "CustomFrozenLakeNoHoles4x4-v1",
-        "max_episode_length": 100,
+        "max_episode_length": 40,
         "iterations": 30,
         "env_params": dict(id="CustomFrozenLakeNoHoles4x4-v1", max_episode_steps=1000000000),
         "optimal_value": 1.0 * 0.9 ** 6,
@@ -54,11 +54,12 @@ env_challenges = {
         "discount_factor": 0.95,
         "eval_param": 10.0,
         "ncols": 8,
+        "learning_rate": 1e-3,
     },
 
     "CustomFrozenLakeNoHoles16x16-v1": {
         "env_description": "CustomFrozenLakeNoHoles16x16-v1",
-        "max_episode_length": 50,
+        "max_episode_length": 100,
         "env_params": dict(id="CustomFrozenLakeNoHoles16x16-v1", max_episode_steps=1000000000),
         "optimal_value": 1.0 * 0.95 ** 30,
         "worst_value": 0.0,
@@ -310,6 +311,28 @@ fz_env_descriptions = {
         "FFHHFFFF",
         "FFHHFFFF",
         "FFHHFFFF",
+        "FFFFFFFG"
+    ],
+
+    "8x8_MAZE_RL": [
+        "SFFFFFFF",
+        "FFFFFFFF",
+        "HHHHHFFH",
+        "FFFFFFFF",
+        "FFFFFFFF",
+        "HFFHHHHH",
+        "FFFFFFFF",
+        "FFFFFFFG"
+    ],
+
+    "8x8_MAZE_LR": [
+        "SFFFFFFF",
+        "FFFFFFFF",
+        "HFFHHHHH",
+        "FFFFFFFF",
+        "FFFFFFFF",
+        "HHHHHFFH",
+        "FFFFFFFF",
         "FFFFFFFG"
     ],
 

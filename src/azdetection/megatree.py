@@ -35,7 +35,8 @@ class MegaTree(AlphaZeroMCTS):
             update_estimator: bool = False,
             value_search: bool = False,
             value_estimate: str = "nn",
-            var_penalty: float = 1.0
+            var_penalty: float = 1.0,
+            value_penalty: float = 0.0
     ):
         super().__init__(
             model = model,
@@ -59,6 +60,7 @@ class MegaTree(AlphaZeroMCTS):
         #self.time_left = th.inf
         self.problem_value = None
         self.var_penalty = var_penalty
+        self.value_penalty = value_penalty
 
     def coords(self, observ):
         return (observ // self.ncols, observ % self.ncols) if observ is not None else None
@@ -286,6 +288,7 @@ class MegaTree(AlphaZeroMCTS):
                 #print("Time left:", self.time_left)
 
                 self.problem_value = self.trajectory[self.problem_idx][0].value_evaluation
+                self.trajectory[problem_index][0].value_evaluation = max(0, self.trajectory[problem_index][0].value_evaluation - self.value_penalty)
                 
                 self.trajectory = self.trajectory[:problem_index+1] # +1 to include the problematic node
 
@@ -466,7 +469,8 @@ class MegaTree(AlphaZeroMCTS):
                     #print("Problem solved, resume unrolling")
                     self.stop_unrolling = False
                     self.trajectory[self.problem_idx][0].problematic = False
-                    self.trajectory = []
+                    self.trajectory = [] 
+                    print("Problem solved")
                     self.problem_idx = None
                 else:
                     pass

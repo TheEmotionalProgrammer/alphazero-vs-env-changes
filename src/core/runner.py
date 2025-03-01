@@ -145,7 +145,7 @@ def run_episode_azmcts(
         new_pos_row = new_obs // observation_embedding.ncols
         new_pos_col = new_obs % observation_embedding.ncols
 
-        print(f"Env: obs = ({new_pos_row}, {new_pos_col}), reward = {reward}, terminated = {terminated}, truncated = {truncated}")
+        #print(f"Env: obs = ({new_pos_row}, {new_pos_col}), reward = {reward}, terminated = {terminated}, truncated = {truncated}")
         
         assert not truncated
 

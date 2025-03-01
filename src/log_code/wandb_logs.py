@@ -80,11 +80,12 @@ def add_self_play_metrics_wandb(
     )
 
 
-def show_model_in_wandb(model: AlphaZeroModel, step):
+def show_model_in_wandb(model: AlphaZeroModel, step, desc):
+
     rows, cols = model.observation_embedding.nrows, model.observation_embedding.ncols
     outputs = investigate_model(model)
-    value_fig = plot_value_network(outputs, nrows=rows, ncols=cols, title=f"Value Network, Step: {step}")
-    policy_fig = plot_policy_network(outputs, nrows=rows, ncols=cols, title=f"Policy Network, Step: {step}")
+    value_fig = plot_value_network(outputs, nrows=rows, ncols=cols, desc=desc , title=f"Value Network, Step: {step}")
+    policy_fig = plot_policy_network(outputs, nrows=rows, ncols=cols, desc=desc , title=f"Policy Network, Step: {step}")
 
     wandb.log(
         {
@@ -102,7 +103,9 @@ def show_model_in_wandb(model: AlphaZeroModel, step):
 def plot_visits_to_wandb_with_counter(visit_counts: Counter,
     observation_embedding: CoordinateEmbedding | MiniGridEmbedding,
     step,
-    title="State Visit Counts"):
-    fig = plot_visits_with_counter(visit_counts, observation_embedding, step, title)
+    desc,
+    title="State Visit Counts"
+    ):
+    fig = plot_visits_with_counter(visit_counts, observation_embedding, step, desc, title)
     wandb.log({"visit_counts": wandb.Image(fig)}, step=step)
     plt.close(fig)

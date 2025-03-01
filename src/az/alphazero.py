@@ -169,18 +169,24 @@ class AlphaZeroController:
             ):
                 assert isinstance(self.env.observation_space, gym.spaces.Discrete)
 
-                show_model_in_tensorboard(self.agent.model, self.writer, i)
+                desc = self.env.unwrapped.desc
+
+                show_model_in_tensorboard(self.agent.model, self.writer, i, desc)
                 plot_visits_with_counter_tensorboard(
                     self.train_obs_counter,
                     self.agent.model.observation_embedding,
                     self.writer,
                     i,
+                    desc,
                 )
 
                 # wandb
-                show_model_in_wandb(self.agent.model, i)
+                show_model_in_wandb(self.agent.model, i, desc)
                 plot_visits_to_wandb_with_counter(
-                    self.train_obs_counter, self.agent.model.observation_embedding, i
+                    self.train_obs_counter, 
+                    self.agent.model.observation_embedding, 
+                    i, 
+                    desc
                 )
             
             elif (

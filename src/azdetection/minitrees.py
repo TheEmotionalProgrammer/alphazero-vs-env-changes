@@ -436,7 +436,7 @@ class MiniTrees(AlphaZeroMCTS):
 
                         if not problem:
                             self.problem_idx = None # The problem has been solved
-                            self.checked_obs = [] # Reset the checked observations
+                            #self.checked_obs = [] # Reset the checked observations
                             return candidate_actions, net_planning
                         else:
                             self.checked_obs.append(eval_node.observation)

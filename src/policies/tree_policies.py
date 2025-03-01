@@ -2,7 +2,7 @@ import torch as th
 
 from core.node import Node
 from policies.policies import PolicyDistribution
-from policies.utility_functions import get_children_policy_values, get_children_policy_values_and_inverse_variance, get_children_visits
+from policies.utility_functions import get_children_policy_values, get_children_policy_values_and_inverse_variance, get_children_visits, get_children_q_max_values
 from policies.value_transforms import IdentityValueTransform
 
 
@@ -55,7 +55,7 @@ class ValuePolicy(PolicyDistribution):
 
         super().__init__(**kwargs)
         self.discount_factor = discount_factor
-        self.temperature = 0.0 # Do not modify
+        self.temperature = 0 # Do not modify
 
     """
     Deterministic policy that selects the action with the highest value estimate 
@@ -70,10 +70,26 @@ class ValuePolicy(PolicyDistribution):
         vals = get_children_policy_values(node, mvc, self.discount_factor, self.value_transform)
 
         return vals
+
+class Q_max(PolicyDistribution):
+    def __init__(self, discount_factor = 1.0, **kwargs):
+
+        super().__init__(**kwargs)
+        self.discount_factor = discount_factor
+        self.temperature = 0.0 # Do not modify
+
+    """
+    Deterministic policy that selects the action with the highest value estimate 
+    obtained by the MVC policy, but without the variance constraint.
+    """
+
+    def _probs(self, node: Node) -> th.Tensor:
+        return get_children_policy_values(node, self, self.discount_factor, self.value_transform)
     
 
 tree_eval_dict = lambda param, discount, c=1.0, temperature=None, value_transform=IdentityValueTransform: {
     "visit": VisitationPolicy(temperature, value_transform=value_transform),
     "qt_max": ValuePolicy(discount_factor=discount, temperature=temperature, value_transform=value_transform),
+    "q_max": Q_max(discount_factor=discount, temperature=temperature, value_transform=value_transform),
     "mvc": MinimalVarianceConstraintPolicy(discount_factor=discount, beta=param, temperature=temperature, value_transform=value_transform),
 }
