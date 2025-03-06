@@ -261,7 +261,7 @@ class MegaTree(AlphaZeroMCTS):
                 # t = taken_steps - log(1-threshold)/log(discount_factor)
                 # NOTE: at i in the for loop, we have taken i+1 steps
                 safe_index = i+1 - (np.log(1-self.threshold)/np.log(self.discount_factor))
-
+                #safe_index = i + 1 - (np.log(i_est/i_pred)/np.log(self.discount_factor))
                 # if self.predictor == "current_value": # Log Error correction 
                 #     safe_index -= np.log(i+1)
 

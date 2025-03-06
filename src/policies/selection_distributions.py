@@ -70,15 +70,13 @@ class PolicyUCT(UCT):
 
     def __init__(self, *args, policy: PolicyDistribution, discount_factor: float = 1.0, **kwargs):
         super().__init__(*args, **kwargs)
-        self.policy = policy# MinimalVarianceConstraintPolicy(beta = 10.0, discount_factor=0.95, temperature=0.0, value_transform=IdentityValueTransform)
+        self.policy = policy 
         self.discount_factor = discount_factor
 
     def Q(self, node: Node) -> float:
         
         return get_children_policy_values(node, self.policy, self.discount_factor, self.value_transform)
-        #return get_children_q_max_values(node, self.discount_factor)
-        #return get_transformed_default_values(node, self.value_transform)
-    
+        
 class PolicyUCT_Var(UCT):
 
     def __init__(self, *args, policy, discount_factor: float = 1.0, **kwargs):
@@ -122,29 +120,49 @@ class PolicyUCT_Var(UCT):
         
         return Qs + self.c * th.sqrt(th.log(inv_variance)) * th.sqrt(children_vars)
 
-class PolicyMax(SelectionPolicy):
+class PolicyMax(UCT):
     
-    """
-    Selects the action with the highest value estimate obtained by the MVC policy, but without the variance constraint.
-    """
-
     def __init__(self, discount_factor = 1.0, *args, **kwargs):
 
         super().__init__(*args, **kwargs)
         self.discount_factor = discount_factor
+        self.policy = MinimalVarianceConstraintPolicy(beta = 1000.0, discount_factor=discount_factor, temperature=None, value_transform=IdentityValueTransform)   
+
+    def Q(self, node: Node) -> th.Tensor:
+        return get_children_policy_values(node, self.policy, self.discount_factor, self.value_transform)
 
     def _probs(self, node: Node) -> th.Tensor:
 
         children_visits = get_children_visits(node)
-
+        
         # if any child_visit is 0
         if th.any(children_visits == 0):
             # return 1 for all children with 0 visits
             return children_visits == 0
-        
-        vals = get_children_q_max_values(node, self.discount_factor)
 
-        return vals
+        Qs, inv_vars = get_children_policy_values_and_inverse_variance(node, self.policy, self.discount_factor, self.value_transform)
+        children_vars = 1/inv_vars
+
+        if isinstance(self.policy, th.distributions.Categorical):
+            pi = self.policy
+        else:
+            pi = self.policy.softmaxed_distribution(node, include_self=True)
+
+        probabilities_squared = pi.probs**2  # type: ignore
+        own_propability_squared = probabilities_squared[-1]
+        child_propabilities_squared = probabilities_squared[:-1]
+
+        var_root = reward_variance(node) + self.discount_factor**2 * (
+            own_propability_squared * value_evaluation_variance(node)
+            + (child_propabilities_squared * children_vars).sum()
+        )
+
+        inv_variance = th.tensor(1/var_root)
+        
+        # if th.log(inv_variance) < 0: # Avoids taking the square root of a negative number
+        #     inv_variance = th.tensor(1)
+        
+        return Qs + self.c * th.sqrt(th.log(inv_variance)) * th.sqrt(children_vars)
 
 class PUCT(UCT):
 
@@ -198,5 +216,5 @@ selection_dict_fn = lambda c, policy, discount, value_transform: {
     "PolicyPUCT": PolicyPUCT(c, policy=policy, discount_factor=discount,temperature=0.0, value_transform=value_transform),
     "PolicyUCT_Var": PolicyUCT_Var(c, policy=policy, discount_factor=discount,temperature=0.0, value_transform=value_transform),
     "PolicyPUCT_Var": PolicyPUCT_Var(c, policy=policy, discount_factor=discount,temperature=0.0, value_transform=value_transform),
-    "PolicyMax": PolicyMax(discount_factor=discount, temperature=0.0, value_transform=value_transform)
+    "PolicyMax": PolicyMax(c=c, discount_factor=discount, temperature=0.0, value_transform=value_transform)
 }

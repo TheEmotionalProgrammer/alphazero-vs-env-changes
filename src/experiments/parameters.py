@@ -52,7 +52,6 @@ env_challenges = {
         "optimal_value": 1.0 * 0.95 ** 14,
         "worst_value": 0.0,
         "discount_factor": 0.95,
-        "eval_param": 10.0,
         "ncols": 8,
         "learning_rate": 1e-3,
     },
@@ -64,7 +63,6 @@ env_challenges = {
         "optimal_value": 1.0 * 0.95 ** 30,
         "worst_value": 0.0,
         "discount_factor": 0.95,
-        "eval_param": 10.0,
         "ncols": 16,
         "learning_rate": 3e-3,
     },
@@ -76,7 +74,6 @@ env_challenges = {
         "optimal_value": 1.0 * 0.95 ** 38,
         "worst_value": 0.0,
         "discount_factor": 0.95,
-        "eval_param": 10.0,
         "ncols": 20,
 
     },
@@ -362,6 +359,17 @@ fz_env_descriptions = {
         "SFFFFFFF",
         "FFFFFFFF",
         "HHHHHFFH",
+        "FFFFFFFF",
+        "FFFFFFFF",
+        "HHHFFHHH",
+        "FFFFFFFF",
+        "FFFFFFFG"
+    ],
+
+    "8x8_MAZE_LC": [
+        "SFFFFFFF",
+        "FFFFFFFF",
+        "HFFHHHHH",
         "FFFFFFFF",
         "FFFFFFFF",
         "HHHFFHHH",

@@ -11,7 +11,8 @@ def custom_softmax(
     action_mask: th.Tensor | None = None,
 ) -> th.Tensor:
     
-    """Applies softmax to the input tensor with a temperature parameter.
+    """
+    Applies softmax to the input tensor with a temperature parameter.
 
     Args:
         probs (th.Tensor): Relative probabilities of actions.
@@ -22,14 +23,14 @@ def custom_softmax(
         th.Tensor: Probs after applying softmax.
     """
 
-    if temperature is None:
-        # no softmax
+    if temperature is None: # No softmax is applied, returns the full distribution.
         p = probs
 
-    elif temperature == 0.0:
+    elif temperature == 0.0: # Stochastic argmax
         max_prob = th.max(probs, dim=-1, keepdim=True).values
         p = (probs == max_prob).float()
-    else:
+
+    else: # Softmax with temperature
         p = th.nn.functional.softmax(probs / temperature, dim=-1)
 
     if action_mask is not None:
@@ -45,7 +46,6 @@ class Policy(ABC):
     @abstractmethod
     def sample(self, node: Node) -> int:
         """Take a node and return an action"""
-
 
 class PolicyDistribution(Policy):
 
@@ -64,7 +64,9 @@ class PolicyDistribution(Policy):
         temperature: float = None,
         value_transform: ValueTransform = IdentityValueTransform,
     ) -> None:
+        
         super().__init__()
+        
         self.temperature = temperature
         self.value_transform = value_transform
 
@@ -86,7 +88,7 @@ class PolicyDistribution(Policy):
         """
         Returns the relative probability of selecting the node itself
         """
-        
+
         return probs.sum() / (node.visits - 1)
 
     def add_self_to_probs(self, node: Node, probs: th.Tensor) -> th.Tensor:
@@ -102,24 +104,32 @@ class PolicyDistribution(Policy):
         return th.cat([probs, th.tensor([self_prob])])
 
     def softmaxed_distribution(
-        self, node: Node, include_self=False, **kwargs
+        self, node: Node, include_self=False
     ) -> th.distributions.Categorical:
         
         """
-        Relative probabilities with self handling
+        Returns the distribution over actions according to the policy,
+        applying the temperature parameter in custom_softmax().
         """
 
-        # policy for leaf nodes
+        # Policy for leaf nodes: always select the special action (a_v)
+        # Policy tensor will be e.g. [0, 0, 0, 0, 1]
         if include_self and len(node.children) == 0:
             probs = th.zeros(int(node.action_space.n) + include_self, dtype=th.float32)
             probs[-1] = 1.0
             return th.distributions.Categorical(probs=probs)
 
-        probs = self._probs(node)
-        # softmax the probs
+        # Get the "raw" probability logits
+        probs = self._probs(node) 
+
+        # Softmax the logits. This applies the temperature parameter.
+        # Note that this is not applied to the probability of a_v.
         softmaxed_probs = custom_softmax(probs, self.temperature, None)
+
+        # Add the self probability. 
         if include_self:
             softmaxed_probs = self.add_self_to_probs(node, softmaxed_probs)
+
         return th.distributions.Categorical(probs=softmaxed_probs)
 
 

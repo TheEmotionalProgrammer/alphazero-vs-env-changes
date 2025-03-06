@@ -45,7 +45,10 @@ class MinimalVarianceConstraintPolicy(PolicyDistribution):
 
         # We handle nan values and compute the final mvc distribution
         logits = beta * th.nan_to_num(normalized_vals)
+
         probs = inv_vars * th.exp(logits - logits.max())
+
+        #probs = logits - th.log(1/inv_vars) # This would be the same as the line above, but maybe more readable
 
         return probs
 
@@ -64,7 +67,7 @@ class ValuePolicy(PolicyDistribution):
 
     def _probs(self, node: Node) -> th.Tensor:
         
-        mvc_temp = 0.0
+        mvc_temp = 0
         mvc = MinimalVarianceConstraintPolicy(beta = 10.0, discount_factor=self.discount_factor, temperature=mvc_temp, value_transform=IdentityValueTransform)
 
         vals = get_children_policy_values(node, mvc, self.discount_factor, self.value_transform)
@@ -84,7 +87,7 @@ class Q_max(PolicyDistribution):
     """
 
     def _probs(self, node: Node) -> th.Tensor:
-        return get_children_policy_values(node, self, self.discount_factor, self.value_transform)
+        return get_children_q_max_values(node, self.discount_factor)
     
 
 tree_eval_dict = lambda param, discount, c=1.0, temperature=None, value_transform=IdentityValueTransform: {

@@ -27,7 +27,7 @@ import torch as th
 import copy
 from environments.register import register_all
 
-from parameters import base_parameters, env_challenges, fz_env_descriptions
+from experiments.parameters import base_parameters, env_challenges, fz_env_descriptions
 
 def run_single_detection(
         solver: MegaTree,
@@ -160,12 +160,10 @@ def run_all(run_configs, num_seeds):
             detection_steps, steps_before_detection = run_single_detection(
                 solver=agent,
                 env=test_env,
-                tree_evaluation_policy=tree_evaluation_policy,
                 observation_embedding=observation_embedding,
                 planning_budget=planning_budget,
                 max_steps=1000,
                 seed=0, # Since we are only unrolling the prior, the evaluation seed does not really matter
-                temperature=config_copy["eval_temp"],
                 original_env=train_env,
                 unroll_budget=config_copy["unroll_budget"],
             )
@@ -182,7 +180,7 @@ if __name__ == "__main__":
 
     register_all()
 
-    threshold = 0.05  # Detection threshold
+    threshold = 0.3  # Detection threshold
     unroll_budget = 4  # Unroll budget
 
     train_seeds = 10  # The number of random seeds to use for training.
@@ -195,7 +193,7 @@ if __name__ == "__main__":
 
     value_estimate = "nn"  # Value estimate: nn or perfect
     predictor = "current_value"  # Predictor: original_env or current_value
-    update_estimator = True  # Update estimator: True for y^max and False for standard
+    update_estimator = False  # Update estimator: True for y^max and False for standard
 
     # Fixed parameters (do not modify)
     wandb_logs = False
@@ -205,7 +203,7 @@ if __name__ == "__main__":
     selection_policy = "PolicyUCT"
     planning_budget = unroll_budget + 1
     puct_c = 1.0
-    agent_type = "azdetection"
+    agent_type = "mega-tree"
     eval_temp = 0.0
     dir_epsilon = 0.0
     dir_alpha = None
@@ -242,6 +240,7 @@ if __name__ == "__main__":
         "visualize_trees": visualize_trees,
         "map_size": map_size,
         "var_penalty": var_penalty,
+        "value_penalty": 0,
     }
 
     run_config = {**base_parameters, **challenge, **config_modifications}

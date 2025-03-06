@@ -345,7 +345,7 @@ def eval_budget_sweep(
     elif config["agent_type"] == "azmcts":
         run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_c_({config['puct_c']})_ValueEst_({config['value_estimate']})_{config['map_name']}"
     elif config["agent_type"] == "octopus":
-        run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_c_({config['puct_c']})_Predictor_({config['predictor']})_eps_({config['threshold']})_ValueEst_({config['value_estimate']})_({config['update_estimator']})_Value_Penalty_{config['value_penalty']}_{config['map_name']}"
+        run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_c_({config['puct_c']})_Predictor_({config['predictor']})_eps_({config['threshold']})_ValueEst_({config['value_estimate']})_({config['update_estimator']})_ttemp_({config['tree_temperature']})_Value_Penalty_{config['value_penalty']}_{config['map_name']}"
 
     if budgets is None:
         budgets = [8, 16, 32, 64, 128]  # Default budgets to sweep
@@ -372,10 +372,14 @@ def eval_budget_sweep(
     for model_seed in range(num_train_seeds):
         print(f"Training Seed: {model_seed}")
 
-        if config["map_size"] == 8:
-            model_file = f"{'hyper' if not hparams['hpc'] else 'scratch/itamassia/hyper'}/AZTrain_env=CustomFrozenLakeNoHoles8x8-v1_evalpol=visit_iterations=50_budget=64_df=0.95_lr=0.001_nstepslr=2_seed={model_seed}/checkpoint.pth"
-        elif config["map_size"] == 16:
-            model_file = f"{'hyper' if not hparams['hpc'] else 'scratch/itamassia/hyper'}/AZTrain_env=CustomFrozenLakeNoHoles16x16-v1_evalpol=visit_iterations=60_budget=128_df=0.95_lr=0.003_nstepslr=2_seed={model_seed}/checkpoint.pth"
+        if config["map_size"] == 8 and config["train_config"] == "NO_HOLES":
+            model_file = f"hyper/AZTrain_env=CustomFrozenLakeNoHoles8x8-v1_evalpol=visit_iterations=50_budget=64_df=0.95_lr=0.001_nstepslr=2_seed={model_seed}/checkpoint.pth"
+        elif config["map_size"] == 16 and config["train_config"] == "NO_HOLES":
+            model_file = f"hyper/AZTrain_env=CustomFrozenLakeNoHoles16x16-v1_evalpol=visit_iterations=60_budget=128_df=0.95_lr=0.003_nstepslr=2_seed={model_seed}/checkpoint.pth"
+        elif config["map_size"] == 8 and config["train_config"] == "MAZE_RL":
+            model_file = f"hyper/AZTrain_env=8x8_MAZE_RL_evalpol=visit_iterations=150_budget=64_df=0.95_lr=0.001_nstepslr=2_c=0.5_seed={model_seed}/checkpoint.pth"
+        elif config["map_size"] == 8 and config["train_config"] == "MAZE_LR":
+            model_file = f"hyper/AZTrain_env=8x8_MAZE_LR_evalpol=visit_iterations=100_budget=64_df=0.95_lr=0.001_nstepslr=2_c=0.5_seed={model_seed}/checkpoint.pth"
 
         for budget in budgets:
             eval_results = []  # Store results across evaluation seeds for a given training seed
@@ -476,35 +480,43 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="AlphaZero Evaluation Configuration")
 
     map_size = 8
-    CONFIG = "NARROW"
+
+    TRAIN_CONFIG = "NO_HOLES" # NO_HOLES, MAZE_RL, MAZE_LR
+
+    TEST_CONFIG = "SLALOM"
     
-    parser.add_argument("--map_size", type=int, default=map_size, help="Map size")
-    parser.add_argument("--config", type=str, default=CONFIG, help="Config desc name")
+    parser.add_argument("--map_size", type=int, default= map_size, help="Map size")
+    parser.add_argument("--test_config", type=str, default= TEST_CONFIG, help="Config desc name")
+    parser.add_argument("--train_config", type=str, default= TRAIN_CONFIG, help="Config desc name")
 
     # Run configurations
-    parser.add_argument("--wandb_logs", type=bool, default=False, help="Enable wandb logging")
-    parser.add_argument("--workers", type=int, default=1, help="Number of workers")
-    parser.add_argument("--runs", type=int, default=1, help="Number of runs")
+    parser.add_argument("--wandb_logs", type=bool, default= False, help="Enable wandb logging")
+    parser.add_argument("--workers", type=int, default= 1, help="Number of workers")
+    parser.add_argument("--runs", type=int, default= 1, help="Number of runs")
 
     # Basic search parameters
-    parser.add_argument("--tree_evaluation_policy", type=str, default="qt_max", help="Tree evaluation policy")
+    parser.add_argument("--tree_evaluation_policy", type= str, default="mvc", help="Tree evaluation policy")
     parser.add_argument("--selection_policy", type=str, default="PolicyUCT", help="Selection policy")
-    parser.add_argument("--puct_c", type=float, default=0, help="PUCT parameter")
+    parser.add_argument("--puct_c", type=float, default= 0, help="PUCT parameter")
 
     # Only relevant for single run evaluation
-    parser.add_argument("--planning_budget", type=int, default=64, help="Planning budget")
+    parser.add_argument("--planning_budget", type=int, default =128, help="Planning budget")
 
     # Search algorithm
-    parser.add_argument("--agent_type", type=str, default="octopus", help="Agent type")
+    parser.add_argument("--agent_type", type=str, default= "octopus", help="Agent type")
 
     # Stochasticity parameters
-    parser.add_argument("--eval_temp", type=float, default=0.0, help="Temperature in tree evaluation softmax")
-    parser.add_argument("--dir_epsilon", type=float, default=0.0, help="Dirichlet noise parameter epsilon")
-    parser.add_argument("--dir_alpha", type=float, default=None, help="Dirichlet noise parameter alpha")
+    parser.add_argument("--eval_temp", type=float, default= 0.0, help="Temperature in tree evaluation softmax")
+    parser.add_argument("--dir_epsilon", type=float, default= 0.0, help="Dirichlet noise parameter epsilon")
+    parser.add_argument("--dir_alpha", type=float, default= None, help="Dirichlet noise parameter alpha")
+
+    parser.add_argument("--tree_temperature", type=float, default= 0.0, help="Temperature in tree evaluation softmax")
+
+    parser.add_argument("--beta", type=float, default= 10.0, help="Beta parameter for mvc policy")
 
     # AZDetection detection parameters
-    parser.add_argument("--threshold", type=float, default=0.05, help="Detection threshold")
-    parser.add_argument("--unroll_budget", type=int, default=4, help="Unroll budget")
+    parser.add_argument("--threshold", type=float, default= 0.05, help="Detection threshold")
+    parser.add_argument("--unroll_budget", type=int, default= 4, help="Unroll budget")
 
     # AZDetection replanning parameters
     parser.add_argument("--value_search", type=bool, default=False, help="Enable value search")
@@ -512,20 +524,19 @@ if __name__ == "__main__":
     parser.add_argument("--update_estimator", type=bool, default=True, help="Update the estimator")
 
     # Test environment
-    parser.add_argument("--test_env_is_slippery", type=bool, default=False, help="Slippery environment")
+    parser.add_argument("--test_env_is_slippery", type=bool, default= False, help="Slippery environment")
     parser.add_argument("--test_env_hole_reward", type=int, default=0, help="Hole reward")
-    parser.add_argument("--test_env_terminate_on_hole", type=bool, default=False, help="Terminate on hole")
-    parser.add_argument("--deviation_type", type=str, default="bump", help="Deviation type")
+    parser.add_argument("--test_env_terminate_on_hole", type=bool, default= False, help="Terminate on hole")
+    parser.add_argument("--deviation_type", type=str, default= "bump", help="Deviation type")
+
+    # Model file
+    parser.add_argument("--model_file", type=str, default= "", help="Model file")
 
     # Observation embedding
-    parser.add_argument("--observation_embedding", type=str, default="coordinate", help="Observation embedding type")
+    parser.add_argument("--observation_embedding", type=str, default= "coordinate", help="Observation embedding type")
 
-    # Model file for single run evaluation
-    parser.add_argument("--model_file", type=str, default=f"hyper/AZTrain_env=CustomFrozenLakeNoHoles8x8-v1_evalpol=visit_iterations=50_budget=64_df=0.95_lr=0.001_nstepslr=2_seed=4/checkpoint.pth", help="Path to model file")
-    #parser.add_argument("--model_file", type=str, default=f"hyper/AZTrain_env=CustomFrozenLakeNoHoles16x16-v1_evalpol=visit_iterations=60_budget=128_df=0.95_lr=0.003_nstepslr=2_seed=1/checkpoint.pth", help="Path to model file")
-
-    parser.add_argument( "--train_seeds", type=int, default=1, help="The number of random seeds to use for training.")
-    parser.add_argument("--eval_seeds", type=int, default=10, help="The number of random seeds to use for evaluation.")
+    parser.add_argument( "--train_seeds", type=int, default=10, help="The number of random seeds to use for training.")
+    parser.add_argument("--eval_seeds", type=int, default=3, help="The number of random seeds to use for evaluation.")
 
     # Rendering
     parser.add_argument("--render", type=bool, default=True, help="Render the environment")
@@ -534,7 +545,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--hpc", type=bool, default=False, help="HPC flag")
 
-    parser.add_argument("--value_estimate", type=str, default="perfect", help="Value estimate method")
+    parser.add_argument("--value_estimate", type=str, default="nn", help="Value estimate method")
     parser.add_argument("--visualize_trees", type=bool, default=True, help="Visualize trees")
 
     parser.add_argument("--var_penalty", type=float, default=1, help="Variance penalty")
@@ -545,7 +556,18 @@ if __name__ == "__main__":
     # Parse arguments
     args = parser.parse_args()
     args.test_env_id = f"CustomFrozenLakeNoHoles{args.map_size}x{args.map_size}-v1"
-    args.test_env_desc = f"{args.map_size}x{args.map_size}_{args.config}"
+    args.test_env_desc = f"{args.map_size}x{args.map_size}_{args.test_config}"
+
+    single_seed = 0 # Only for single run
+
+    if args.map_size == 8 and args.train_config == "NO_HOLES":
+        args.model_file = f"hyper/AZTrain_env=CustomFrozenLakeNoHoles8x8-v1_evalpol=visit_iterations=50_budget=64_df=0.95_lr=0.001_nstepslr=2_seed={single_seed}/checkpoint.pth"
+    elif args.map_size == 16 and args.train_config == "NO_HOLES":
+        args.model_file = f"hyper/AZTrain_env=CustomFrozenLakeNoHoles16x16-v1_evalpol=visit_iterations=60_budget=128_df=0.95_lr=0.003_nstepslr=2_seed={single_seed}/checkpoint.pth"
+    elif args.map_size == 8 and args.train_config == "MAZE_RL":
+        args.model_file = f"hyper/AZTrain_env=8x8_MAZE_RL_evalpol=visit_iterations=150_budget=64_df=0.95_lr=0.001_nstepslr=2_c=0.5_seed={single_seed}/checkpoint.pth"
+    elif args.map_size == 8 and args.train_config == "MAZE_LR":
+        args.model_file = f"hyper/AZTrain_env=8x8_MAZE_LR_evalpol=visit_iterations=100_budget=64_df=0.95_lr=0.001_nstepslr=2_c=0.5_seed={single_seed}/checkpoint.pth"
 
     challenge = env_challenges[f"CustomFrozenLakeNoHoles{args.map_size}x{args.map_size}-v1"]  # Training environment
 
@@ -585,6 +607,9 @@ if __name__ == "__main__":
         "var_penalty": args.var_penalty,
         "value_penalty": args.value_penalty,
         "update_estimator": args.update_estimator,
+        "train_config": args.train_config,
+        "eval_param": args.beta,
+        "tree_temperature": args.tree_temperature,
 
     }
 
@@ -593,6 +618,6 @@ if __name__ == "__main__":
     # Execute the evaluation
 
     if args.run_full_eval:
-        eval_budget_sweep(config=run_config, budgets= [64],  num_train_seeds=args.train_seeds, num_eval_seeds=args.eval_seeds, final = args.final)
+        eval_budget_sweep(config=run_config, budgets= [16, 32, 64],  num_train_seeds=args.train_seeds, num_eval_seeds=args.eval_seeds, final = args.final)
     else:
         eval_from_config(config=run_config)

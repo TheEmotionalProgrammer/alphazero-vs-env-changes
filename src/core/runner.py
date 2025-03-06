@@ -86,7 +86,7 @@ def run_episode_azmcts(
         th.manual_seed(seed)
         np.random.seed(seed)
 
-    observation, info = env.reset(seed=seed)
+    observation, _ = env.reset(seed=seed)
 
     if render:
         vis_env = copy.deepcopy(env) # Used to visualize the environment in the case of the frozenlake
@@ -145,7 +145,7 @@ def run_episode_azmcts(
         new_pos_row = new_obs // observation_embedding.ncols
         new_pos_col = new_obs % observation_embedding.ncols
 
-        #print(f"Env: obs = ({new_pos_row}, {new_pos_col}), reward = {reward}, terminated = {terminated}, truncated = {truncated}")
+        print(f"Env: obs = ({new_pos_row}, {new_pos_col}), reward = {reward}, terminated = {terminated}, truncated = {truncated}")
         
         assert not truncated
 
@@ -254,7 +254,7 @@ def run_episode_octopus(
         if return_trees:
             tree_copy = copy.deepcopy(tree) 
             trees.append(tree_copy)
-
+        
         distribution = th.distributions.Categorical(probs=custom_softmax(policy_dist.probs, temperature, None)) # apply extra softmax
 
         action = distribution.sample().item() # Note that if the temperature of the softmax was zero, this becomes an argmax
