@@ -327,7 +327,8 @@ def eval_budget_sweep(
     budgets=None,
     num_train_seeds=None,
     num_eval_seeds=None,
-    final = False
+    final = False,
+    save = False
 ):
     """
     Evaluate the agent with increasing planning budgets and log the results.
@@ -341,11 +342,11 @@ def eval_budget_sweep(
         num_eval_seeds (int): Number of evaluation seeds.
     """
     if config["agent_type"] == "mini-trees" or config["agent_type"] == "mega-tree":
-        run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_c_({config['puct_c']})_Predictor_({config['predictor']})_n_({config['unroll_budget']})_eps_({config['threshold']})_ValueSearch_({config['value_search']})_ValueEst_({config['value_estimate']})_UpdateEst_({config['update_estimator']})_{config['map_name']}"
+        run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_c_({config['puct_c']})_Predictor_({config['predictor']})_n_({config['unroll_budget']})_eps_({config['threshold']})_ValueSearch_({config['value_search']})_ValueEst_({config['value_estimate']})_UpdateEst_({config['update_estimator']})_{config['map_size']}x{config['map_size']}_train_{config['train_config']}_test_{config['test_config']}"
     elif config["agent_type"] == "azmcts":
-        run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_c_({config['puct_c']})_ValueEst_({config['value_estimate']})_{config['map_name']}"
+        run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_c_({config['puct_c']})_ValueEst_({config['value_estimate']})__{config['map_size']}x{config['map_size']}_train_{config['train_config']}_test_{config['test_config']}"
     elif config["agent_type"] == "octopus":
-        run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_c_({config['puct_c']})_Predictor_({config['predictor']})_eps_({config['threshold']})_ValueEst_({config['value_estimate']})_({config['update_estimator']})_ttemp_({config['tree_temperature']})_Value_Penalty_{config['value_penalty']}_{config['map_name']}"
+        run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_c_({config['puct_c']})_Predictor_({config['predictor']})_eps_({config['threshold']})_ValueEst_({config['value_estimate']})_({config['update_estimator']})_ttemp_({config['tree_temperature']})_Value_Penalty_{config['value_penalty']}_{config['map_size']}x{config['map_size']}_train_{config['train_config']}_test_{config['test_config']}"
 
     if budgets is None:
         budgets = [8, 16, 32, 64, 128]  # Default budgets to sweep
@@ -446,25 +447,25 @@ def eval_budget_sweep(
     
     # Drop the "Training Seed mean" column and the "Training Seed std" column
     df_grouped.drop(columns=["Training Seed mean", "Training Seed std"], inplace=True)
+    if save:
+        if final:
+            # Check if the folder final exists
+            if not os.path.exists("final"):
+                os.makedirs("final")
+            # Check if the folder map_size exists
+            if not os.path.exists(f"final/{config_copy['map_size']}x{config_copy['map_size']}"):
+                os.makedirs(f"final/{config_copy['map_size']}x{config_copy['map_size']}")
 
-    if final:
-        # Check if the folder final exists
-        if not os.path.exists("final"):
-            os.makedirs("final")
-        # Check if the folder map_size exists
-        if not os.path.exists(f"final/{config_copy['map_size']}x{config_copy['map_size']}"):
-            os.makedirs(f"final/{config_copy['map_size']}x{config_copy['map_size']}")
+            # Save results
+            df_grouped.to_csv(f"final/{config_copy['map_size']}x{config_copy['map_size']}/{run_name}.csv", index=False)
 
-        # Save results
-        df_grouped.to_csv(f"final/{config_copy['map_size']}x{config_copy['map_size']}/{run_name}.csv", index=False)
+        else:
+            # If directory does not exist, create it
+            if not os.path.exists(f"{config_copy['map_size']}x{config_copy['map_size']}"):
+                os.makedirs(f"{config_copy['map_size']}x{config_copy['map_size']}")
 
-    else:
-        # If directory does not exist, create it
-        if not os.path.exists(f"{config_copy['map_size']}x{config_copy['map_size']}"):
-            os.makedirs(f"{config_copy['map_size']}x{config_copy['map_size']}")
-
-        # Save results
-        df_grouped.to_csv(f"{config_copy['map_size']}x{config_copy['map_size']}/{run_name}.csv", index=False)
+            # Save results
+            df_grouped.to_csv(f"{config_copy['map_size']}x{config_copy['map_size']}/{run_name}.csv", index=False)
 
     # Print final averages with standard errors
     print(f"Final results for {run_name}")
@@ -481,9 +482,9 @@ if __name__ == "__main__":
 
     map_size = 8
 
-    TRAIN_CONFIG = "NO_HOLES" # NO_HOLES, MAZE_RL, MAZE_LR
+    TRAIN_CONFIG = "MAZE_RL" # NO_HOLES, MAZE_RL, MAZE_LR
 
-    TEST_CONFIG = "SLALOM"
+    TEST_CONFIG = "MAZE_RR"
     
     parser.add_argument("--map_size", type=int, default= map_size, help="Map size")
     parser.add_argument("--test_config", type=str, default= TEST_CONFIG, help="Config desc name")
@@ -491,7 +492,7 @@ if __name__ == "__main__":
 
     # Run configurations
     parser.add_argument("--wandb_logs", type=bool, default= False, help="Enable wandb logging")
-    parser.add_argument("--workers", type=int, default= 1, help="Number of workers")
+    parser.add_argument("--workers", type=int, default= 6, help="Number of workers")
     parser.add_argument("--runs", type=int, default= 1, help="Number of runs")
 
     # Basic search parameters
@@ -500,7 +501,7 @@ if __name__ == "__main__":
     parser.add_argument("--puct_c", type=float, default= 0, help="PUCT parameter")
 
     # Only relevant for single run evaluation
-    parser.add_argument("--planning_budget", type=int, default =128, help="Planning budget")
+    parser.add_argument("--planning_budget", type=int, default = 64, help="Planning budget")
 
     # Search algorithm
     parser.add_argument("--agent_type", type=str, default= "octopus", help="Agent type")
@@ -510,7 +511,7 @@ if __name__ == "__main__":
     parser.add_argument("--dir_epsilon", type=float, default= 0.0, help="Dirichlet noise parameter epsilon")
     parser.add_argument("--dir_alpha", type=float, default= None, help="Dirichlet noise parameter alpha")
 
-    parser.add_argument("--tree_temperature", type=float, default= 0.0, help="Temperature in tree evaluation softmax")
+    parser.add_argument("--tree_temperature", type=float, default= None, help="Temperature in tree evaluation softmax")
 
     parser.add_argument("--beta", type=float, default= 10.0, help="Beta parameter for mvc policy")
 
@@ -536,7 +537,7 @@ if __name__ == "__main__":
     parser.add_argument("--observation_embedding", type=str, default= "coordinate", help="Observation embedding type")
 
     parser.add_argument( "--train_seeds", type=int, default=10, help="The number of random seeds to use for training.")
-    parser.add_argument("--eval_seeds", type=int, default=3, help="The number of random seeds to use for evaluation.")
+    parser.add_argument("--eval_seeds", type=int, default=1, help="The number of random seeds to use for evaluation.")
 
     # Rendering
     parser.add_argument("--render", type=bool, default=True, help="Render the environment")
@@ -552,6 +553,8 @@ if __name__ == "__main__":
     parser.add_argument("--value_penalty", type=float, default=1, help="Value penalty")
 
     parser.add_argument("--final", type=bool, default=False)
+
+    parser.add_argument("--save", type=bool, default=False)
 
     # Parse arguments
     args = parser.parse_args()
@@ -608,8 +611,10 @@ if __name__ == "__main__":
         "value_penalty": args.value_penalty,
         "update_estimator": args.update_estimator,
         "train_config": args.train_config,
+        "test_config": args.test_config,
         "eval_param": args.beta,
         "tree_temperature": args.tree_temperature,
+        "save": args.save   
 
     }
 
@@ -618,6 +623,6 @@ if __name__ == "__main__":
     # Execute the evaluation
 
     if args.run_full_eval:
-        eval_budget_sweep(config=run_config, budgets= [16, 32, 64],  num_train_seeds=args.train_seeds, num_eval_seeds=args.eval_seeds, final = args.final)
+        eval_budget_sweep(config=run_config, budgets= [8, 16, 32, 64, 128],  num_train_seeds=args.train_seeds, num_eval_seeds=args.eval_seeds, final = args.final, save=args.save)
     else:
         eval_from_config(config=run_config)
