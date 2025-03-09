@@ -114,17 +114,6 @@ fz_env_descriptions = {
         "FFFFFFFG"
     ],
 
-    "MINI_SLALOM": [
-        "SFFFFFFF",
-        "FFFFFFFF",
-        "HHHHFFFF",
-        "FFFFFFFF",
-        "FFFFFFFF",
-        "FFFFFHHH",
-        "FFFFFFFF",
-        "FFFFFFFG"
-    ],
-
     "8x8_SLALOM": [
         "SFFFFFFF",
         "FFFFFFFF",
@@ -135,6 +124,26 @@ fz_env_descriptions = {
         "FFFFFFFF",
         "FFFFFFFG"
     ],
+
+    "16x16_SLALOM": [
+        "SFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "HHHHHHHHHHHHHHFF",
+        "HHHHHHHHHHHHHHFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFHHHH",
+        "FFFFFFFFFFFFHHHH",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFG"
+    ],
+
 
     "MINI_BLOCKS": [
         "SFFFFFFF",
@@ -403,6 +412,44 @@ fz_env_descriptions = {
         "FFFFFFFFFFFFFFFF",
         "HHFFFFHHHHHHHHHH",
         "HHFFFFHHHHHHHHHH",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "HHHHHHHHHHFFFFHH",
+        "HHHHHHHHHHFFFFHH",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFG"
+    ],
+
+    "16x16_MAZE_LL": [
+        "SFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "HHFFFFHHHHHHHHHH",
+        "HHFFFFHHHHHHHHHH",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "HHFFFFHHHHHHHHHH",
+        "HHFFFFHHHHHHHHHH",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFG"
+    ],
+
+    "16x16_MAZE_RR": [
+        "SFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFF",
+        "HHHHHHHHHHFFFFHH",
+        "HHHHHHHHHHFFFFHH",
         "FFFFFFFFFFFFFFFF",
         "FFFFFFFFFFFFFFFF",
         "FFFFFFFFFFFFFFFF",

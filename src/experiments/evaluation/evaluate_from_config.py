@@ -342,12 +342,12 @@ def eval_budget_sweep(
         num_eval_seeds (int): Number of evaluation seeds.
     """
     if config["agent_type"] == "mini-trees" or config["agent_type"] == "mega-tree":
-        run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_c_({config['puct_c']})_Predictor_({config['predictor']})_n_({config['unroll_budget']})_eps_({config['threshold']})_ValueSearch_({config['value_search']})_ValueEst_({config['value_estimate']})_UpdateEst_({config['update_estimator']})_{config['map_size']}x{config['map_size']}_train_{config['train_config']}_test_{config['test_config']}"
+        run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_c_({config['puct_c']})_Predictor_({config['predictor']})_n_({config['unroll_budget']})_eps_({config['threshold']})_ValueSearch_({config['value_search']})_ValueEst_({config['value_estimate']})_UpdateEst_({config['update_estimator']})_{config['map_size']}x{config['map_size']}_{config['train_config']}_{config['test_config']}"
     elif config["agent_type"] == "azmcts":
-        run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_c_({config['puct_c']})_ValueEst_({config['value_estimate']})__{config['map_size']}x{config['map_size']}_train_{config['train_config']}_test_{config['test_config']}"
+        run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_c_({config['puct_c']})_ValueEst_({config['value_estimate']})_{config['map_size']}x{config['map_size']}_{config['train_config']}_{config['test_config']}"
     elif config["agent_type"] == "octopus":
-        run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_c_({config['puct_c']})_Predictor_({config['predictor']})_eps_({config['threshold']})_ValueEst_({config['value_estimate']})_({config['update_estimator']})_ttemp_({config['tree_temperature']})_Value_Penalty_{config['value_penalty']}_{config['map_size']}x{config['map_size']}_train_{config['train_config']}_test_{config['test_config']}"
-
+        run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_c_({config['puct_c']})_Predictor_({config['predictor']})_eps_({config['threshold']})_ValueEst_({config['value_estimate']})_({config['update_estimator']})_ttemp_({config['tree_temperature']})_Value_Penalty_{config['value_penalty']}_{config['map_size']}x{config['map_size']}_{config['train_config']}_{config['test_config']}"
+    
     if budgets is None:
         budgets = [8, 16, 32, 64, 128]  # Default budgets to sweep
 
@@ -381,6 +381,8 @@ def eval_budget_sweep(
             model_file = f"hyper/AZTrain_env=8x8_MAZE_RL_evalpol=visit_iterations=150_budget=64_df=0.95_lr=0.001_nstepslr=2_c=0.5_seed={model_seed}/checkpoint.pth"
         elif config["map_size"] == 8 and config["train_config"] == "MAZE_LR":
             model_file = f"hyper/AZTrain_env=8x8_MAZE_LR_evalpol=visit_iterations=100_budget=64_df=0.95_lr=0.001_nstepslr=2_c=0.5_seed={model_seed}/checkpoint.pth"
+        elif config["map_size"] == 16 and config["train_config"] == "MAZE_LR":
+            model_file = f"hyper/AZTrain_env=16x16_MAZE_LR_evalpol=visit_iterations=150_budget=64_df=0.95_lr=0.003_nstepslr=2_c=0.2_seed={model_seed}/checkpoint.pth"
 
         for budget in budgets:
             eval_results = []  # Store results across evaluation seeds for a given training seed
@@ -480,11 +482,11 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="AlphaZero Evaluation Configuration")
 
-    map_size = 8
+    map_size = 16
 
-    TRAIN_CONFIG = "MAZE_RL" # NO_HOLES, MAZE_RL, MAZE_LR
+    TRAIN_CONFIG = "MAZE_LR" # NO_HOLES, MAZE_RL, MAZE_LR
 
-    TEST_CONFIG = "MAZE_RR"
+    TEST_CONFIG = "MAZE_LL"
     
     parser.add_argument("--map_size", type=int, default= map_size, help="Map size")
     parser.add_argument("--test_config", type=str, default= TEST_CONFIG, help="Config desc name")
@@ -492,22 +494,22 @@ if __name__ == "__main__":
 
     # Run configurations
     parser.add_argument("--wandb_logs", type=bool, default= False, help="Enable wandb logging")
-    parser.add_argument("--workers", type=int, default= 6, help="Number of workers")
+    parser.add_argument("--workers", type=int, default= 1, help="Number of workers")
     parser.add_argument("--runs", type=int, default= 1, help="Number of runs")
 
     # Basic search parameters
     parser.add_argument("--tree_evaluation_policy", type= str, default="mvc", help="Tree evaluation policy")
     parser.add_argument("--selection_policy", type=str, default="PolicyUCT", help="Selection policy")
-    parser.add_argument("--puct_c", type=float, default= 0, help="PUCT parameter")
+    parser.add_argument("--puct_c", type=float, default= 1, help="PUCT parameter")
 
     # Only relevant for single run evaluation
     parser.add_argument("--planning_budget", type=int, default = 64, help="Planning budget")
 
     # Search algorithm
-    parser.add_argument("--agent_type", type=str, default= "octopus", help="Agent type")
+    parser.add_argument("--agent_type", type=str, default= "azmcts", help="Agent type")
 
     # Stochasticity parameters
-    parser.add_argument("--eval_temp", type=float, default= 0.0, help="Temperature in tree evaluation softmax")
+    parser.add_argument("--eval_temp", type=float, default= 0, help="Temperature in tree evaluation softmax")
     parser.add_argument("--dir_epsilon", type=float, default= 0.0, help="Dirichlet noise parameter epsilon")
     parser.add_argument("--dir_alpha", type=float, default= None, help="Dirichlet noise parameter alpha")
 
@@ -547,7 +549,7 @@ if __name__ == "__main__":
     parser.add_argument("--hpc", type=bool, default=False, help="HPC flag")
 
     parser.add_argument("--value_estimate", type=str, default="nn", help="Value estimate method")
-    parser.add_argument("--visualize_trees", type=bool, default=True, help="Visualize trees")
+    parser.add_argument("--visualize_trees", type=bool, default=False, help="Visualize trees")
 
     parser.add_argument("--var_penalty", type=float, default=1, help="Variance penalty")
     parser.add_argument("--value_penalty", type=float, default=1, help="Value penalty")
@@ -561,7 +563,7 @@ if __name__ == "__main__":
     args.test_env_id = f"CustomFrozenLakeNoHoles{args.map_size}x{args.map_size}-v1"
     args.test_env_desc = f"{args.map_size}x{args.map_size}_{args.test_config}"
 
-    single_seed = 0 # Only for single run
+    single_seed = 1 # Only for single run
 
     if args.map_size == 8 and args.train_config == "NO_HOLES":
         args.model_file = f"hyper/AZTrain_env=CustomFrozenLakeNoHoles8x8-v1_evalpol=visit_iterations=50_budget=64_df=0.95_lr=0.001_nstepslr=2_seed={single_seed}/checkpoint.pth"
@@ -571,6 +573,8 @@ if __name__ == "__main__":
         args.model_file = f"hyper/AZTrain_env=8x8_MAZE_RL_evalpol=visit_iterations=150_budget=64_df=0.95_lr=0.001_nstepslr=2_c=0.5_seed={single_seed}/checkpoint.pth"
     elif args.map_size == 8 and args.train_config == "MAZE_LR":
         args.model_file = f"hyper/AZTrain_env=8x8_MAZE_LR_evalpol=visit_iterations=100_budget=64_df=0.95_lr=0.001_nstepslr=2_c=0.5_seed={single_seed}/checkpoint.pth"
+    elif args.map_size == 16 and args.train_config == "MAZE_LR":
+        args.model_file = f"hyper/AZTrain_env=16x16_MAZE_LR_evalpol=visit_iterations=150_budget=64_df=0.95_lr=0.003_nstepslr=2_c=0.2_seed={single_seed}/checkpoint.pth"
 
     challenge = env_challenges[f"CustomFrozenLakeNoHoles{args.map_size}x{args.map_size}-v1"]  # Training environment
 
