@@ -347,6 +347,9 @@ def eval_budget_sweep(
         run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_c_({config['puct_c']})_ValueEst_({config['value_estimate']})_{config['map_size']}x{config['map_size']}_{config['train_config']}_{config['test_config']}"
     elif config["agent_type"] == "octopus":
         run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_c_({config['puct_c']})_Predictor_({config['predictor']})_eps_({config['threshold']})_ValueEst_({config['value_estimate']})_({config['update_estimator']})_ttemp_({config['tree_temperature']})_Value_Penalty_{config['value_penalty']}_{config['map_size']}x{config['map_size']}_{config['train_config']}_{config['test_config']}"
+
+    if config["bad_training"]:
+        run_name = run_name + "_BAD"
     
     if budgets is None:
         budgets = [8, 16, 32, 64, 128]  # Default budgets to sweep
@@ -377,10 +380,19 @@ def eval_budget_sweep(
             model_file = f"hyper/AZTrain_env=CustomFrozenLakeNoHoles8x8-v1_evalpol=visit_iterations=50_budget=64_df=0.95_lr=0.001_nstepslr=2_seed={model_seed}/checkpoint.pth"
         elif config["map_size"] == 16 and config["train_config"] == "NO_HOLES":
             model_file = f"hyper/AZTrain_env=CustomFrozenLakeNoHoles16x16-v1_evalpol=visit_iterations=60_budget=128_df=0.95_lr=0.003_nstepslr=2_seed={model_seed}/checkpoint.pth"
+
         elif config["map_size"] == 8 and config["train_config"] == "MAZE_RL":
-            model_file = f"hyper/AZTrain_env=8x8_MAZE_RL_evalpol=visit_iterations=150_budget=64_df=0.95_lr=0.001_nstepslr=2_c=0.5_seed={model_seed}/checkpoint.pth"
+            if config["bad_training"]:
+                model_file = f"hyper/AZTrain_env=8x8_MAZE_RL_evalpol=visit_iterations=20_budget=64_df=0.95_lr=0.001_nstepslr=2_c=0.5_seed={model_seed}/checkpoint.pth"
+            else:
+                model_file = f"hyper/AZTrain_env=8x8_MAZE_RL_evalpol=visit_iterations=150_budget=64_df=0.95_lr=0.001_nstepslr=2_c=0.5_seed={model_seed}/checkpoint.pth"
+
         elif config["map_size"] == 8 and config["train_config"] == "MAZE_LR":
-            model_file = f"hyper/AZTrain_env=8x8_MAZE_LR_evalpol=visit_iterations=100_budget=64_df=0.95_lr=0.001_nstepslr=2_c=0.5_seed={model_seed}/checkpoint.pth"
+            if config["bad_training"]:
+                model_file = f"hyper/AZTrain_env=8x8_MAZE_LR_evalpol=visit_iterations=10_budget=64_df=0.95_lr=0.001_nstepslr=2_c=0.5_seed={model_seed}/checkpoint.pth"
+            else:
+                model_file = f"hyper/AZTrain_env=8x8_MAZE_LR_evalpol=visit_iterations=100_budget=64_df=0.95_lr=0.001_nstepslr=2_c=0.5_seed={model_seed}/checkpoint.pth"
+
         elif config["map_size"] == 16 and config["train_config"] == "MAZE_LR":
             model_file = f"hyper/AZTrain_env=16x16_MAZE_LR_evalpol=visit_iterations=150_budget=64_df=0.95_lr=0.003_nstepslr=2_c=0.2_seed={model_seed}/checkpoint.pth"
 
@@ -482,11 +494,11 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="AlphaZero Evaluation Configuration")
 
-    map_size = 16
+    map_size = 8
 
-    TRAIN_CONFIG = "MAZE_LR" # NO_HOLES, MAZE_RL, MAZE_LR
+    TRAIN_CONFIG = "MAZE_RL" # NO_HOLES, MAZE_RL, MAZE_LR
 
-    TEST_CONFIG = "MAZE_LL"
+    TEST_CONFIG = "MAZE_RL"
     
     parser.add_argument("--map_size", type=int, default= map_size, help="Map size")
     parser.add_argument("--test_config", type=str, default= TEST_CONFIG, help="Config desc name")
@@ -542,7 +554,7 @@ if __name__ == "__main__":
     parser.add_argument("--eval_seeds", type=int, default=1, help="The number of random seeds to use for evaluation.")
 
     # Rendering
-    parser.add_argument("--render", type=bool, default=True, help="Render the environment")
+    parser.add_argument("--render", type=bool, default=False, help="Render the environment")
 
     parser.add_argument("--run_full_eval", type=bool, default= True, help="Run type")
 
@@ -556,7 +568,9 @@ if __name__ == "__main__":
 
     parser.add_argument("--final", type=bool, default=False)
 
-    parser.add_argument("--save", type=bool, default=False)
+    parser.add_argument("--save", type=bool, default=True)
+
+    parser.add_argument("--bad_training", type=bool, default=False)
 
     # Parse arguments
     args = parser.parse_args()
@@ -569,10 +583,19 @@ if __name__ == "__main__":
         args.model_file = f"hyper/AZTrain_env=CustomFrozenLakeNoHoles8x8-v1_evalpol=visit_iterations=50_budget=64_df=0.95_lr=0.001_nstepslr=2_seed={single_seed}/checkpoint.pth"
     elif args.map_size == 16 and args.train_config == "NO_HOLES":
         args.model_file = f"hyper/AZTrain_env=CustomFrozenLakeNoHoles16x16-v1_evalpol=visit_iterations=60_budget=128_df=0.95_lr=0.003_nstepslr=2_seed={single_seed}/checkpoint.pth"
+
     elif args.map_size == 8 and args.train_config == "MAZE_RL":
-        args.model_file = f"hyper/AZTrain_env=8x8_MAZE_RL_evalpol=visit_iterations=150_budget=64_df=0.95_lr=0.001_nstepslr=2_c=0.5_seed={single_seed}/checkpoint.pth"
+        if args.bad_training:
+            args.model_file = f"hyper/AZTrain_env=8x8_MAZE_RL_evalpol=visit_iterations=20_budget=64_df=0.95_lr=0.001_nstepslr=2_c=0.5_seed={single_seed}/checkpoint.pth"
+        else:
+            args.model_file = f"hyper/AZTrain_env=8x8_MAZE_RL_evalpol=visit_iterations=150_budget=64_df=0.95_lr=0.001_nstepslr=2_c=0.5_seed={single_seed}/checkpoint.pth"
+
     elif args.map_size == 8 and args.train_config == "MAZE_LR":
-        args.model_file = f"hyper/AZTrain_env=8x8_MAZE_LR_evalpol=visit_iterations=100_budget=64_df=0.95_lr=0.001_nstepslr=2_c=0.5_seed={single_seed}/checkpoint.pth"
+        if args.bad_training:
+            args.model_file = f"hyper/AZTrain_env=8x8_MAZE_LR_evalpol=visit_iterations=10_budget=64_df=0.95_lr=0.001_nstepslr=2_c=0.5_seed={single_seed}/checkpoint.pth"
+        else:
+            args.model_file = f"hyper/AZTrain_env=8x8_MAZE_LR_evalpol=visit_iterations=100_budget=64_df=0.95_lr=0.001_nstepslr=2_c=0.5_seed={single_seed}/checkpoint.pth"
+
     elif args.map_size == 16 and args.train_config == "MAZE_LR":
         args.model_file = f"hyper/AZTrain_env=16x16_MAZE_LR_evalpol=visit_iterations=150_budget=64_df=0.95_lr=0.003_nstepslr=2_c=0.2_seed={single_seed}/checkpoint.pth"
 
@@ -618,7 +641,8 @@ if __name__ == "__main__":
         "test_config": args.test_config,
         "eval_param": args.beta,
         "tree_temperature": args.tree_temperature,
-        "save": args.save   
+        "save": args.save,
+        "bad_training": args.bad_training,
 
     }
 
