@@ -363,6 +363,12 @@ def eval_budget_sweep(
         if config["puct_c"] > 0:
             run_name = run_name + "_C>0"
     
+    if config["test_env"]["deviation_type"] == "clockwise":
+        run_name = "CW_" + run_name 
+    
+    if config["test_env"]["deviation_type"] == "counter_clockwise":
+        run_name = "CCW_" + run_name
+    
     print(f"Run Name: {run_name}")
 
     if budgets is None:
@@ -512,7 +518,7 @@ if __name__ == "__main__":
 
     TRAIN_CONFIG = "NO_HOLES" # NO_HOLES, MAZE_RL, MAZE_LR
 
-    TEST_CONFIG = "NARROW"
+    TEST_CONFIG = "DEFAULT"
     
     parser.add_argument("--map_size", type=int, default= map_size, help="Map size")
     parser.add_argument("--test_config", type=str, default= TEST_CONFIG, help="Config desc name")
@@ -526,22 +532,22 @@ if __name__ == "__main__":
     # Basic search parameters
     parser.add_argument("--tree_evaluation_policy", type= str, default="mvc", help="Tree evaluation policy")
     parser.add_argument("--selection_policy", type=str, default="PolicyUCT", help="Selection policy")
-    parser.add_argument("--puct_c", type=float, default= 0, help="PUCT parameter")
+    parser.add_argument("--puct_c", type=float, default= 1, help="PUCT parameter")
 
     # Only relevant for single run evaluation
     parser.add_argument("--planning_budget", type=int, default = 64, help="Planning budget")
 
     # Search algorithm
-    parser.add_argument("--agent_type", type=str, default= "octopus", help="Agent type")
+    parser.add_argument("--agent_type", type=str, default= "azmcts", help="Agent type")
 
     # Stochasticity parameters
     parser.add_argument("--eval_temp", type=float, default= 0, help="Temperature in tree evaluation softmax")
     parser.add_argument("--dir_epsilon", type=float, default= 0.0, help="Dirichlet noise parameter epsilon")
     parser.add_argument("--dir_alpha", type=float, default= None, help="Dirichlet noise parameter alpha")
 
-    parser.add_argument("--tree_temperature", type=float, default= 0, help="Temperature in tree evaluation softmax")
+    parser.add_argument("--tree_temperature", type=float, default= None, help="Temperature in tree evaluation softmax")
 
-    parser.add_argument("--beta", type=float, default= 0, help="Beta parameter for mvc policy")
+    parser.add_argument("--beta", type=float, default= 10, help="Beta parameter for mvc policy")
 
     # AZDetection detection parameters
     parser.add_argument("--threshold", type=float, default= 0.05, help="Detection threshold")
