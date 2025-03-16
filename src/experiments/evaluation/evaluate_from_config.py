@@ -209,6 +209,8 @@ def agent_from_config(hparams: dict):
                 update_estimator=hparams["update_estimator"],
                 var_penalty=hparams["var_penalty"],
                 value_penalty=hparams["value_penalty"],
+                policy_det_rule=hparams["policy_det_rule"],
+                reuse_tree=hparams["reuse_tree"],
             )
 
     else:
@@ -350,7 +352,19 @@ def eval_budget_sweep(
 
     if config["bad_training"]:
         run_name = run_name + "_BAD"
+
+    if config["agent_type"] == "octopus":
+        if not config["reuse_tree"]:
+            run_name = run_name + "_NO_REUSE"
+        if config["value_penalty"] == 0:
+            run_name = run_name + "_NO_VP"
+        if config["tree_temperature"] is None:
+            run_name = run_name + "_NONE_TEMP"
+        if config["puct_c"] > 0:
+            run_name = run_name + "_C>0"
     
+    print(f"Run Name: {run_name}")
+
     if budgets is None:
         budgets = [8, 16, 32, 64, 128]  # Default budgets to sweep
 
@@ -496,9 +510,9 @@ if __name__ == "__main__":
 
     map_size = 8
 
-    TRAIN_CONFIG = "MAZE_RL" # NO_HOLES, MAZE_RL, MAZE_LR
+    TRAIN_CONFIG = "NO_HOLES" # NO_HOLES, MAZE_RL, MAZE_LR
 
-    TEST_CONFIG = "MAZE_RL"
+    TEST_CONFIG = "NARROW"
     
     parser.add_argument("--map_size", type=int, default= map_size, help="Map size")
     parser.add_argument("--test_config", type=str, default= TEST_CONFIG, help="Config desc name")
@@ -512,22 +526,22 @@ if __name__ == "__main__":
     # Basic search parameters
     parser.add_argument("--tree_evaluation_policy", type= str, default="mvc", help="Tree evaluation policy")
     parser.add_argument("--selection_policy", type=str, default="PolicyUCT", help="Selection policy")
-    parser.add_argument("--puct_c", type=float, default= 1, help="PUCT parameter")
+    parser.add_argument("--puct_c", type=float, default= 0, help="PUCT parameter")
 
     # Only relevant for single run evaluation
     parser.add_argument("--planning_budget", type=int, default = 64, help="Planning budget")
 
     # Search algorithm
-    parser.add_argument("--agent_type", type=str, default= "azmcts", help="Agent type")
+    parser.add_argument("--agent_type", type=str, default= "octopus", help="Agent type")
 
     # Stochasticity parameters
     parser.add_argument("--eval_temp", type=float, default= 0, help="Temperature in tree evaluation softmax")
     parser.add_argument("--dir_epsilon", type=float, default= 0.0, help="Dirichlet noise parameter epsilon")
     parser.add_argument("--dir_alpha", type=float, default= None, help="Dirichlet noise parameter alpha")
 
-    parser.add_argument("--tree_temperature", type=float, default= None, help="Temperature in tree evaluation softmax")
+    parser.add_argument("--tree_temperature", type=float, default= 0, help="Temperature in tree evaluation softmax")
 
-    parser.add_argument("--beta", type=float, default= 10.0, help="Beta parameter for mvc policy")
+    parser.add_argument("--beta", type=float, default= 0, help="Beta parameter for mvc policy")
 
     # AZDetection detection parameters
     parser.add_argument("--threshold", type=float, default= 0.05, help="Detection threshold")
@@ -564,20 +578,24 @@ if __name__ == "__main__":
     parser.add_argument("--visualize_trees", type=bool, default=False, help="Visualize trees")
 
     parser.add_argument("--var_penalty", type=float, default=1, help="Variance penalty")
-    parser.add_argument("--value_penalty", type=float, default=1, help="Value penalty")
+    parser.add_argument("--value_penalty", type=float, default=1 , help="Value penalty")
 
     parser.add_argument("--final", type=bool, default=False)
 
-    parser.add_argument("--save", type=bool, default=True)
+    parser.add_argument("--save", type=bool, default=False)
 
     parser.add_argument("--bad_training", type=bool, default=False)
+
+    parser.add_argument("--policy_det_rule", type=bool, default= False, help="Policy detection rule")
+
+    parser.add_argument("--reuse_tree", type=bool, default=True, help="Update the estimator")
 
     # Parse arguments
     args = parser.parse_args()
     args.test_env_id = f"CustomFrozenLakeNoHoles{args.map_size}x{args.map_size}-v1"
     args.test_env_desc = f"{args.map_size}x{args.map_size}_{args.test_config}"
 
-    single_seed = 1 # Only for single run
+    single_seed = 6 # Only for single run
 
     if args.map_size == 8 and args.train_config == "NO_HOLES":
         args.model_file = f"hyper/AZTrain_env=CustomFrozenLakeNoHoles8x8-v1_evalpol=visit_iterations=50_budget=64_df=0.95_lr=0.001_nstepslr=2_seed={single_seed}/checkpoint.pth"
@@ -643,7 +661,8 @@ if __name__ == "__main__":
         "tree_temperature": args.tree_temperature,
         "save": args.save,
         "bad_training": args.bad_training,
-
+        "policy_det_rule": args.policy_det_rule,
+        "reuse_tree": args.reuse_tree,
     }
 
     run_config = {**base_parameters, **challenge, **config_modifications}

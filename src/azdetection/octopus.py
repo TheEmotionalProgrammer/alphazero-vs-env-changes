@@ -29,7 +29,8 @@ class Octopus(AlphaZeroMCTS):
             var_penalty: float = 1.0,
             value_penalty: float = 0.0,
             update_estimator: bool = False,
-            policy_det_rule: bool = False
+            policy_det_rule: bool = False,
+            reuse_tree: bool = True
     ):
         super().__init__(
             model = model,
@@ -54,6 +55,8 @@ class Octopus(AlphaZeroMCTS):
         self.policy_det_rule = policy_det_rule
         self.check_policy = copy.deepcopy(selection_policy)
         self.check_policy.c = 0.0
+
+        self.reuse_tree = reuse_tree
 
     def coords(self, observ):
         return (observ // self.ncols, observ % self.ncols) if observ is not None else None
@@ -116,13 +119,13 @@ class Octopus(AlphaZeroMCTS):
         Same as AZMCTS but performs problem detection simultaneously.
         """
 
-        obss = []
+        nodes = []
         prior_ok = True
 
         i = 0
         node = from_node
 
-        obss.append(self.coords(node.observation))
+        nodes.append(node)
         
         action = self.root_selection_policy.sample(node) # Select which node to step into
 
@@ -131,7 +134,7 @@ class Octopus(AlphaZeroMCTS):
         i_pred = node.value_evaluation
         
         if action not in node.children: # If the selection policy returns None, this indicates that the current node should be expanded
-            return node, action, cumulated_reward, i, i_pred, obss, prior_ok
+            return node, action, cumulated_reward, i, i_pred, nodes, prior_ok
         
         if self.policy_det_rule and th.argmax(node.prior_policy).item() != action and self.check_policy.sample(node) != action:
             prior_ok = False
@@ -140,7 +143,7 @@ class Octopus(AlphaZeroMCTS):
 
         while not node.is_terminal():
 
-            obss.append(self.coords(node.observation))
+            nodes.append(node)
 
             i+=1
 
@@ -159,11 +162,11 @@ class Octopus(AlphaZeroMCTS):
 
             node = node.step(action) # Step into the chosen node
 
-        return node, action, cumulated_reward, i, i_pred, obss, prior_ok
+        return node, action, cumulated_reward, i, i_pred, nodes, prior_ok
     
     def search(self, env: Env, iterations: int, obs, reward: float) -> Node:
 
-        if self.previous_root is None:
+        if self.previous_root is None or not self.reuse_tree:
             
             root_node = Node(
                 env = env,
@@ -220,23 +223,39 @@ class Octopus(AlphaZeroMCTS):
         
         while root_node.visits - counter < iterations:
             
-            selected_node_for_expansion, selected_action, cumulated_reward, i, i_pred, obss, prior_ok = self.traverse(root_node) # Traverse the existing tree until a leaf node is reached
+            selected_node_for_expansion, selected_action, cumulated_reward, i, i_pred, nodes, prior_ok = self.traverse(root_node) # Traverse the existing tree until a leaf node is reached
 
             predictor_rootval = i_pred + 1e-9
 
-            if selected_node_for_expansion.is_terminal(): # If the node is terminal, set its value to 0 and backup
+            if selected_node_for_expansion.is_terminal(): 
                 i_root = cumulated_reward + self.discount_factor**(i) * selected_node_for_expansion.reward
             else:
                 i_root  = cumulated_reward + (self.discount_factor**(i)) * selected_node_for_expansion.value_evaluation
 
             criterion = (i_root/predictor_rootval < 1 - self.threshold)
 
+            safe_index = floor(i - (np.log(1 - self.threshold) / np.log(self.discount_factor)))
+
+            safe_index = max(0, safe_index)
+
+            prob_index = min(safe_index+1, len(nodes)-1)
+
             if prior_ok and criterion:
-                        
+                
+                prob_node = nodes[prob_index]
+                prob_node.problematic = True
+                prob_node.var_penalty = self.var_penalty
+                prob_node.value_evaluation = max(0, prob_node.value_evaluation - self.value_penalty)
+
+                # observations = [self.coords(node.observation) for node in obss]
+
+                # print("Problem detected on trajectory:", observations, "i_root:", i_root, "i_pred:", predictor_rootval)
+                # print("Problematic node:", self.coords(prob_node.observation), "idx:", prob_index)
+
                 #print("Problem detected at node", self.coords(selected_node_for_expansion.observation), "i_root:", i_root, "i_pred:", predictor_rootval)
-                selected_node_for_expansion.problematic = True
-                selected_node_for_expansion.var_penalty = self.var_penalty
-                selected_node_for_expansion.value_evaluation  = max(0, selected_node_for_expansion.value_evaluation - self.value_penalty)                
+                # selected_node_for_expansion.problematic = True
+                # selected_node_for_expansion.var_penalty = self.var_penalty
+                # selected_node_for_expansion.value_evaluation  = max(0, selected_node_for_expansion.value_evaluation - self.value_penalty)                
                 #print("Problem detected on trajectory:", obss, "i_root:", i_root, "i_pred:", predictor_rootval)
 
             # Predict the value of the node n steps into the future
