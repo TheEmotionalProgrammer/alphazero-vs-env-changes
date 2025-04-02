@@ -66,6 +66,12 @@ def train_from_config(
     if performance:
         tags.append("performance")
 
+    # Define run_name before initializing wandb
+    if config['ENV'] == "FROZENLAKE":
+        run_name = f"AZTrain_env={config['name_config']}_evalpol={config['tree_evaluation_policy']}_iterations={config['iterations']}_budget={config['planning_budget']}_df={config['discount_factor']}_lr={config['learning_rate']}_nstepslr={config['n_steps_learning']}_c={config['puct_c']}_seed={seed}"
+    elif config['ENV'] == "LUNARLANDER":
+        run_name = f"{config['name_config']}_budget={config['planning_budget']}_c={config['puct_c']}_df={config['discount_factor']}_lr={config['learning_rate']}_n={config['n_steps_learning']}_vw={config['value_loss_weight']}_pw={config['policy_loss_weight']}_eperit={config['episodes_per_iteration']}_bufmul={config['replay_buffer_multiplier']}_norm={config['norm_layer']}_seed={seed}"
+
     # -----------------------------------------------------
     # 2. If offline, do NOT pass `entity=...` and pass `mode="offline"`.
     # -----------------------------------------------------
@@ -75,7 +81,7 @@ def train_from_config(
         # Also set mode="offline" in wandb.init
         run = wandb.init(
             project=project_name,
-            name=job_name,
+            name=run_name,  # Explicitly set the run name
             config=config,
             tags=tags,
             mode="offline",  # explicitly offline
@@ -85,7 +91,7 @@ def train_from_config(
         settings = wandb.Settings(job_name=job_name)
         run = wandb.init(
             project=project_name,
-            name=job_name,
+            name=run_name,  # Explicitly set the run name
             entity=entity,    # only pass entity if online
             settings=settings,
             config=config,
@@ -210,8 +216,6 @@ def train_from_config(
 
     replay_buffer = TensorDictReplayBuffer(storage=LazyTensorStorage(replay_buffer_size))
 
-    run_name = "YourRunName"  # Or build from config
-
     log_dir = f"./tensorboard_logs/hyper/{run_name}"
     writer = SummaryWriter(log_dir=log_dir)
     run_dir = f"./hyper/{run_name}"
@@ -271,17 +275,18 @@ if __name__ == "__main__":
     parser.add_argument("--max_episode_length", type=int, default=1000, help="Max episode length")
     parser.add_argument("--tree_evaluation_policy", type=str, default="visit", help="Tree evaluation policy")
     parser.add_argument("--selection_policy", type=str, default="PUCT", help="Selection policy")
-    parser.add_argument("--planning_budget", type=int, default=64, help="Planning budget")
+    parser.add_argument("--planning_budget", type=int, default=128, help="Planning budget")
     parser.add_argument("--puct_c", type=float, default=1, help="PUCT constant")
     parser.add_argument("--n_steps_learning", type=int, default=1, help="Number of steps for learning")
-    parser.add_argument("--discount_factor", type=float, default=0.99, help="Discount factor")
-    parser.add_argument("--learning_rate", type=float, default=0.001, help="Learning rate")
-    parser.add_argument("--value_loss_weight", type=float, default=1.0, help="Value loss weight")
-    parser.add_argument("--policy_loss_weight", type=float, default=100.0, help="Policy loss weight")
+    parser.add_argument("--discount_factor", type=float, default=0.995, help="Discount factor")
+    parser.add_argument("--learning_rate", type=float, default=0.0001, help="Learning rate")
+    parser.add_argument("--value_loss_weight", type=float, default=1, help="Value loss weight")
+    parser.add_argument("--policy_loss_weight", type=float, default=100, help="Policy loss weight")
     parser.add_argument("--reg_loss_weight", type=float, default=0.0, help="Regularization loss weight")
     parser.add_argument("--replay_buffer_multiplier", type=int, default=15, help="Replay buffer multiplier")
-    parser.add_argument("--episodes_per_iteration", type=int, default=10, help="Episodes per iteration")
+    parser.add_argument("--episodes_per_iteration", type=int, default=15, help="Episodes per iteration")
     parser.add_argument("--norm_layer", type=str, default="batch_norm", help="Normalization layer")
+    parser.add_argument("--scale_reward", type=bool, default=False, help="Scale reward")
     parser.add_argument("--map_size", type=int, default=8, help="The size of the map.")
     parser.add_argument("--train_env_desc", type=str, default="8x8_MAZE_RL", help="Environment description.")
     parser.add_argument("--train_slippery", type=bool, default=False, help="Whether the environment is slippery.")
@@ -312,6 +317,7 @@ if __name__ == "__main__":
     elif ENV == "LUNARLANDER":
         challenge = env_challenges["CustomLunarLander"]
         challenge["env_params"]["num_asteroids"] = args.num_asteroids
+        challenge["env_params"]["scale_reward"] = args.scale_reward
         name_config = f"LunarLander_ast={args.num_asteroids}"
         observation_embedding = "lunarlander"
 

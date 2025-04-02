@@ -258,6 +258,7 @@ class CustomLunarLander(gym.Env, EzPickle):
         num_asteroids: int = 0,
         ignore_obstacle_collisions: bool = False,
         penalize_obstacle_collisions: bool = False,  # New flag
+        scale_reward: bool = False,
     ):
         EzPickle.__init__(
             self,
@@ -270,6 +271,7 @@ class CustomLunarLander(gym.Env, EzPickle):
             num_asteroids,
             ignore_obstacle_collisions,
             penalize_obstacle_collisions,
+            scale_reward,
         )
 
         # Initialize attributes
@@ -345,6 +347,7 @@ class CustomLunarLander(gym.Env, EzPickle):
         self.render_mode = render_mode
 
         self.state = None
+        self.scale_reward = scale_reward
 
     def _destroy(self):
         if not self.moon:
@@ -754,6 +757,10 @@ class CustomLunarLander(gym.Env, EzPickle):
 
         self.state = state
 
+        if self.scale_reward:
+            # Scale the reward to be between -1 and 1
+            reward = np.clip(reward / 100, -1, 1)
+
         # truncation=False as the time limit is handled by the `TimeLimit` wrapper added during `make`
         return np.array(state, dtype=np.float32), reward, terminated, False, {}
     
@@ -896,6 +903,7 @@ class CustomLunarLander(gym.Env, EzPickle):
             num_asteroids=self.num_asteroids,
             ignore_obstacle_collisions=self.ignore_obstacle_collisions,
             penalize_obstacle_collisions=self.penalize_obstacle_collisions,
+            scale_reward=self.scale_reward,
         )
 
         new_env.reset(seed=self.used_seed)
@@ -982,9 +990,10 @@ def demo_heuristic_lander(env, seed=None, render=False):
             if still_open is False:
                 break
 
-        if steps % 20 == 0 or terminated or truncated:
-            print("observations:", " ".join([f"{x:+0.2f}" for x in s]))
-            print(f"step {steps} total_reward {total_reward:+0.2f}")
+        #if steps % 20 == 0 or terminated or truncated:
+        print("observations:", " ".join([f"{x:+0.2f}" for x in s]))
+        print("reward:", f"{r:+0.2f}")
+        print(f"step {steps} total_reward {total_reward:+0.2f}")
         steps += 1
         if terminated or truncated:
             break
@@ -1012,7 +1021,7 @@ if __name__ == "__main__":
         reward_threshold=200.0,
     )
 
-    env = gym.make("CustomLunarLander", render_mode="human", num_asteroids=4)
+    env = gym.make("CustomLunarLander", render_mode="human", num_asteroids=0, scale_reward=False)
     env.reset()
     # for _ in range(1000):
     #     action = env.action_space.sample()  # replace with your agent's action
