@@ -39,6 +39,7 @@ class CustomFrozenLakeEnv(FrozenLakeEnv):
                 elif self.deviation_type in ["clockwise", "counter_clockwise"]:
                     # Define correct mappings for clockwise and counterclockwise deviations
                     if self.deviation_type == "clockwise":
+                        # Left: 0, Down: 1, Right: 2, Up: 3
                         action_map = {0: 3, 3: 2, 2: 1, 1: 0}  # Correct clockwise mapping
                     elif self.deviation_type == "counter_clockwise":
                         action_map = {0: 1, 1: 2, 2: 3, 3: 0}  # Correct counterclockwise mapping

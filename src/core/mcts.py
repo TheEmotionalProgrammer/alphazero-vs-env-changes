@@ -7,6 +7,9 @@ from core.node import Node
 import torch as th
 from environments.observation_embeddings import CoordinateEmbedding, ObservationEmbedding
 from policies.policies import Policy
+from environments.lunarlander.lunar_lander import CustomLunarLander
+from pickle import dumps, loads
+import matplotlib.pyplot as plt
 
 
 class MCTS:
@@ -46,8 +49,13 @@ class MCTS:
         
         assert isinstance(env.action_space, gym.spaces.Discrete) # Assert that the type of the action space is discrete
 
+        if isinstance(env.unwrapped, CustomLunarLander): # Need to use custom copy method due to Box2D objects
+            new_env = env.unwrapped.create_copy() # Create a copy of the environment 
+        else:
+            new_env =  copy.deepcopy(env) # Create a copy of the environment
+
         root_node = Node(
-            env=copy.deepcopy(env),
+            env= new_env,
             parent=None,
             reward=reward,
             action_space=env.action_space,
@@ -137,14 +145,41 @@ class MCTS:
         
         """
         Expands the node and returns the expanded node.
-        Note: The function will modify the environment and the input node.
         """
 
-        # if len(node.children) == int(node.action_space.n) - 1: # If this is the last child to be expanded, we do not need to copy the environment
-        #     env = node.env
-        #     node.env = None
-        # else:
-        env = copy.deepcopy(node.env) 
+        # If the class is not CustomLunarLander, we need to copy the environment
+
+        # Render the original environment
+        # original_env_snapshot = None
+        # node.env.render_mode = "rgb_array"
+        # if node.env.render_mode == "rgb_array":
+        #     original_env_snapshot = node.env.render()
+
+        # print("Before", node.env.unwrapped.state)
+
+        if not isinstance(node.env.unwrapped, CustomLunarLander):
+            env = copy.deepcopy(node.env) 
+        else:
+            env = node.env.unwrapped.create_copy() # Create a copy of the environment
+
+        # Render the copied environment
+        # copied_env_snapshot = None
+        # if node.env.render_mode == "rgb_array":
+        #     copied_env_snapshot = env.render()
+
+        # # Visual comparison
+        # if original_env_snapshot is not None and copied_env_snapshot is not None:
+        #     fig, axes = plt.subplots(1, 2, figsize=(12, 6))
+        #     axes[0].imshow(original_env_snapshot)
+        #     axes[0].set_title("Original Environment")
+        #     axes[0].axis("off")
+
+        #     axes[1].imshow(copied_env_snapshot)
+        #     axes[1].set_title("Copied Environment")
+        #     axes[1].axis("off")
+        #     plt.show()
+
+        # print("After", env.unwrapped.state)
 
         assert env is not None
 
@@ -195,9 +230,8 @@ class MCTS:
             # Reset the prior policy and value evaluation (mark as needing update)
             node.policy_value = None
             node.variance = None
-            
-            node = node.parent
 
+            node = node.parent
 
 class RandomRolloutMCTS(MCTS):
     def __init__(self, rollout_budget=40, *args, **kwargs):

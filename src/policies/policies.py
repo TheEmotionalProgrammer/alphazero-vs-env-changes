@@ -130,6 +130,11 @@ class PolicyDistribution(Policy):
         if include_self:
             softmaxed_probs = self.add_self_to_probs(node, softmaxed_probs)
 
+            # # Modify the probabilities so that only the max is 1 and the rest are 0
+            # if self.temperature == 0.0:
+            #     max_prob = th.max(softmaxed_probs, dim=-1, keepdim=True).values
+            #     softmaxed_probs = (softmaxed_probs == max_prob).float()
+
         return th.distributions.Categorical(probs=softmaxed_probs)
 
 

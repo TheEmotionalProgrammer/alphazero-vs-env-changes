@@ -8,7 +8,7 @@ base_parameters = {
     "selection_policy": "PUCT",
     "puct_c": 1.0,
     "selection_value_transform": "identity",
-    "use_visit_count": True,
+    "use_visit_count": False,
     "regularization_weight": 1e-6,
     "tree_evaluation_policy": "visit",
     "eval_param": 10.0,
@@ -27,12 +27,19 @@ base_parameters = {
     "iterations": 40,
     "policy_loss_weight": 0.3,
     "value_loss_weight": 0.7,
-    "max_episode_length": 200,
+    "max_episode_length": 1000,
     "episodes_per_iteration": 6,
     "eval_temp": 0,
 }
 
 env_challenges = {
+
+    "CustomLunarLander": {
+        "env_description": "CustomLunarLander",
+        "env_params": dict(id="CustomLunarLander", max_episode_steps=1000000000),
+        "optimal_value": 200.0,
+        "worst_value": -200.0,
+    },
 
     "CustomFrozenLakeNoHoles4x4-v1": {
         "env_description": "CustomFrozenLakeNoHoles4x4-v1",

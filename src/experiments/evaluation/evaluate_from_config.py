@@ -8,6 +8,8 @@ import multiprocessing
 import gymnasium as gym
 import wandb
 import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 from log_code.metrics import calc_metrics
 from experiments.evaluation.eval_agent import eval_agent
@@ -35,6 +37,7 @@ import argparse
 from experiments.parameters import base_parameters, env_challenges, fz_env_descriptions
 
 from log_code.tree_visualizer import visualize_trees
+from log_code.plot_state_densities import plot_density, calculate_density, calculate_nn_value_means, calculate_policy_value_means, calculate_variance_means
 
 def agent_from_config(hparams: dict):
     
@@ -256,7 +259,7 @@ def eval_from_config(
     else:
         workers = hparams["workers"]
 
-    seeds = [0] * hparams["runs"]
+    seeds = [3] * hparams["runs"]
 
     test_env = gym.make(**hparams["test_env"])
 
@@ -274,7 +277,7 @@ def eval_from_config(
         azdetection= (hparams["agent_type"] == "mini-trees" or hparams["agent_type"] == "mega-tree"),
         unroll_budget= hparams["unroll_budget"],
         render=hparams["render"],
-        return_trees=hparams["visualize_trees"],
+        return_trees=hparams["visualize_trees"] or hparams["plot_tree_densities"],
     )
 
     if hparams["visualize_trees"]:
@@ -282,7 +285,75 @@ def eval_from_config(
         trees = trees[0]
         print(f"Visualizing {len(trees)} trees...")
         visualize_trees(trees, "tree_visualizations")
+
+    if hparams["plot_tree_densities"]:
+        results, trees = results
+        trees = trees[0]
+
+        test_desc = hparams["test_env"]["desc"]
+
+        obst_coords = []
+        for i in range(len(test_desc)):
+            for j in range(len(test_desc[0])):
+                if test_desc[i][j] == "H":
+                    obst_coords.append((i, j))
         
+        for i, tree in enumerate(trees):
+
+            states_density = calculate_density(tree, len(test_desc[0]), len(test_desc))
+            policy_values = calculate_policy_value_means(tree, len(test_desc[0]), len(test_desc))
+            nn_values = calculate_nn_value_means(tree, len(test_desc[0]), len(test_desc))
+            variances = calculate_variance_means(tree, len(test_desc[0]), len(test_desc))
+
+            states_cmap = sns.diverging_palette(10, 120, as_cmap=True, center="light")
+            values_cmap = sns.diverging_palette(120, 10, as_cmap=True, center="light")
+            nn_values_cmap = sns.diverging_palette(120, 10, as_cmap=True, center="light")
+            variances_cmap = sns.diverging_palette(20, 240, as_cmap=True, center="light")
+
+            ax = plot_density(states_density, tree.observation, obst_coords, len(test_desc[0]), len(test_desc), cmap=states_cmap)
+
+            ax.set_title(f"State Visitation Counts at step {i}")
+
+            # If no path to folder, create it
+            if not os.path.exists("states_density"):
+                os.makedirs("states_density")
+
+            plt.savefig(f"states_density/{i}.png")
+            plt.close()
+
+            ax = plot_density(policy_values, tree.observation, obst_coords, len(test_desc[0]), len(test_desc), cmap=values_cmap)
+
+            ax.set_title(f"Mean Policy Values at step {i}")
+
+            # If no path to folder, create it
+            if not os.path.exists("policy_values"):
+                os.makedirs("policy_values")
+
+            plt.savefig(f"policy_values/{i}.png")
+            plt.close()
+
+            ax = plot_density(variances, tree.observation, obst_coords, len(test_desc[0]), len(test_desc), cmap=variances_cmap)
+
+            ax.set_title(f"Mean Variances at step {i}")
+
+            # If no path to folder, create it
+            if not os.path.exists("variances"):
+                os.makedirs("variances")
+
+            plt.savefig(f"variances/{i}.png")
+            plt.close()
+
+            ax = plot_density(nn_values, tree.observation, obst_coords, len(test_desc[0]), len(test_desc), cmap=nn_values_cmap)
+
+            ax.set_title(f"Mean NN Values at step {i}")
+
+            # If no path to folder, create it
+            if not os.path.exists("nn_values"):
+                os.makedirs("nn_values")
+
+            plt.savefig(f"nn_values/{i}.png")
+            plt.close()
+            
     episode_returns, discounted_returns, time_steps, entropies = calc_metrics(
         results, agent.discount_factor, test_env.action_space.n
     )
@@ -518,7 +589,9 @@ if __name__ == "__main__":
 
     TRAIN_CONFIG = "NO_HOLES" # NO_HOLES, MAZE_RL, MAZE_LR
 
-    TEST_CONFIG = "DEFAULT"
+    TEST_CONFIG = "SLALOM"
+
+    parser.add_argument("--ENV", type=str, default="LUNARLANDER", help="Environment name")
     
     parser.add_argument("--map_size", type=int, default= map_size, help="Map size")
     parser.add_argument("--test_config", type=str, default= TEST_CONFIG, help="Config desc name")
@@ -530,12 +603,12 @@ if __name__ == "__main__":
     parser.add_argument("--runs", type=int, default= 1, help="Number of runs")
 
     # Basic search parameters
-    parser.add_argument("--tree_evaluation_policy", type= str, default="mvc", help="Tree evaluation policy")
-    parser.add_argument("--selection_policy", type=str, default="PolicyUCT", help="Selection policy")
+    parser.add_argument("--tree_evaluation_policy", type= str, default="visit", help="Tree evaluation policy")
+    parser.add_argument("--selection_policy", type=str, default="PUCT", help="Selection policy")
     parser.add_argument("--puct_c", type=float, default= 1, help="PUCT parameter")
 
     # Only relevant for single run evaluation
-    parser.add_argument("--planning_budget", type=int, default = 64, help="Planning budget")
+    parser.add_argument("--planning_budget", type=int, default = 256, help="Planning budget")
 
     # Search algorithm
     parser.add_argument("--agent_type", type=str, default= "azmcts", help="Agent type")
@@ -564,19 +637,18 @@ if __name__ == "__main__":
     parser.add_argument("--test_env_terminate_on_hole", type=bool, default= False, help="Terminate on hole")
     parser.add_argument("--deviation_type", type=str, default= "bump", help="Deviation type")
 
+    parser.add_argument("--num_asteroids", type=int, default=0, help="Number of asteroids")
+
     # Model file
     parser.add_argument("--model_file", type=str, default= "", help="Model file")
-
-    # Observation embedding
-    parser.add_argument("--observation_embedding", type=str, default= "coordinate", help="Observation embedding type")
 
     parser.add_argument( "--train_seeds", type=int, default=10, help="The number of random seeds to use for training.")
     parser.add_argument("--eval_seeds", type=int, default=1, help="The number of random seeds to use for evaluation.")
 
     # Rendering
-    parser.add_argument("--render", type=bool, default=False, help="Render the environment")
+    parser.add_argument("--render", type=bool, default=True, help="Render the environment")
 
-    parser.add_argument("--run_full_eval", type=bool, default= True, help="Run type")
+    parser.add_argument("--run_full_eval", type=bool, default= False, help="Run type")
 
     parser.add_argument("--hpc", type=bool, default=False, help="HPC flag")
 
@@ -584,7 +656,7 @@ if __name__ == "__main__":
     parser.add_argument("--visualize_trees", type=bool, default=False, help="Visualize trees")
 
     parser.add_argument("--var_penalty", type=float, default=1, help="Variance penalty")
-    parser.add_argument("--value_penalty", type=float, default=1 , help="Value penalty")
+    parser.add_argument("--value_penalty", type=float, default=0 , help="Value penalty")
 
     parser.add_argument("--final", type=bool, default=False)
 
@@ -596,34 +668,64 @@ if __name__ == "__main__":
 
     parser.add_argument("--reuse_tree", type=bool, default=True, help="Update the estimator")
 
+    parser.add_argument("--plot_tree_densities", type=bool, default=False, help="Plot tree densities")
+
     # Parse arguments
     args = parser.parse_args()
-    args.test_env_id = f"CustomFrozenLakeNoHoles{args.map_size}x{args.map_size}-v1"
-    args.test_env_desc = f"{args.map_size}x{args.map_size}_{args.test_config}"
 
-    single_seed = 6 # Only for single run
+    single_seed = 3 # Only for single run
 
-    if args.map_size == 8 and args.train_config == "NO_HOLES":
-        args.model_file = f"hyper/AZTrain_env=CustomFrozenLakeNoHoles8x8-v1_evalpol=visit_iterations=50_budget=64_df=0.95_lr=0.001_nstepslr=2_seed={single_seed}/checkpoint.pth"
-    elif args.map_size == 16 and args.train_config == "NO_HOLES":
-        args.model_file = f"hyper/AZTrain_env=CustomFrozenLakeNoHoles16x16-v1_evalpol=visit_iterations=60_budget=128_df=0.95_lr=0.003_nstepslr=2_seed={single_seed}/checkpoint.pth"
+    ENV = args.ENV
 
-    elif args.map_size == 8 and args.train_config == "MAZE_RL":
-        if args.bad_training:
-            args.model_file = f"hyper/AZTrain_env=8x8_MAZE_RL_evalpol=visit_iterations=20_budget=64_df=0.95_lr=0.001_nstepslr=2_c=0.5_seed={single_seed}/checkpoint.pth"
-        else:
-            args.model_file = f"hyper/AZTrain_env=8x8_MAZE_RL_evalpol=visit_iterations=150_budget=64_df=0.95_lr=0.001_nstepslr=2_c=0.5_seed={single_seed}/checkpoint.pth"
+    if ENV == "FROZENLAKE":
+        args.test_env_id = f"CustomFrozenLakeNoHoles{args.map_size}x{args.map_size}-v1"
+        args.test_env_desc = f"{args.map_size}x{args.map_size}_{args.test_config}"
+        if args.map_size == 8 and args.train_config == "NO_HOLES":
+            args.model_file = f"hyper/AZTrain_env=CustomFrozenLakeNoHoles8x8-v1_evalpol=visit_iterations=50_budget=64_df=0.95_lr=0.001_nstepslr=2_seed={single_seed}/checkpoint.pth"
+        elif args.map_size == 16 and args.train_config == "NO_HOLES":
+            args.model_file = f"hyper/AZTrain_env=CustomFrozenLakeNoHoles16x16-v1_evalpol=visit_iterations=60_budget=128_df=0.95_lr=0.003_nstepslr=2_seed={single_seed}/checkpoint.pth"
+        elif args.map_size == 8 and args.train_config == "MAZE_RL":
+            if args.bad_training:
+                args.model_file = f"hyper/AZTrain_env=8x8_MAZE_RL_evalpol=visit_iterations=20_budget=64_df=0.95_lr=0.001_nstepslr=2_c=0.5_seed={single_seed}/checkpoint.pth"
+            else:
+                args.model_file = f"hyper/AZTrain_env=8x8_MAZE_RL_evalpol=visit_iterations=150_budget=64_df=0.95_lr=0.001_nstepslr=2_c=0.5_seed={single_seed}/checkpoint.pth"
+        elif args.map_size == 8 and args.train_config == "MAZE_LR":
+            if args.bad_training:
+                args.model_file = f"hyper/AZTrain_env=8x8_MAZE_LR_evalpol=visit_iterations=10_budget=64_df=0.95_lr=0.001_nstepslr=2_c=0.5_seed={single_seed}/checkpoint.pth"
+            else:
+                args.model_file = f"hyper/AZTrain_env=8x8_MAZE_LR_evalpol=visit_iterations=100_budget=64_df=0.95_lr=0.001_nstepslr=2_c=0.5_seed={single_seed}/checkpoint.pth"
+        elif args.map_size == 16 and args.train_config == "MAZE_LR":
+            args.model_file = f"hyper/AZTrain_env=16x16_MAZE_LR_evalpol=visit_iterations=150_budget=64_df=0.95_lr=0.003_nstepslr=2_c=0.2_seed={single_seed}/checkpoint.pth"
 
-    elif args.map_size == 8 and args.train_config == "MAZE_LR":
-        if args.bad_training:
-            args.model_file = f"hyper/AZTrain_env=8x8_MAZE_LR_evalpol=visit_iterations=10_budget=64_df=0.95_lr=0.001_nstepslr=2_c=0.5_seed={single_seed}/checkpoint.pth"
-        else:
-            args.model_file = f"hyper/AZTrain_env=8x8_MAZE_LR_evalpol=visit_iterations=100_budget=64_df=0.95_lr=0.001_nstepslr=2_c=0.5_seed={single_seed}/checkpoint.pth"
+        challenge = env_challenges[f"CustomFrozenLakeNoHoles{args.map_size}x{args.map_size}-v1"]  # Training environment
 
-    elif args.map_size == 16 and args.train_config == "MAZE_LR":
-        args.model_file = f"hyper/AZTrain_env=16x16_MAZE_LR_evalpol=visit_iterations=150_budget=64_df=0.95_lr=0.003_nstepslr=2_c=0.2_seed={single_seed}/checkpoint.pth"
+        observation_embedding = "coordinate"
 
-    challenge = env_challenges[f"CustomFrozenLakeNoHoles{args.map_size}x{args.map_size}-v1"]  # Training environment
+        test_env_dict = {
+            "id": args.test_env_id,
+            "desc": fz_env_descriptions[args.test_env_desc],
+            "is_slippery": args.test_env_is_slippery,
+            "hole_reward": args.test_env_hole_reward,
+            "terminate_on_hole": args.test_env_terminate_on_hole,
+            "deviation_type": args.deviation_type,
+        }  
+
+        map_name = args.test_env_desc
+
+    elif ENV == "LUNARLANDER":
+
+        challenge = env_challenges["CustomLunarLander"]
+
+        observation_embedding = "lunarlander"
+
+        test_env_dict = {
+            "id": "CustomLunarLander",
+            "num_asteroids": args.num_asteroids,
+        }
+
+        args.model_file = "hyper/AZTrain_env=LunarLander_ast=0_evalpol=visit_iterations=1000_budget=64_df=0.99_lr=0.001_nstepslr=1_c=1_seed=None/checkpoint.pth"
+
+        map_name = f"LunarLander-ast={args.num_asteroids}"
 
     # Construct the config
     config_modifications = {
@@ -642,16 +744,9 @@ if __name__ == "__main__":
         "unroll_budget": args.unroll_budget,
         "value_search": args.value_search,
         "predictor": args.predictor,
-        "map_name": args.test_env_desc,
-        "test_env": {
-            "id": args.test_env_id,
-            "desc": fz_env_descriptions[args.test_env_desc],
-            "is_slippery": args.test_env_is_slippery,
-            "hole_reward": args.test_env_hole_reward,
-            "terminate_on_hole": args.test_env_terminate_on_hole,
-            "deviation_type": args.deviation_type,
-        },
-        "observation_embedding": args.observation_embedding,
+        "map_name": map_name,
+        "test_env": test_env_dict,
+        "observation_embedding": observation_embedding,
         "model_file": args.model_file,
         "render": args.render,
         "hpc": args.hpc,
@@ -669,6 +764,7 @@ if __name__ == "__main__":
         "bad_training": args.bad_training,
         "policy_det_rule": args.policy_det_rule,
         "reuse_tree": args.reuse_tree,
+        "plot_tree_densities": args.plot_tree_densities,
     }
 
     run_config = {**base_parameters, **challenge, **config_modifications}
@@ -676,6 +772,6 @@ if __name__ == "__main__":
     # Execute the evaluation
 
     if args.run_full_eval:
-        eval_budget_sweep(config=run_config, budgets= [8, 16, 32, 64, 128],  num_train_seeds=args.train_seeds, num_eval_seeds=args.eval_seeds, final = args.final, save=args.save)
+        eval_budget_sweep(config=run_config, budgets= [64],  num_train_seeds=args.train_seeds, num_eval_seeds=args.eval_seeds, final = args.final, save=args.save)
     else:
         eval_from_config(config=run_config)

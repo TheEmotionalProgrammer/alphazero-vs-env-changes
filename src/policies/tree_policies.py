@@ -46,9 +46,28 @@ class MinimalVarianceConstraintPolicy(PolicyDistribution):
         # We handle nan values and compute the final mvc distribution
         logits = beta * th.nan_to_num(normalized_vals)
 
-        probs = inv_vars * th.exp(logits - logits.max())
+        #print("logits", logits)
+
+        probs = inv_vars * th.exp(logits)
+        #probs = th.exp(logits - logits.max())
 
         #probs = logits - th.log(1/inv_vars) # This would be the same as the line above, but maybe more readable
+
+        return probs
+    
+class MinimalVarianceConstraintPolicyPrior(MinimalVarianceConstraintPolicy):
+
+    def _probs(self, node):
+
+        beta = self.get_beta(node)
+
+        # We compute Q and 1/V[Q] of the children
+        normalized_vals, _ = get_children_policy_values_and_inverse_variance(node, self, self.discount_factor, self.value_transform)
+        
+        # We handle nan values and compute the final mvc distribution
+        logits = beta * th.nan_to_num(normalized_vals)
+
+        probs = th.exp(logits - logits.max())/node.prior_policy
 
         return probs
 
@@ -95,4 +114,5 @@ tree_eval_dict = lambda param, discount, c=1.0, temperature=None, value_transfor
     "qt_max": ValuePolicy(discount_factor=discount, temperature=temperature, value_transform=value_transform),
     "q_max": Q_max(discount_factor=discount, temperature=temperature, value_transform=value_transform),
     "mvc": MinimalVarianceConstraintPolicy(discount_factor=discount, beta=param, temperature=temperature, value_transform=value_transform),
+    "mvc_prior": MinimalVarianceConstraintPolicyPrior(discount_factor=discount, beta=param, temperature=temperature, value_transform=value_transform),
 }

@@ -46,6 +46,7 @@ class Node(Generic[ObservationType]):
         self.observation = observation
         self.env = env
         self.problematic = False
+        self.value_penalty = 0.0
 
         self.ncols = ncols
 
@@ -126,7 +127,7 @@ class Node(Generic[ObservationType]):
     ) -> None:
         if max_depth is not None and max_depth == 0:
             return
-        label = f"O: {self.coords(self.observation)}, R: {self.reward}, MS: {self.default_value(): .2f}, V: {self.value_evaluation: .2f}\nVisit: {self.visits}, T: {int(self.terminal)}"
+        label = f"O: {self.coords(self.observation)}, V: {self.value_evaluation: .2f}\nVisit: {self.visits}"
         if var_fn is not None:
             label += f", VarFn: {var_fn(self)}"
 
@@ -157,6 +158,103 @@ class Node(Generic[ObservationType]):
             counter.update(child.state_visitation_counts())
 
         return counter
+    
+    def mean_nn_values_dict(self) -> Dict[int, float]:
+        """
+        Returns a dictionary with the observations as keys and the mean value estimates
+        of the subtrees as values, recursively including all descendants.
+        """
+        values = {}
+        counts = {}
+
+        # Initialize with the current node's observation and value
+        if self.observation is not None:
+            values[self.observation] = self.value_evaluation
+            counts[self.observation] = 1
+
+        # Recursively process children
+        for child in self.children.values():
+            if child.observation is not None:
+                # Get the child's mean_nn_values_dict recursively
+                child_values = child.mean_nn_values_dict()
+                for obs, value in child_values.items():
+                    if obs not in values:
+                        values[obs] = value
+                        counts[obs] = 1
+                    else:
+                        values[obs] += value
+                        counts[obs] += 1
+
+        # Compute the mean for each observation
+        for key in values.keys():
+            values[key] /= counts[key]
+
+        return values
+    
+    def mean_policy_values_dict(self) -> Dict[int, float]:
+        """
+        Returns a dictionary with the observations as keys and the mean policy estimates
+        of the subtrees as values, recursively including all descendants.
+        """
+        values = {}
+        counts = {}
+
+        # Initialize with the current node's observation and policy value
+        if self.observation is not None:
+            values[self.observation] = self.policy_value
+            counts[self.observation] = 1
+
+        # Recursively process children
+        for child in self.children.values():
+            if child.observation is not None:
+                # Get the child's mean_policy_values_dict recursively
+                child_values = child.mean_policy_values_dict()
+                for obs, value in child_values.items():
+                    if obs not in values:
+                        values[obs] = value
+                        counts[obs] = 1
+                    else:
+                        values[obs] += value
+                        counts[obs] += 1
+
+        # Compute the mean for each observation
+        for key in values.keys():
+            values[key] /= counts[key]
+
+        return values
+    
+    def mean_variances_dict(self) -> Dict[int, float]:
+        """
+        Returns a dictionary with the observations as keys and the mean variance estimates
+        of the subtrees as values, recursively including all descendants.
+        """
+        values = {}
+        counts = {}
+
+        # Initialize with the current node's observation and variance
+        if self.observation is not None:
+            values[self.observation] = self.variance
+            counts[self.observation] = 1
+
+        # Recursively process children
+        for child in self.children.values():
+            if child.observation is not None:
+                # Get the child's mean_variances_dict recursively
+                child_values = child.mean_variances_dict()
+                for obs, value in child_values.items():
+                    if obs not in values:
+                        values[obs] = value
+                        counts[obs] = 1
+                    else:
+                        values[obs] += value
+                        counts[obs] += 1
+
+        # Compute the mean for each observation
+        for key in values.keys():
+            values[key] /= counts[key]
+
+        return values
+
 
     def get_children(self):
 

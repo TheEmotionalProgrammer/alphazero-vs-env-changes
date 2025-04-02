@@ -51,6 +51,7 @@ class AlphaZeroController:
         checkpoint_interval=-1,  # -1 means no checkpoints
         value_loss_weight=1.0,
         policy_loss_weight=1.0,
+        reg_loss_weight=0.0,
         episodes_per_iteration=10,
         self_play_workers=1,
         scheduler: th.optim.lr_scheduler.LRScheduler | None = None,
@@ -86,6 +87,7 @@ class AlphaZeroController:
 
         self.value_loss_weight = value_loss_weight
         self.policy_loss_weight = policy_loss_weight
+        self.reg_loss_weight = reg_loss_weight 
         self.episodes_per_iteration = episodes_per_iteration
         self.scheduler = scheduler
         self.train_obs_counter = Counter()
@@ -124,7 +126,7 @@ class AlphaZeroController:
                 policy_losses,
                 total_losses,
                 value_sims,
-            ) = self.learn()
+            ) = self.learn() 
 
             # the regularization loss is the squared l2 norm of the weights
             regularization_loss = th.tensor(0.0, device=self.agent.model.device)
@@ -294,9 +296,18 @@ class AlphaZeroController:
         self.agent.dir_alpha = alpha
         return eval_res
 
-    def self_play(self, temperature=None, seed = None):
+    def self_play(self, temperature=None, seed=None):
         """Play games in parallel and store the data in the replay buffer."""
         self.agent.model.eval()
+
+        # Generate unique seeds for each task if a seed is provided
+        seeds = (
+            [seed * self.episodes_per_iteration + i for i in range(self.episodes_per_iteration)]
+            if seed is not None
+            else [None] * self.episodes_per_iteration
+        )
+
+        # Create tasks with unique seeds
         tasks = [
             (
                 self.agent,
@@ -305,10 +316,12 @@ class AlphaZeroController:
                 self.agent.model.observation_embedding,
                 self.planning_budget,
                 self.max_episode_length,
-                seed,
+                task_seed,
                 temperature,
             )
-        ] * self.episodes_per_iteration
+            for task_seed in seeds
+        ]
+
         return collect_trajectories(tasks, self.self_play_workers)
 
     def add_self_play_metrics(self, tensor_res, total_return, last_ema, global_step):
@@ -357,7 +370,7 @@ class AlphaZeroController:
         Returns:
             value_losses (list): List of value losses for each training epoch.
             policy_losses (list): List of policy losses for each training epoch.
-            total_losses (list): List of total losses (value loss + policy loss) for each training epoch.
+            total_losses (list): List of total losses (value loss + policy loss + regularization loss) for each training epoch.
             value_sims (list): List of value similarities for each training epoch.
         """
         value_losses = []
@@ -386,16 +399,7 @@ class AlphaZeroController:
             policies = flat_policies.view(batch_size, max_steps, -1)
 
             # compute the value targets via TD learning
-            # the target should be the reward + the value of the next state
-            # if the next state is terminal, the value of the next state is 0
-            # the indexation is a bit tricky here, since we want to ignore the last state in the trajectory
-            # the observation at index i is the state at time step i
-            # the reward at index i is the reward obtained by taking action i
-            # the terminal at index i is True if we stepped into a terminal state by taking action i
-            # the policy at index i is the policy we used to take action i
-
             with th.no_grad():
-                # this value estimates how on policy the trajectories are. If the trajectories are on policy, this value should be close to 1
                 value_simularities = th.exp(
                     -th.sum(
                         (
@@ -408,32 +412,20 @@ class AlphaZeroController:
                     / trajectories["mask"].sum(dim=-1)
                 )
 
-                # Idea: count the number of times each observations are in the trajectories.
-                # Log this information and use it to weight the value loss.
-                # Currently the ones with the most visits will have the most impact on the loss.
-                # What if we normalize by the number of visits so that the loss is the same for all observations?
-
-                # lets first construct a tensor with the same shape as the observations tensor but with the number of visits instead of the observations
-                # note that the observations tensor has shape (batch_size, max_steps, obs_dim)
                 norm_visit_multiplier = th.ones_like(values)
                 if self.use_visit_count or self.save_plots:
                     visit_count_tensor, counter = calculate_visit_counts(
                         observations, trajectories["mask"]
                     )
-                    # add the counter to the train_obs_counter
                     self.train_obs_counter.update(counter)
                     if self.use_visit_count:
-                        # the multiplier should make sure that the loss contribution is the same for all observations
                         visit_multiplier = trajectories["mask"] / (
                             visit_count_tensor + epsilon
                         )
-                        # lets normalize the visit_multiplier so that the sum of the multipliers is 1
                         norm_visit_multiplier = visit_multiplier * (
                             trajectories["mask"].sum() / visit_multiplier.sum()
                         )
 
-            with th.no_grad():
-                # the target value is the reward we got + the value of the next state if it is not terminal
                 targets = n_step_value_targets(
                     trajectories["rewards"],
                     values.detach(),
@@ -441,13 +433,10 @@ class AlphaZeroController:
                     self.discount_factor,
                     self.n_steps_learning,
                 )
-                # returns a tensor of shape (batch_size, max_steps - n_steps_learning)
-                # the td error is the difference between the target and the current value
                 dim_red = self.n_steps_learning
                 mask = trajectories["mask"][:, :-dim_red]
 
             td = targets - values[:, :-dim_red]
-            # compute the value loss
             step_loss = (td * mask) ** 2 * norm_visit_multiplier[:, :-dim_red]
             if self.value_sim_loss:
                 value_loss = th.sum(
@@ -461,23 +450,29 @@ class AlphaZeroController:
                 trajectories["policy_distributions"],
                 th.log(policies + epsilon),
             )
-
-            # we do not want to consider terminal states
             policy_loss = th.sum(
                 step_loss * trajectories["mask"] * norm_visit_multiplier
             ) / th.sum(trajectories["mask"])
 
+            # Compute the regularization loss
+            regularization_loss = th.tensor(0.0, device=self.agent.model.device)
+            for param in self.agent.model.parameters():
+                regularization_loss += th.sum(th.square(param))
+
+            # Include the regularization loss in the total loss
             loss = (
                 self.value_loss_weight * value_loss
                 + self.policy_loss_weight * policy_loss
+                + self.reg_loss_weight * regularization_loss
             )
-            # backup
+
+            # Backpropagation
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
+
             value_losses.append(value_loss.item())
             policy_losses.append(policy_loss.item())
-            # regularization_losses.append(regularization_loss.item())
             total_losses.append(loss.item())
             value_sims.append(value_simularities.mean().item())
 

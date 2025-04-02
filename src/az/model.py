@@ -13,8 +13,8 @@ activation_function_dict = {
     "leakyrelu": th.nn.LeakyReLU,
 }
 norm_dict = {
-    "batch": th.nn.BatchNorm1d,
-    "layer": th.nn.LayerNorm,
+    "batch_norm": th.nn.BatchNorm1d,
+    "layer_norm": th.nn.LayerNorm,
     "none": None,
 }
 

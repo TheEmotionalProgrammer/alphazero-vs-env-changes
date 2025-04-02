@@ -12,8 +12,14 @@ from azdetection.megatree import MegaTree
 from azdetection.octopus import Octopus
 from environments.observation_embeddings import ObservationEmbedding
 from policies.policies import PolicyDistribution, custom_softmax
+from policies.tree_policies import MinimalVarianceConstraintPolicyPrior
+from policies.utility_functions import policy_value, policy_value_variance
 from environments.frozenlake.frozen_lake import actions_dict
+from environments.lunarlander.lunar_lander import CustomLunarLander
 from core.node import Node
+import matplotlib.pyplot as plt
+
+
 import copy
 
 from log_code.gen_renderings import save_gif_imageio
@@ -89,7 +95,10 @@ def run_episode_azmcts(
     observation, _ = env.reset(seed=seed)
 
     if render:
-        vis_env = copy.deepcopy(env) # Used to visualize the environment in the case of the frozenlake
+        if isinstance(env.unwrapped, CustomLunarLander):
+            vis_env = env.unwrapped.create_copy()
+        else:
+            vis_env = copy.deepcopy(env) # Used to visualize the environment in the case of the frozenlake
         vis_env.unwrapped.render_mode = "rgb_array"
         frames = [vis_env.render()]
 
@@ -128,6 +137,8 @@ def run_episode_azmcts(
         policy_dist = tree_evaluation_policy.softmaxed_distribution(tree) # Evaluates the tree using the given evaluation policy (e.g., visitation counts)
 
         if return_trees:
+            tree.policy_value = policy_value(tree, tree_evaluation_policy, solver.discount_factor)
+            tree.variance = policy_value_variance(tree, tree_evaluation_policy, solver.discount_factor)
             tree_copy = copy.deepcopy(tree) 
             trees.append(tree_copy)
 
@@ -137,15 +148,22 @@ def run_episode_azmcts(
 
         new_obs, reward, terminated, truncated, _ = env.step(action)
 
+        # env.unwrapped.render_mode = "rgb_array"
+        # env_snap = env.render()
+        # fig, ax = plt.subplots()
+        # ax.imshow(env_snap)
+        # plt.axis('off')
+        # plt.show()
+
         if render:
             vis_env.step(action)
             frames.append(vis_env.render())
 
         # Convert the observation to a 2D position, hardcoded size of the grid for now
-        new_pos_row = new_obs // observation_embedding.ncols
-        new_pos_col = new_obs % observation_embedding.ncols
+        # new_pos_row = new_obs // observation_embedding.ncols
+        # new_pos_col = new_obs % observation_embedding.ncols
 
-        print(f"Env: obs = ({new_pos_row}, {new_pos_col}), reward = {reward}, terminated = {terminated}, truncated = {truncated}")
+        # print(f"Env: obs = ({new_pos_row}, {new_pos_col}), reward = {reward}, terminated = {terminated}, truncated = {truncated}")
         
         assert not truncated
 
@@ -169,7 +187,7 @@ def run_episode_azmcts(
         step += 1
     
     if render:
-        save_gif_imageio(frames, output_path=f"gifs/output.gif", fps=5)
+        save_gif_imageio(frames, output_path=f"gifs/output.gif", fps=30)
 
     if return_trees:
         return trajectory, trees
@@ -208,12 +226,16 @@ def run_episode_octopus(
 
     observation, info = env.reset(seed=seed)
 
-    pos_row, pos_col = observation // observation_embedding.ncols, observation % observation_embedding.ncols
+    #pos_row, pos_col = observation // observation_embedding.ncols, observation % observation_embedding.ncols
 
-    print(f"Env: obs = ({pos_row}, {pos_col})")
+    #print(f"Env: obs = ({pos_row}, {pos_col})")
 
     if render:
-        vis_env = copy.deepcopy(env) # Used to visualize the environment in the case of the frozenlake
+        if isinstance(env.unwrapped, CustomLunarLander):
+            vis_env = env.unwrapped.create_copy()
+        else:
+            vis_env = copy.deepcopy(env) # Used to visualize the environment in the case of the frozenlake
+
         vis_env.unwrapped.render_mode = "rgb_array"
         frames = [vis_env.render()]
 
@@ -249,9 +271,13 @@ def run_episode_octopus(
 
         tree.reset_var_val() # The value and variance (mvc) estimates of the whole subtree are reset.
 
+        #print(tree.prior_policy)
+
         policy_dist = tree_evaluation_policy.softmaxed_distribution(tree) # Evaluates the tree using the given evaluation policy (e.g., visitation counts)
 
         if return_trees:
+            tree.policy_value = policy_value(tree, tree_evaluation_policy, solver.discount_factor)
+            tree.variance = policy_value_variance(tree, tree_evaluation_policy, solver.discount_factor)
             tree_copy = copy.deepcopy(tree) 
             trees.append(tree_copy)
         
@@ -266,10 +292,10 @@ def run_episode_octopus(
             frames.append(vis_env.render())
 
         # Convert the observation to a 2D position, hardcoded size of the grid for now
-        new_pos_row = new_obs // observation_embedding.ncols
-        new_pos_col = new_obs % observation_embedding.ncols
+        # new_pos_row = new_obs // observation_embedding.ncols
+        # new_pos_col = new_obs % observation_embedding.ncols
 
-        print(f"Env: obs = ({new_pos_row}, {new_pos_col}), reward = {reward}, terminated = {terminated}, truncated = {truncated}")
+        # print(f"Env: obs = ({new_pos_row}, {new_pos_col}), reward = {reward}, terminated = {terminated}, truncated = {truncated}")
         
         assert not truncated
 
@@ -285,7 +311,7 @@ def run_episode_octopus(
         if next_terminal or truncated:
             break
 
-        tree = solver.search(env, planning_budget, new_obs, reward)
+        tree = solver.search(env, planning_budget, new_obs, reward, lastaction=action)
 
         new_observation_tensor = observation_embedding.obs_to_tensor(new_obs, dtype=th.float32)
         observation_tensor = new_observation_tensor
@@ -672,6 +698,19 @@ def run_episode_megatree(
 
         policy_dist = tree_evaluation_policy.softmaxed_distribution(tree) # Evaluates the tree using the given evaluation policy (e.g., visitation counts)
 
+        problems_dist = solver.policy_action_counts # Get counts as e.g. {0: 1, 1:4, 2:6, 3:0} for the actions
+
+        # turned them into a tensor
+        if solver.problem_idx is not None:
+            
+            problems_dist = th.tensor([problems_dist.get(i, 0) for i in range(n)], dtype=th.float32)
+            # turn into a distribution that assigns higher probability if the action has not been visited
+            # for each acition, if it has x visits, set the probability to 1/(x+1)
+            problems_dist = 1/(problems_dist + 1)
+            
+        else:
+            problems_dist = th.zeros(n, dtype=th.float32)
+
         if return_trees:
             tree_copy = copy.deepcopy(tree) 
             trees.append(tree_copy)
@@ -681,16 +720,11 @@ def run_episode_megatree(
             action = th.argmax(tree.prior_policy).item()
 
         else: # If a problem was detected, we act following the policy distribution
+            alpha = 0.8
             print("Acting according to the planning.")
-            distribution = th.distributions.Categorical(probs=custom_softmax(policy_dist.probs, temperature, None)) # apply extra softmax
+            distribution = th.distributions.Categorical(probs=custom_softmax(alpha*policy_dist.probs + (1-alpha)* problems_dist, temperature, None)) # apply extra softmax
             #print(distribution.probs)
-            
-            # Check if any children has zero visits
-            if th.any(get_children_visits(tree) == 0):
-                #print("Not enough visits, following the prior")
-                action = th.argmax(tree.prior_policy).item()
-                
-            # else:
+                            
             action = distribution.sample().item() # Note that if the temperature of the softmax was zero, this becomes an argmax
 
             print(f"Env: action = {actions_dict[action]}")

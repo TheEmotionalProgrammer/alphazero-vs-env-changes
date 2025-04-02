@@ -1,4 +1,3 @@
-
 from abc import ABC, abstractmethod
 import gymnasium as gym
 import numpy as np
@@ -157,9 +156,44 @@ class MiniGridEmbedding(ObservationEmbedding):
         observation[indices[0].item(), indices[1].item()] = agent_dir
 
         return observation
+    
+class LunarLanderEmbedding(ObservationEmbedding):
+    """
+    Embedding for the LunarLander environment.
+    Converts the 8-dimensional observation into a tensor.
+    """
+
+    observation_space: gym.spaces.Box
+
+    def __init__(self, observation_space: gym.spaces.Box, *args, **kwargs) -> None:
+        super().__init__(observation_space, *args, **kwargs)
+
+    def obs_to_tensor(self, observation, *args, **kwargs):
+        """
+        Converts the LunarLander observation into a tensor.
+        The observation is already a flat array, so this simply converts it to a PyTorch tensor.
+        """
+        # Extract the dtype from kwargs or use a default value
+        dtype = kwargs.pop("dtype", th.float32)
+        return th.tensor(observation, dtype=dtype, *args, **kwargs)
+
+    def obs_dim(self):
+        """
+        Returns the dimensionality of the tensorized observation.
+        For LunarLander, this is 8.
+        """
+        return self.observation_space.shape[0]
+
+    def tensor_to_obs(self, tensor, *args, **kwargs):
+        """
+        Converts a tensor back to the original observation format.
+        For LunarLander, this simply converts the tensor back to a NumPy array.
+        """
+        return tensor.detach().cpu().numpy()
 
 embedding_dict = {
     "default": DefaultEmbedding,
     "coordinate": CoordinateEmbedding,
     "minigrid": MiniGridEmbedding,
+    "lunarlander": LunarLanderEmbedding,
 }

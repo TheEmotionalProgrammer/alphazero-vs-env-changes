@@ -73,6 +73,7 @@ def policy_value_variance(
     # We compute pi(a|s) for all a, including the special action. 
     # This is done using the evaluation policy (e.g., MVC).
     # Note that the special action prob is appended after the evaluation policy logits.
+    # Finally, everything is normalized to sum to 1.
     if isinstance(policy, th.distributions.Categorical):
         pi = policy
     else:

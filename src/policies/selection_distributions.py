@@ -70,7 +70,7 @@ class PolicyUCT(UCT):
 
     def __init__(self, *args, policy: PolicyDistribution, discount_factor: float = 1.0, **kwargs):
         super().__init__(*args, **kwargs)
-        self.policy = policy 
+        self.policy = policy
         self.discount_factor = discount_factor
 
     def Q(self, node: Node) -> float:
@@ -118,7 +118,7 @@ class PolicyUCT_Var(UCT):
         # if th.log(inv_variance) < 0: # Avoids taking the square root of a negative number
         #     inv_variance = th.tensor(1)
         
-        return Qs + self.c * th.sqrt(th.log(inv_variance)) * th.sqrt(children_vars)
+        return self.policy.beta*Qs - th.log(inv_vars) #Qs + self.c * th.sqrt(th.log(inv_variance)) * th.sqrt(children_vars)
 
 class PolicyMax(UCT):
     
@@ -208,6 +208,17 @@ class PolicyPUCT_Var(PolicyUCT, PUCT):
             
         return Qs + self.c * node.prior_policy *  th.sqrt(inv_variance) / (1 +  th.sqrt(inv_vars))
 
+class PolicyPrior(UCT):
+
+    def _probs(self, node: Node) -> th.Tensor:
+
+        visits = get_children_visits(node)
+        # if any child_visit is 0
+        if th.any(visits == 0):
+            # return 1 for all children with 0 visits
+            return visits == 0
+        
+        return node.prior_policy + self.c * th.sqrt(th.log(th.tensor(node.visits))) / (visits + 1)
 
 selection_dict_fn = lambda c, policy, discount, value_transform: {
     "UCT": UCT(c, temperature=0.0, value_transform=value_transform),
@@ -216,5 +227,6 @@ selection_dict_fn = lambda c, policy, discount, value_transform: {
     "PolicyPUCT": PolicyPUCT(c, policy=policy, discount_factor=discount,temperature=0.0, value_transform=value_transform),
     "PolicyUCT_Var": PolicyUCT_Var(c, policy=policy, discount_factor=discount,temperature=0.0, value_transform=value_transform),
     "PolicyPUCT_Var": PolicyPUCT_Var(c, policy=policy, discount_factor=discount,temperature=0.0, value_transform=value_transform),
-    "PolicyMax": PolicyMax(c=c, discount_factor=discount, temperature=0.0, value_transform=value_transform)
+    "PolicyMax": PolicyMax(c=c, discount_factor=discount, temperature=0.0, value_transform=value_transform),
+    "PolicyPrior": PolicyPrior(c=c, temperature=0.0, value_transform=value_transform)
 }

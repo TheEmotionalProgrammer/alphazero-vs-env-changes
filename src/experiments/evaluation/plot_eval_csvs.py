@@ -50,8 +50,13 @@ def plot_comparison_from_csvs(filepaths, labels=None, map_size=16, max_episode_l
                 color = "blue"
             elif "MTVS" in label:
                 color = "orange"
+            elif "MVC" in label:
+                color = "green"
+            elif "CAP" in label or "STANDARD" in label:
+                color = "purple"
             else:
                 color = None
+
 
             if "PUCT" in label:
                 linestyle = "-"
@@ -59,6 +64,56 @@ def plot_comparison_from_csvs(filepaths, labels=None, map_size=16, max_episode_l
                 linestyle = "--"
             else:
                 linestyle = "-"
+
+            # if "c=0.0" in label:
+            #     linestyle = "-"
+            #     color = "#001F3F"
+            # elif "c=0.5" in label:
+            #     linestyle = "-"
+            #     color = "#191970"
+            # elif "c=1.0" in label:
+            #     linestyle = "-"
+            #     color = "blue"
+            # elif "c=2.0" in label:
+            #     linestyle = "-"
+            #     color = "#4169E1"
+            # elif "c=100.0" in label:
+            #     linestyle = "-"
+            #     color = "#87CEEB"
+            # else:
+            #     linestyle = "-"
+
+            # if "c=0.0" in label:
+            #     linestyle = "-"
+            #     color = "#006400"  # Dark Green
+            # elif "c=0.5" in label:
+            #     linestyle = "-"
+            #     color = "green"  # Forest Green
+            # elif "c=1.0" in label:
+            #     linestyle = "-"
+            #     color = "#00A86B"  # Default Green
+            # elif "c=2.0" in label:
+            #     linestyle = "-"
+            #     color = "#32CD32"  # Lime Green
+            # elif "c=100.0" in label:
+            #     linestyle = "-"
+            #     color = "#98FB98"  # Pale Green
+            # else:
+            #     linestyle = "-"
+
+            # if "NO TREE REUSE" in label:
+            #     linestyle = "-"
+            #     color = "darkred"
+            # elif "C>0" in label:
+            #     linestyle = "-"
+            #     color = "goldenrod"
+            # elif "NO VP" in label:
+            #     linestyle = "-"
+            #     color = "orange"
+            # elif "NONE TEMP" in label:
+            #     linestyle = "-"
+            #     color = "red"
+
 
             # Plot mean values
             plt.plot(df["Budget"], df[f"{metric} mean"], marker="o", linestyle=linestyle, color=color, label=label)
@@ -86,7 +141,7 @@ def plot_comparison_from_csvs(filepaths, labels=None, map_size=16, max_episode_l
         plt.xlabel("Planning Budget (log scale)", fontsize=12)
         plt.ylabel(metric, fontsize=12)
         #plt.title(f"{metric} vs Planning Budget (Comparison)")
-        plt.legend()
+        #plt.legend()
         plt.grid(True, which="both", linestyle="--", linewidth=0.5)
         plt.savefig(f"comparison_{metric.replace(' ', '_').lower()}.png")
         plt.show()
@@ -94,23 +149,50 @@ def plot_comparison_from_csvs(filepaths, labels=None, map_size=16, max_episode_l
 if __name__ == "__main__":
 
     map_size = 8
-    CONFIG = "DEAD_END"
+    TRAIN_CONFIG = "NO_HOLES"
+    CONFIG = "SLALOM"
     vfunc = "nn"
+
     # Example usage
     filepaths = (
         [   
-            f"final/{map_size}x{map_size}/az/Algorithm_(azmcts)_EvalPol_(visit)_SelPol_(UCT)_ValueEst_({vfunc})_{map_size}x{map_size}_{CONFIG}.csv",
-            f"final/{map_size}x{map_size}/az/Algorithm_(azmcts)_EvalPol_(visit)_SelPol_(PUCT)_ValueEst_({vfunc})_{map_size}x{map_size}_{CONFIG}.csv",
+            # f"final/{map_size}x{map_size}/az/Algorithm_(azmcts)_EvalPol_(visit)_SelPol_(UCT)_ValueEst_({vfunc})_{map_size}x{map_size}_{CONFIG}.csv",
+            # f"final/{map_size}x{map_size}/az/Algorithm_(azmcts)_EvalPol_(visit)_SelPol_(PUCT)_ValueEst_({vfunc})_{map_size}x{map_size}_{CONFIG}.csv",
+            f"{map_size}x{map_size}/CCW_Algorithm_(azmcts)_EvalPol_(visit)_SelPol_(UCT)_c_(1.0)_ValueEst_({vfunc})_{map_size}x{map_size}_{TRAIN_CONFIG}_{CONFIG}.csv",
+            f"{map_size}x{map_size}/CCW_Algorithm_(azmcts)_EvalPol_(visit)_SelPol_(PUCT)_c_(1.0)_ValueEst_({vfunc})_{map_size}x{map_size}_{TRAIN_CONFIG}_{CONFIG}.csv",
 
-            f"{map_size}x{map_size}/Algorithm_(mini-trees)_EvalPol_(visit)_SelPol_(UCT)_c_(1.0)_Predictor_(current_value)_n_(4)_eps_(0.05)_ValueSearch_(True)_ValueEst_({vfunc})_UpdateEst_(True)_{map_size}x{map_size}_{CONFIG}.csv",
-            f"{map_size}x{map_size}/Algorithm_(mini-trees)_EvalPol_(visit)_SelPol_(PUCT)_c_(1.0)_Predictor_(current_value)_n_(4)_eps_(0.05)_ValueSearch_(True)_ValueEst_({vfunc})_UpdateEst_(True)_{map_size}x{map_size}_{CONFIG}.csv"
-            #f"{map_size}x{map_size}/Algorithm_(azmcts)_EvalPol_(mvc)_SelPol_(PolicyUCT)_c_(1.0)_ValueEst_({vfunc})_{map_size}x{map_size}_{CONFIG}.csv",
+            # f"{map_size}x{map_size}/Algorithm_(mini-trees)_EvalPol_(visit)_SelPol_(UCT)_c_(1.0)_Predictor_(current_value)_n_(4)_eps_(0.05)_ValueSearch_(True)_ValueEst_({vfunc})_UpdateEst_(True)_{map_size}x{map_size}_{CONFIG}.csv",
+            #f"{map_size}x{map_size}/Algorithm_(mini-trees)_EvalPol_(visit)_SelPol_(PUCT)_c_(1.0)_Predictor_(current_value)_n_(4)_eps_(0.05)_ValueSearch_(True)_ValueEst_({vfunc})_UpdateEst_(True)_{map_size}x{map_size}_{CONFIG}.csv",
+
+            # f"final/{map_size}x{map_size}/mvc/Algorithm_(azmcts)_EvalPol_(mvc)_SelPol_(PolicyUCT)_ValueEst_({vfunc})_{map_size}x{map_size}_{CONFIG}.csv",
+            # f"final/{map_size}x{map_size}/mvc/Algorithm_(azmcts)_EvalPol_(mvc)_SelPol_(PolicyPUCT)_ValueEst_({vfunc})_{map_size}x{map_size}_{CONFIG}.csv",
+            f"{map_size}x{map_size}/CCW_Algorithm_(azmcts)_EvalPol_(mvc)_SelPol_(PolicyUCT)_c_(1.0)_ValueEst_({vfunc})_{map_size}x{map_size}_{TRAIN_CONFIG}_{CONFIG}.csv",
+            f"{map_size}x{map_size}/CCW_Algorithm_(azmcts)_EvalPol_(mvc)_SelPol_(PolicyPUCT)_c_(1.0)_ValueEst_({vfunc})_{map_size}x{map_size}_{TRAIN_CONFIG}_{CONFIG}.csv",
             #f"final/{map_size}x{map_size}/Algorithm_(mini-trees)_EvalPol_(visit)_SelPol_(UCT)_Predictor_(current_value)_n_(4)_eps_(0.05)_ValueSearch_(True)_ValueEst_({vfunc})_UpdateEst_(True)_{map_size}x{map_size}_{CONFIG}.csv"
             #f"{map_size}x{map_size}/Algorithm_(mega-tree)_EvalPol_(mvc)_SelPol_(PolicyUCT)_c_(0.0)_Predictor_(current_value)_n_(4)_eps_(0.05)_ValueSearch_(False)_ValueEst_({vfunc})_UpdateEst_(True)_{map_size}x{map_size}_{CONFIG}.csv"
             # f"{map_size}x{map_size}/Algorithm_(octopus)_EvalPol_(qt_max)_SelPol_(PolicyUCT)_c_(0.0)_Predictor_(current_value)_eps_(0.05)_ValueEst_({vfunc})_(True)_1_{map_size}x{map_size}_{CONFIG}.csv",
             # f"{map_size}x{map_size}/Algorithm_(octopus)_EvalPol_(qt_max)_SelPol_(PolicyUCT)_c_(0.0)_Predictor_(current_value)_eps_(0.05)_ValueEst_({vfunc})_(True)_Value_Penalty_1_{map_size}x{map_size}_{CONFIG}.csv"
+            # f"{map_size}x{map_size}/Algorithm_(octopus)_EvalPol_(mvc)_SelPol_(PolicyUCT)_c_(0.0)_Predictor_(current_value)_eps_(0.05)_ValueEst_({vfunc})_(True)_ttemp_(0.0)_Value_Penalty_1_{map_size}x{map_size}_{TRAIN_CONFIG}_{CONFIG}.csv"
+
+            # f"{map_size}x{map_size}/Algorithm_(azmcts)_EvalPol_(mvc)_SelPol_(PolicyUCT)_c_(0.0)_ValueEst_({vfunc})_{map_size}x{map_size}_{TRAIN_CONFIG}_{CONFIG}.csv",
+            # f"{map_size}x{map_size}/Algorithm_(azmcts)_EvalPol_(mvc)_SelPol_(PolicyUCT)_c_(0.5)_ValueEst_({vfunc})_{map_size}x{map_size}_{TRAIN_CONFIG}_{CONFIG}.csv",
+            # f"final/{map_size}x{map_size}/mvc/Algorithm_(azmcts)_EvalPol_(mvc)_SelPol_(PolicyUCT)_c_(1.0)_ValueEst_({vfunc})_{map_size}x{map_size}_{TRAIN_CONFIG}_{CONFIG}.csv",
+            # f"{map_size}x{map_size}/Algorithm_(azmcts)_EvalPol_(mvc)_SelPol_(PolicyUCT)_c_(2.0)_ValueEst_({vfunc})_{map_size}x{map_size}_{TRAIN_CONFIG}_{CONFIG}.csv",
+            # f"{map_size}x{map_size}/Algorithm_(azmcts)_EvalPol_(mvc)_SelPol_(PolicyUCT)_c_(100.0)_ValueEst_({vfunc})_{map_size}x{map_size}_{TRAIN_CONFIG}_{CONFIG}.csv",
+
+            # f"{map_size}x{map_size}/Algorithm_(octopus)_EvalPol_(mvc)_SelPol_(PolicyUCT)_c_(0.0)_Predictor_(current_value)_eps_(0.05)_ValueEst_({vfunc})_(True)_ttemp_(0.0)_Value_Penalty_1_{map_size}x{map_size}_{TRAIN_CONFIG}_{CONFIG}_NO_REUSE.csv",
+            # f"{map_size}x{map_size}/Algorithm_(octopus)_EvalPol_(mvc)_SelPol_(PolicyUCT)_c_(1.0)_Predictor_(current_value)_eps_(0.05)_ValueEst_({vfunc})_(True)_ttemp_(0.0)_Value_Penalty_1_{map_size}x{map_size}_{TRAIN_CONFIG}_{CONFIG}_C>0.csv",
+            # f"{map_size}x{map_size}/Algorithm_(octopus)_EvalPol_(mvc)_SelPol_(PolicyUCT)_c_(0.0)_Predictor_(current_value)_eps_(0.05)_ValueEst_({vfunc})_(True)_ttemp_(0.0)_Value_Penalty_0.0_{map_size}x{map_size}_{TRAIN_CONFIG}_{CONFIG}_NO_VP.csv",
+            # f"{map_size}x{map_size}/Algorithm_(octopus)_EvalPol_(mvc)_SelPol_(PolicyUCT)_c_(0.0)_Predictor_(current_value)_eps_(0.05)_ValueEst_({vfunc})_(True)_ttemp_(None)_Value_Penalty_1_{map_size}x{map_size}_{TRAIN_CONFIG}_{CONFIG}_NONE_TEMP.csv",
+
+            f"{map_size}x{map_size}/CCW_Algorithm_(octopus)_EvalPol_(mvc)_SelPol_(PolicyUCT)_c_(0.0)_Predictor_(current_value)_eps_(0.05)_ValueEst_({vfunc})_(True)_ttemp_(0.0)_Value_Penalty_1_{map_size}x{map_size}_{TRAIN_CONFIG}_{CONFIG}.csv"
+
         ]
         #16x16/Algorithm_(octopus)_EvalPol_(mvc)_SelPol_(PolicyUCT)_c_(0)_Predictor_(current_value)_eps_(0.05)_ValueEst_(perfect)_(True)_16x16_NARROW_XTREME.csv
     )
-    labels = ["AZ + UCT", "AZ + PUCT", "MTVS + UCT", "MTVS + PUCT"]
+    labels = ["AZ+UCT", "AZ+PUCT" , "MVC+UCT", "MVC+PUCT" ,"CAP"]
+    #labels = ["MVC+UCT c=0.0", "MVC+UCT c=0.5", "MVC+UCT c=1.0", "MVC+UCT c=2.0", "MVC+UCT c=100.0", "CAP"]
+    #labels = ["NO TREE REUSE", "C>0", "NO VP", "NONE TEMP", "STANDARD"]
+
+
     plot_comparison_from_csvs(filepaths, labels, map_size, 100)

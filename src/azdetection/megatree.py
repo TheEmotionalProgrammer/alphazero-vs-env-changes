@@ -35,7 +35,7 @@ class MegaTree(AlphaZeroMCTS):
             update_estimator: bool = False,
             value_search: bool = False,
             value_estimate: str = "nn",
-            var_penalty: float = 1.0,
+            var_penalty: float = 2.0,
             value_penalty: float = 0.0
     ):
         super().__init__(
@@ -61,6 +61,8 @@ class MegaTree(AlphaZeroMCTS):
         self.problem_value = None
         self.var_penalty = var_penalty
         self.value_penalty = value_penalty
+        self.policy_action_counts = {0:0, 1:0, 2:0, 3:0}
+        self.action_counts_pen = 0.2
 
     def coords(self, observ):
         return (observ // self.ncols, observ % self.ncols) if observ is not None else None
@@ -160,6 +162,7 @@ class MegaTree(AlphaZeroMCTS):
                 else: # the new node is not in the trajectory because the agent changed direction
                     self.stop_unrolling = True
                     return
+                  
             
             # We have started unrolling from scratch, but we can use an existing 
 
@@ -218,6 +221,13 @@ class MegaTree(AlphaZeroMCTS):
             self.last_value_estimate = value_estimate
 
             action = th.argmax(policy).item()
+
+            if action not in self.policy_action_counts:
+                self.policy_action_counts[action] = 1
+            else:
+                self.policy_action_counts[action] += 1
+
+            print("Action count:", self.policy_action_counts)
 
             if not ziopera or i != start:
                 self.trajectory.append((node, action))
@@ -299,6 +309,12 @@ class MegaTree(AlphaZeroMCTS):
             if i == new_end-1:
                 # append the last node to the trajectory
                 action = th.argmax(policy).item()
+
+                if action not in self.policy_action_counts:
+                    self.policy_action_counts[action] = 1
+                else:
+                    self.policy_action_counts[action] += 1
+
                 self.trajectory.append((node, action))
                 
 
@@ -462,18 +478,21 @@ class MegaTree(AlphaZeroMCTS):
             temporary_root.value_evaluation = self.value_function(temporary_root)
 
             if self.problem_value is not None and temporary_root.value_evaluation > self.problem_value:
+
+                # distance = self.problem_idx - self.root_idx
                 
-                prob = self.detached_unroll(copy.deepcopy(env), n, obs, reward, copy.deepcopy(original_env))
+                # prob = self.detached_unroll(copy.deepcopy(env), distance, obs, reward, copy.deepcopy(original_env))
                 
-                if not prob:
+                # if not prob:
                     #print("Problem solved, resume unrolling")
-                    self.stop_unrolling = False
-                    self.trajectory[self.problem_idx][0].problematic = False
-                    self.trajectory = [] 
-                    print("Problem solved")
-                    self.problem_idx = None
-                else:
-                    pass
+                self.stop_unrolling = False
+                self.trajectory[self.problem_idx][0].problematic = False
+                self.trajectory = [] 
+                print("Problem solved")
+                self.problem_idx = None
+                self.policy_action_counts = {0:0, 1:0, 2:0, 3:0}
+                # else:
+                #     pass
 
         if not self.stop_unrolling:
 

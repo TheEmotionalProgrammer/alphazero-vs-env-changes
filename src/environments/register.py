@@ -135,6 +135,31 @@ gym.register(
     },
 )
 
+gym.register(
+    id="CustomLunarLander",
+    entry_point="environments.lunarlander.lunar_lander:CustomLunarLander",
+    kwargs={
+        "gravity": -10.0,
+        "enable_wind": False,
+        "wind_power": 15.0,
+        "turbulence_power": 1.5,
+        "num_asteroids": 0,
+        "ignore_obstacle_collisions": False,
+        "penalize_obstacle_collisions": False,
+    },
+)
+
+#  self,
+#         render_mode: Optional[str] = None,
+#         continuous: bool = False,
+#         gravity: float = -10.0,
+#         enable_wind: bool = False,
+#         wind_power: float = 15.0,
+#         turbulence_power: float = 1.5,
+#         num_asteroids: int = 0,
+#         ignore_obstacle_collisions: bool = False,
+#         penalize_obstacle_collisions: bool = False,  # New flag
+
 if "DefaultFrozenLake8x8-v1" not in gym.registry:
     gym.register(
         id="DefaultFrozenLake8x8-v1",

@@ -58,6 +58,8 @@ class Octopus(AlphaZeroMCTS):
 
         self.reuse_tree = reuse_tree
 
+        self.trees_dict = {}
+
     def coords(self, observ):
         return (observ // self.ncols, observ % self.ncols) if observ is not None else None
 
@@ -136,8 +138,13 @@ class Octopus(AlphaZeroMCTS):
         if action not in node.children: # If the selection policy returns None, this indicates that the current node should be expanded
             return node, action, cumulated_reward, i, i_pred, nodes, prior_ok
         
-        if self.policy_det_rule and th.argmax(node.prior_policy).item() != action and self.check_policy.sample(node) != action:
+        #if self.policy_det_rule and th.argmax(node.prior_policy).item() != action and self.check_policy.sample(node) != action:
+        #print("Prior policy:", node.prior_policy)
+       
+        if self.policy_det_rule and (action == 0):
+            #print("Stopped criterion")
             prior_ok = False
+ 
         
         node = node.step(action)  # Step into the chosen node
 
@@ -154,7 +161,7 @@ class Octopus(AlphaZeroMCTS):
             
             action = self.selection_policy.sample(node) # Select which node to step into
 
-            if self.policy_det_rule and th.argmax(node.prior_policy).item() != action and self.check_policy.sample(node) != action:
+            if self.policy_det_rule and (action == 0): #and th.argmax(node.prior_policy).item() != action and self.check_policy.sample(node) != action:
                 prior_ok = False
 
             if action not in node.children: # This means the node is not expanded, so we stop traversing the tree
@@ -164,7 +171,27 @@ class Octopus(AlphaZeroMCTS):
 
         return node, action, cumulated_reward, i, i_pred, nodes, prior_ok
     
-    def search(self, env: Env, iterations: int, obs, reward: float) -> Node:
+    def search(self, env: Env, iterations: int, obs, reward: float, lastaction: int = None) -> Node:
+
+        # if obs not in self.trees_dict:
+        #     self.trees_dict[obs] =  Node(
+        #         env = env,
+        #         parent = None,
+        #         reward = reward,
+        #         action_space = env.action_space,
+        #         observation = obs,
+        #         terminal = False,
+        #         ncols=self.ncols
+        #     )
+            
+        #     root_node = self.trees_dict[obs]
+        #     root_node.value_evaluation = self.value_function(root_node)
+        #     self.backup(root_node, root_node.value_evaluation)
+
+        # else:
+
+        #     root_node = self.trees_dict[obs]
+
 
         if self.previous_root is None or not self.reuse_tree:
             
@@ -192,16 +219,20 @@ class Octopus(AlphaZeroMCTS):
             
             found = False
 
-            for action in root_node.children:
+            # for action in root_node.children:
                 
-                if root_node.children[action].observation == obs:
-
-                    root_node = root_node.children[action]
-                    self.previous_root = root_node
-                    root_node.parent = None
-                    found = True
-
-                    break
+            #     if root_node.children[action].observation == obs:
+            #         root_node = root_node.children[action]
+            #         self.previous_root = root_node
+            #         root_node.parent = None
+            #         found = True
+            #         break
+            
+            if lastaction in root_node.children:
+                root_node = root_node.children[lastaction]
+                self.previous_root = root_node
+                root_node.parent = None
+                found = True
 
             if not found:
                 root_node = Node(
@@ -218,6 +249,10 @@ class Octopus(AlphaZeroMCTS):
 
                 root_node.value_evaluation = self.value_function(root_node)
                 self.backup(root_node, root_node.value_evaluation)
+        
+        # if root_node.value_evaluation == 0.0:
+        #     root_node.value_evaluation = self.value_function(root_node)
+        #     #self.backup(root_node, root_node.value_evaluation)
                 
         counter = root_node.visits 
         
@@ -245,10 +280,10 @@ class Octopus(AlphaZeroMCTS):
                 prob_node = nodes[prob_index]
                 prob_node.problematic = True
                 prob_node.var_penalty = self.var_penalty
+                #prob_node.value_penalty = self.value_penalty   
                 prob_node.value_evaluation = max(0, prob_node.value_evaluation - self.value_penalty)
-
-                # observations = [self.coords(node.observation) for node in obss]
-
+                #prob_node.value_evaluation = prob_node.value_evaluation - self.value_penalty
+                # observations = [self.coords(node.observation) for node in nodes]
                 # print("Problem detected on trajectory:", observations, "i_root:", i_root, "i_pred:", predictor_rootval)
                 # print("Problematic node:", self.coords(prob_node.observation), "idx:", prob_index)
 
@@ -274,6 +309,20 @@ class Octopus(AlphaZeroMCTS):
                 eval_node.value_evaluation = value # Set the value of the node
 
                 self.backup(eval_node, value) # Backup the value of the node
+
+                # second_node, second_action = self.traverse(eval_node)[0:2] # Traverse the tree again to get the second node
+
+                # if second_node.is_terminal(): # If the second node is terminal, set its value to 0 and backup
+                    
+                #     second_node.value_evaluation = 0.0
+                #     self.backup(second_node, 0)
+
+                # else:
+                    
+                #     second_eval_node = self.expand(second_node, second_action)
+                #     second_value = self.value_function(second_eval_node)
+                #     second_eval_node.value_evaluation = second_value
+                #     self.backup(second_eval_node, second_value)
 
         return root_node # Return the root node, which will now have updated statistics after the tree has been built
 
