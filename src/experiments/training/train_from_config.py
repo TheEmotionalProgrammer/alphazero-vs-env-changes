@@ -267,6 +267,7 @@ def run_single(seed=None):
 
 
 if __name__ == "__main__":
+
     parser = argparse.ArgumentParser(description="AlphaZero Training with a specific seed.")
     parser.add_argument("--ENV", type=str, default="LUNARLANDER", help="The environment to train on.")
     parser.add_argument("--agent_type", type=str, default="azmcts", help="The type of agent to train.")
@@ -275,11 +276,11 @@ if __name__ == "__main__":
     parser.add_argument("--max_episode_length", type=int, default=1000, help="Max episode length")
     parser.add_argument("--tree_evaluation_policy", type=str, default="visit", help="Tree evaluation policy")
     parser.add_argument("--selection_policy", type=str, default="PUCT", help="Selection policy")
-    parser.add_argument("--planning_budget", type=int, default=128, help="Planning budget")
+    parser.add_argument("--planning_budget", type=int, default=64, help="Planning budget")
     parser.add_argument("--puct_c", type=float, default=1, help="PUCT constant")
     parser.add_argument("--n_steps_learning", type=int, default=1, help="Number of steps for learning")
     parser.add_argument("--discount_factor", type=float, default=0.995, help="Discount factor")
-    parser.add_argument("--learning_rate", type=float, default=0.0001, help="Learning rate")
+    parser.add_argument("--learning_rate", type=float, default=0.0005, help="Learning rate")
     parser.add_argument("--value_loss_weight", type=float, default=1, help="Value loss weight")
     parser.add_argument("--policy_loss_weight", type=float, default=100, help="Policy loss weight")
     parser.add_argument("--reg_loss_weight", type=float, default=0.0, help="Regularization loss weight")
@@ -342,6 +343,7 @@ if __name__ == "__main__":
         "episodes_per_iteration": args.episodes_per_iteration,
         "max_episode_length": args.max_episode_length,
         "offline": args.offline,
+        "norm_layer": args.norm_layer,
     }
 
     run_config = {**base_parameters, **challenge, **config_modifications}
