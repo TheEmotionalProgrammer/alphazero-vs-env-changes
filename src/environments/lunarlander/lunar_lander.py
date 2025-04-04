@@ -64,36 +64,24 @@ class ContactDetector(contactListener):
             self.env.lander == contact.fixtureA.body
             or self.env.lander == contact.fixtureB.body
         ):
-            
-            # Penalize collision if the flag is enabled
-            if self.env.penalize_obstacle_collisions:
-                for obstacle in self.env.floating_terrain:
-                    if (
-                        obstacle == contact.fixtureA.body
-                        or obstacle == contact.fixtureB.body
-                    ):
-                        self.env.prev_reward = -100  # Apply a penalty reward
-
-            # Check if the collision is with an obstacle and ignore it if the flag is enabled
-            if self.env.ignore_obstacle_collisions:
-                for obstacle in self.env.floating_terrain:
-                    if (
-                        obstacle == contact.fixtureA.body
-                        or obstacle == contact.fixtureB.body
-                    ):
-                        return  # Ignore the collision
-
             self.env.game_over = True
 
         for i in range(2):
             if self.env.legs[i] in [contact.fixtureA.body, contact.fixtureB.body]:
+                # Check if the contact is with the ground and not an asteroid
+                if any(
+                    obstacle == contact.fixtureA.body or obstacle == contact.fixtureB.body
+                    for obstacle in self.env.floating_terrain
+                ):  
+                    #print("Contact is with an asteroid, do not mark ground contact")
+                    # Contact is with an asteroid, do not mark ground contact
+                    continue
                 self.env.legs[i].ground_contact = True
 
     def EndContact(self, contact):
         for i in range(2):
             if self.env.legs[i] in [contact.fixtureA.body, contact.fixtureB.body]:
                 self.env.legs[i].ground_contact = False
-
 
 def clone_body(current, other):
     """
@@ -256,6 +244,9 @@ class CustomLunarLander(gym.Env, EzPickle):
         wind_power: float = 15.0,
         turbulence_power: float = 1.5,
         num_asteroids: int = 0,
+        ast_sizes: Optional[list] = None,
+        ast_positions: Optional[list] = None,
+        ast_shapes: Optional[list] = None,
         ignore_obstacle_collisions: bool = False,
         penalize_obstacle_collisions: bool = False,  # New flag
         scale_reward: bool = False,
@@ -279,7 +270,13 @@ class CustomLunarLander(gym.Env, EzPickle):
         self.wind_power = wind_power
         self.turbulence_power = turbulence_power
         self.enable_wind = enable_wind
+
+        # Asteroids
         self.num_asteroids = num_asteroids
+        self.ast_sizes = ast_sizes
+        self.ast_positions = ast_positions
+        self.ast_shapes = ast_shapes
+
         self.ignore_obstacle_collisions = ignore_obstacle_collisions
         self.penalize_obstacle_collisions = penalize_obstacle_collisions
 
@@ -346,7 +343,7 @@ class CustomLunarLander(gym.Env, EzPickle):
 
         self.render_mode = render_mode
 
-        self.state = None
+        self.s = None
         self.scale_reward = scale_reward
 
     def _destroy(self):
@@ -416,32 +413,84 @@ class CustomLunarLander(gym.Env, EzPickle):
         # Create Floating Terrain (Asteroids)
         self.floating_terrain = []
         num_asteroids = self.num_asteroids  # Number of floating terrain pieces
-        min_asteroid_size = 5 / SCALE  # Minimum size of the asteroid
-        max_asteroid_size = 20 / SCALE  # Maximum size of the asteroid
 
-        for _ in range(num_asteroids):
-            asteroid_x = self.np_random.uniform(0.2 * W, 0.8 * W)  # Random x position
-            asteroid_y = self.np_random.uniform(0.5 * H, 0.8 * H)  # Random y position
-            asteroid_size = self.np_random.uniform(min_asteroid_size, max_asteroid_size)  # Random size
 
-            # Decide whether to create a hexagon or an irregular shape
-            if self.np_random.uniform(0, 1) < 1:  # 50% chance for a hexagon
-                # Create a hexagon
+
+        for a_idx in range(num_asteroids):
+
+            if self.ast_sizes is not None:
+                # If fixed size is provided, use it for all asteroids
+                min_asteroid_size = max_asteroid_size = self.ast_sizes[a_idx] / SCALE
+                max_asteroid_size = self.ast_sizes[a_idx] / SCALE
+            else:
+                min_asteroid_size = 5 / SCALE 
+                max_asteroid_size = 20 / SCALE
+
+            if self.ast_positions is not None:
+
+                scaled_positions =  [
+                (x * VIEWPORT_W / SCALE, y * VIEWPORT_H / SCALE) for x, y in self.ast_positions
+                ]
+
+                # If specific positions are provided, use them
+                asteroid_x, asteroid_y = scaled_positions[a_idx]
+            else:
+                asteroid_x = self.np_random.uniform(0.2 * W, 0.8 * W)  # Random x position
+                asteroid_y = self.np_random.uniform(0.5 * H, 0.8 * H)  # Random y position
+
+            if self.ast_sizes is not None:
+                # If specific sizes are provided, use them
+                asteroid_size = self.ast_sizes[a_idx] / SCALE
+            else:
+                asteroid_size = self.np_random.uniform(min_asteroid_size, max_asteroid_size)  # Random size
+
+            if self.ast_shapes is not None:
+                if self.ast_shapes[a_idx] == "hexagon":
+                    # If specific shapes are provided, use them
+                    vertices = [
+                        (
+                            asteroid_size * math.cos(angle),
+                            asteroid_size * math.sin(angle),
+                        )
+                        for angle in np.linspace(0, 2 * math.pi, 7)[:-1]  # 6 vertices
+                    ]
+                elif self.ast_shapes[a_idx] == "triangle":
+                    # If specific shapes are provided, use them
+                    vertices = [
+                        (
+                            asteroid_size * math.cos(angle),
+                            asteroid_size * math.sin(angle),
+                        )
+                        for angle in np.linspace(0, 2 * math.pi, 4)[:-1]  # 3 vertices
+                    ]
+                elif self.ast_shapes[a_idx] == "square":
+                    # If specific shapes are provided, use them
+                    vertices = [
+                        (
+                            asteroid_size * math.cos(angle),
+                            asteroid_size * math.sin(angle),
+                        )
+                        for angle in np.linspace(0, 2 * math.pi, 5)[:-1]  # 4 vertices
+                    ]
+                elif self.ast_shapes[a_idx] == "pentagon":
+                    # If specific shapes are provided, use them
+                    vertices = [
+                        (
+                            asteroid_size * math.cos(angle),
+                            asteroid_size * math.sin(angle),
+                        )
+                        for angle in np.linspace(0, 2 * math.pi, 6)[:-1]  # 5 vertices
+                    ]
+            else: # random 
+                # If no specific shape is provided, use a random polygon
+                num_vertices = self.np_random.integers(3, 8)  # Random number of vertices
                 vertices = [
                     (
                         asteroid_size * math.cos(angle),
                         asteroid_size * math.sin(angle),
                     )
-                    for angle in np.linspace(0, 2 * math.pi, 7)[:-1]  # 6 vertices
+                    for angle in np.linspace(0, 2 * math.pi, num_vertices + 1)[:-1]
                 ]
-            else:
-                # Create an irregular shape
-                num_vertices = self.np_random.integers(3, 8)  # Random number of vertices (3 to 7)
-                vertices = []
-                for _ in range(num_vertices):
-                    angle = self.np_random.uniform(0, 2 * math.pi)  # Random angle
-                    radius = self.np_random.uniform(0.5, 1.0) * asteroid_size  # Random radius
-                    vertices.append((radius * math.cos(angle), radius * math.sin(angle)))
 
             asteroid = self.world.CreateStaticBody(
                 position=(asteroid_x, asteroid_y),
@@ -453,8 +502,8 @@ class CustomLunarLander(gym.Env, EzPickle):
             )
             # Set asteroid colors to white
 
-            asteroid.color1 = (255, 255, 255)
-            asteroid.color2 = (255, 255, 255)
+            asteroid.color1 = (128, 128, 128)  # Medium gray
+            asteroid.color2 = (128, 128, 128)  # Medium gray
             self.floating_terrain.append(asteroid)
 
         # Create Lander body
@@ -739,11 +788,6 @@ class CustomLunarLander(gym.Env, EzPickle):
         )  # less fuel spent is better, about -30 for heuristic landing
         reward -= s_power * 0.03
 
-        # Apply penalty for obstacle collisions
-        if self.penalize_obstacle_collisions and self.prev_reward is not None:
-            reward += self.prev_reward
-            self.prev_reward = None  # Reset the penalty after applying it
-
         terminated = False
         if self.game_over or abs(state[0]) >= 1.0:
             terminated = True
@@ -755,7 +799,7 @@ class CustomLunarLander(gym.Env, EzPickle):
         if self.render_mode == "human":
             self.render()
 
-        self.state = state
+        self.s = state
 
         if self.scale_reward:
             # Scale the reward to be between -1 and 1
@@ -901,6 +945,9 @@ class CustomLunarLander(gym.Env, EzPickle):
             wind_power=self.wind_power,
             turbulence_power=self.turbulence_power,
             num_asteroids=self.num_asteroids,
+            ast_sizes=self.ast_sizes,
+            ast_positions=self.ast_positions,
+            ast_shapes=self.ast_shapes,
             ignore_obstacle_collisions=self.ignore_obstacle_collisions,
             penalize_obstacle_collisions=self.penalize_obstacle_collisions,
             scale_reward=self.scale_reward,
@@ -911,7 +958,7 @@ class CustomLunarLander(gym.Env, EzPickle):
         clone_body(new_env.lander, self.lander)
         clone_body(new_env.legs[0], self.legs[0])
         clone_body(new_env.legs[1], self.legs[1])
-        new_env.state = self.state.copy()
+        new_env.s = self.s.copy()
         
         if self.particles is not None:
             for particle in self.particles:
@@ -1021,12 +1068,35 @@ if __name__ == "__main__":
         reward_threshold=200.0,
     )
 
-    env = gym.make("CustomLunarLander", render_mode="human", num_asteroids=0, scale_reward=False)
-    env.reset()
-    # for _ in range(1000):
-    #     action = env.action_space.sample()  # replace with your agent's action
-    #     observation, reward, terminated, truncated, info = env.step(action)
-    #     if terminated or truncated:
-    #         break
-    demo_heuristic_lander(env, render=True)
+    positions = [ # (x, y)
+        (0.5, 0.8), 
+        (0.5, 0.5),
+    ]
+
+
+    sizes = [15, 15]
+
+    shapes = ["pentagon", "pentagon"]
+
+    env = gym.make(
+        "CustomLunarLander",
+        render_mode="human",
+        num_asteroids=0,
+        ast_sizes=sizes,
+        ast_positions=positions,
+        ast_shapes=shapes,
+        scale_reward=False,
+    )
+    ## For random
+    env.reset(seed=2)
+    for _ in range(1000):
+        action = env.action_space.sample()  # replace with your agent's action
+        observation, reward, terminated, truncated, info = env.step(action)
+        print("reward:", reward)
+        if terminated or truncated:
+            break
+
+    ## For heuristic
+    #demo_heuristic_lander(env, seed=2, render=True)
+    
     env.close()

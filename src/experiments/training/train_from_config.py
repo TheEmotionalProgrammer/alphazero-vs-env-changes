@@ -72,6 +72,12 @@ def train_from_config(
     elif config['ENV'] == "LUNARLANDER":
         run_name = f"{config['name_config']}_budget={config['planning_budget']}_c={config['puct_c']}_df={config['discount_factor']}_lr={config['learning_rate']}_n={config['n_steps_learning']}_vw={config['value_loss_weight']}_pw={config['policy_loss_weight']}_eperit={config['episodes_per_iteration']}_bufmul={config['replay_buffer_multiplier']}_norm={config['norm_layer']}_seed={seed}"
 
+    # Create the folder ./wandb_logs if it does not exist
+    if not os.path.exists("./wandb_logs"):
+        os.makedirs("./wandb_logs")
+    if not os.path.exists(f"./wandb_logs/{run_name}"):
+        os.makedirs(f"./wandb_logs/{run_name}")
+
     # -----------------------------------------------------
     # 2. If offline, do NOT pass `entity=...` and pass `mode="offline"`.
     # -----------------------------------------------------
@@ -85,6 +91,7 @@ def train_from_config(
             config=config,
             tags=tags,
             mode="offline",  # explicitly offline
+            dir=f"./wandb_logs/{run_name}",  # Set the directory for offline runs
         )
     else:
         # Normal (online) initialization
@@ -96,6 +103,7 @@ def train_from_config(
             settings=settings,
             config=config,
             tags=tags,
+            dir=f"./wandb_logs/{run_name}",  # Set the directory for offline runs
         )
 
     assert run is not None
@@ -285,8 +293,9 @@ if __name__ == "__main__":
     parser.add_argument("--policy_loss_weight", type=float, default=100, help="Policy loss weight")
     parser.add_argument("--reg_loss_weight", type=float, default=0.0, help="Regularization loss weight")
     parser.add_argument("--replay_buffer_multiplier", type=int, default=15, help="Replay buffer multiplier")
-    parser.add_argument("--episodes_per_iteration", type=int, default=15, help="Episodes per iteration")
+    parser.add_argument("--episodes_per_iteration", type=int, default=6, help="Episodes per iteration")
     parser.add_argument("--norm_layer", type=str, default="batch_norm", help="Normalization layer")
+    parser.add_argument("--layers", type=int, default=3, help="Number of layers")
     parser.add_argument("--scale_reward", type=bool, default=False, help="Scale reward")
     parser.add_argument("--map_size", type=int, default=8, help="The size of the map.")
     parser.add_argument("--train_env_desc", type=str, default="8x8_MAZE_RL", help="Environment description.")
@@ -344,6 +353,7 @@ if __name__ == "__main__":
         "max_episode_length": args.max_episode_length,
         "offline": args.offline,
         "norm_layer": args.norm_layer,
+        "layers": args.layers,
     }
 
     run_config = {**base_parameters, **challenge, **config_modifications}

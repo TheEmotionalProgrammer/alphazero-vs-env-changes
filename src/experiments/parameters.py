@@ -2,7 +2,7 @@ base_parameters = {
     "model_type": "seperated",
     "observation_embedding": "default",
     "activation_fn": "relu",
-    "norm_layer": "none",
+    "norm_layer": "batch_norm",
     "dir_epsilon": 0.4,
     "dir_alpha": 2.5,
     "selection_policy": "PUCT",
@@ -105,6 +105,29 @@ env_challenges = {
         "worst_value": 0,
         "discount_factor": 0.95,
         "ncols": 8,
+    },
+}
+
+ll_env_descriptions = {
+    "NO_ASTEROIDS": {
+        "num_asteroids": 0,
+        "ast_positions": None,
+        "ast_shapes": None,
+        "ast_sizes": None,
+    },
+
+    "SINGLE_CENTRAL_PENTAGON" : {
+        "num_asteroids": 1,
+        "ast_positions": [(0.5, 0.5)],
+        "ast_shapes": ["pentagon", "pentagon"],
+        "ast_sizes": [15],
+    },
+
+    "TWO_LATERAL_PENTAGONS" : {
+        "num_asteroids": 2,
+        "ast_positions": [(0.4, 0.5), (0.6, 0.5)],
+        "ast_shapes": ["pentagon", "pentagon"],
+        "ast_sizes": [15, 15],
     },
 }
 

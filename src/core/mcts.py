@@ -10,6 +10,7 @@ from policies.policies import Policy
 from environments.lunarlander.lunar_lander import CustomLunarLander
 from pickle import dumps, loads
 import matplotlib.pyplot as plt
+from core.utils import copy_environment
 
 
 class MCTS:
@@ -49,10 +50,7 @@ class MCTS:
         
         assert isinstance(env.action_space, gym.spaces.Discrete) # Assert that the type of the action space is discrete
 
-        if isinstance(env.unwrapped, CustomLunarLander): # Need to use custom copy method due to Box2D objects
-            new_env = env.unwrapped.create_copy() # Create a copy of the environment 
-        else:
-            new_env =  copy.deepcopy(env) # Create a copy of the environment
+        new_env = copy_environment(env) # Copy the environment
 
         root_node = Node(
             env= new_env,
@@ -157,10 +155,8 @@ class MCTS:
 
         # print("Before", node.env.unwrapped.state)
 
-        if not isinstance(node.env.unwrapped, CustomLunarLander):
-            env = copy.deepcopy(node.env) 
-        else:
-            env = node.env.unwrapped.create_copy() # Create a copy of the environment
+        # Copy the environment
+        env = copy_environment(node.env)
 
         # Render the copied environment
         # copied_env_snapshot = None
@@ -255,7 +251,7 @@ class RandomRolloutMCTS(MCTS):
         # if the node is not terminal, simulate the enviroment with random actions and return the accumulated reward until termination
         accumulated_reward = 0.0
         discount = 0.0
-        env = copy.deepcopy(node.env)
+        env = copy_environment(node.env)
         assert env is not None
         for _ in range(self.rollout_budget):
             _, reward, terminated, truncated, _ = env.step(env.action_space.sample())

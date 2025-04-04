@@ -62,7 +62,7 @@ class AlphaZeroController:
         save_plots=True,
         batch_size=32,
         ema_beta=0.3,
-        evaluation_interval=5,
+        evaluation_interval=20,
     ) -> None:
         self.replay_buffer = replay_buffer
         self.training_epochs = training_epochs
@@ -220,7 +220,7 @@ class AlphaZeroController:
 
             if i % self.evaluation_interval == 0 or i == iterations - 1:
                 print("Evaluating...")
-                self.evaluate(i)
+                self.evaluate(i, start_seed=seed)
 
         if self.checkpoint_interval != -1:
             print(f"Saving model at iteration {iterations}")
@@ -228,7 +228,7 @@ class AlphaZeroController:
 
         return {"average_return": total_return / iterations}
 
-    def evaluate(self, step: int):
+    def evaluate(self, step: int, start_seed=None):
         """
         Evaluate the agent's performance by collecting one trajectory with a non-stochastic version of the policy.
 
@@ -245,6 +245,12 @@ class AlphaZeroController:
         # eps, self.agent.dir_epsilon = self.agent.dir_epsilon, 0.0
         alpha, self.agent.dir_alpha = self.agent.dir_alpha, None
 
+        seeds = (
+            [start_seed * self.episodes_per_iteration + i for i in range(self.episodes_per_iteration)]
+            if start_seed is not None
+            else [None] * self.episodes_per_iteration
+        )
+
         results = eval_agent(
             self.agent,
             self.env,
@@ -252,9 +258,10 @@ class AlphaZeroController:
             self.agent.model.observation_embedding,
             self.planning_budget,
             self.max_episode_length,
-            seeds=[0],
+            seeds=seeds,
             temperature=0.0,
         )
+
         episode_returns, discounted_returns, time_steps, entropies = calc_metrics(
             results, self.agent.discount_factor, self.env.action_space.n
         )
@@ -273,20 +280,20 @@ class AlphaZeroController:
             trajectories.append(re)
 
         eval_res = {
-            "Evaluation/Returns": wandb.Histogram(np.array((episode_returns))),
-            "Evaluation/Discounted_Returns": wandb.Histogram(
-                np.array((discounted_returns))
-            ),
-            "Evaluation/Timesteps": wandb.Histogram(np.array((time_steps))),
-            "Evaluation/Entropies": wandb.Histogram(
-                np.array(((th.sum(entropies, dim=-1) / time_steps)))
-            ),
+            # "Evaluation/Returns": wandb.Histogram(np.array((episode_returns))),
+            # "Evaluation/Discounted_Returns": wandb.Histogram(
+            #     np.array((discounted_returns))
+            # ),
+            # "Evaluation/Timesteps": wandb.Histogram(np.array((time_steps))),
+            # "Evaluation/Entropies": wandb.Histogram(
+            #     np.array(((th.sum(entropies, dim=-1) / time_steps)))
+            # ),
             "Evaluation/Mean_Returns": episode_returns.mean().item(),
             "Evaluation/Mean_Discounted_Returns": discounted_returns.mean().item(),
-            "Evaluation/Mean_Entropy": (th.sum(entropies, dim=-1) / time_steps)
-            .mean()
-            .item(),
-            "Evaluation/Trajectories": trajectories,
+            "Evaluation/Mean_Timesteps": time_steps.mean().item(),
+            "Evaluation/Mean_Discounted_Returns": discounted_returns.mean().item(),
+            "Evaluation/Mean_Entropy": (th.sum(entropies, dim=-1) / time_steps).mean().item(),
+            #"Evaluation/Trajectories": trajectories,
         }
         wandb.log(
             eval_res,

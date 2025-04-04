@@ -1,5 +1,6 @@
-
 import multiprocessing
+import os
+import subprocess
 
 from tensordict import TensorDict
 import torch as th
@@ -17,6 +18,7 @@ from policies.utility_functions import policy_value, policy_value_variance
 from environments.frozenlake.frozen_lake import actions_dict
 from environments.lunarlander.lunar_lander import CustomLunarLander
 from core.node import Node
+from core.utils import copy_environment
 import matplotlib.pyplot as plt
 
 
@@ -28,7 +30,9 @@ from policies.utility_functions import get_children_visits
 
 
 def collect_trajectories(tasks, workers=1):
+    subprocess.run(["pwd"])
     if workers > 1:
+        print(os.getcwd())
         with multiprocessing.Pool(workers) as pool:
             # Run the tasks using map
             results = pool.map(run_episode_process, tasks)
@@ -68,24 +72,16 @@ def run_episode_azmcts(
     env: gym.Env,
     tree_evaluation_policy: PolicyDistribution,
     observation_embedding: ObservationEmbedding,
-    planning_budget=1000, # number of simulations to run in the planning tree (at each step)
-    max_steps=1000, # maximum number of steps to take in the (real) environment
+    planning_budget=1000,
+    max_steps=1000,
     seed=None,
     temperature=None,
-    original_env: gym.Env | None = None, # Used to keep track of the original environment state for detection purposes in an ideal context 
+    original_env: gym.Env | None = None,
     unroll_steps=5,
     render=False,
     return_trees=False,
 ):
-
-    """
-    Runs an episode using the given solver and environment.
-    We step into the (real) enviroment for a maximum of max_steps steps, or until the environment terminates.
-    For each timestep, the trajectory contains the observation, the policy distribution, the action taken and the reward received.
-    Outputs the trajectory and optionally the trees that were generated during the episode.
-    """
-
-    assert isinstance(env.action_space, gym.spaces.Discrete) # For now, only supports discrete action spaces
+    assert isinstance(env.action_space, gym.spaces.Discrete)
     n = int(env.action_space.n)
 
     if seed is not None:
@@ -95,10 +91,7 @@ def run_episode_azmcts(
     observation, _ = env.reset(seed=seed)
 
     if render:
-        if isinstance(env.unwrapped, CustomLunarLander):
-            vis_env = env.unwrapped.create_copy()
-        else:
-            vis_env = copy.deepcopy(env) # Used to visualize the environment in the case of the frozenlake
+        vis_env = copy_environment(env)  # Use the utility function
         vis_env.unwrapped.render_mode = "rgb_array"
         frames = [vis_env.render()]
 
@@ -117,54 +110,35 @@ def run_episode_azmcts(
             "mask": th.zeros(max_steps, dtype=th.bool),
             "terminals": th.zeros(max_steps, dtype=th.bool),
             "root_values": th.zeros(max_steps, dtype=th.float32),
-        }, 
+        },
         batch_size=[max_steps],
     )
 
     if return_trees:
         trees = []
-    
-    tree = solver.search(env,planning_budget, observation, 0.0)
+
+    tree = solver.search(env, planning_budget, observation, 0.0)
 
     step = 0
-    
+
     while step < max_steps:
-        
-        root_value = tree.value_evaluation # Contains the value estimate of the root node computed by the planning step
-
-        tree.reset_var_val() # The value and variance (mvc) estimates of the whole subtree are reset.
-
-        policy_dist = tree_evaluation_policy.softmaxed_distribution(tree) # Evaluates the tree using the given evaluation policy (e.g., visitation counts)
+        root_value = tree.value_evaluation
+        tree.reset_var_val()
+        policy_dist = tree_evaluation_policy.softmaxed_distribution(tree)
 
         if return_trees:
-            tree.policy_value = policy_value(tree, tree_evaluation_policy, solver.discount_factor)
-            tree.variance = policy_value_variance(tree, tree_evaluation_policy, solver.discount_factor)
-            tree_copy = copy.deepcopy(tree) 
+            tree_copy = copy.deepcopy(tree)
             trees.append(tree_copy)
 
-        distribution = th.distributions.Categorical(probs=custom_softmax(policy_dist.probs, temperature, None)) # apply extra softmax
-
-        action = distribution.sample().item() # Note that if the temperature of the softmax was zero, this becomes an argmax
+        distribution = th.distributions.Categorical(probs=custom_softmax(policy_dist.probs, temperature, None))
+        action = distribution.sample().item()
 
         new_obs, reward, terminated, truncated, _ = env.step(action)
-
-        # env.unwrapped.render_mode = "rgb_array"
-        # env_snap = env.render()
-        # fig, ax = plt.subplots()
-        # ax.imshow(env_snap)
-        # plt.axis('off')
-        # plt.show()
 
         if render:
             vis_env.step(action)
             frames.append(vis_env.render())
 
-        # Convert the observation to a 2D position, hardcoded size of the grid for now
-        # new_pos_row = new_obs // observation_embedding.ncols
-        # new_pos_col = new_obs % observation_embedding.ncols
-
-        # print(f"Env: obs = ({new_pos_row}, {new_pos_col}), reward = {reward}, terminated = {terminated}, truncated = {truncated}")
-        
         assert not truncated
 
         next_terminal = terminated
@@ -175,19 +149,22 @@ def run_episode_azmcts(
         trajectory["mask"][step] = True
         trajectory["terminals"][step] = next_terminal
         trajectory["root_values"][step] = th.tensor(root_value, dtype=th.float32)
-        
+
         if next_terminal or truncated:
             break
-        
+
         tree = solver.search(env, planning_budget, new_obs, reward)
 
         new_observation_tensor = observation_embedding.obs_to_tensor(new_obs, dtype=th.float32)
         observation_tensor = new_observation_tensor
 
         step += 1
-    
+
     if render:
-        save_gif_imageio(frames, output_path=f"gifs/output.gif", fps=30)
+        fps = 5
+        if isinstance(env.unwrapped, CustomLunarLander):
+            fps = 30
+        save_gif_imageio(frames, output_path=f"gifs/output.gif", fps=fps)
 
     if return_trees:
         return trajectory, trees
@@ -319,7 +296,10 @@ def run_episode_octopus(
         step += 1
     
     if render:
-        save_gif_imageio(frames, output_path=f"gifs/output.gif", fps=5)
+        fps = 5
+        if isinstance(env.unwrapped, CustomLunarLander):
+            fps = 30
+        save_gif_imageio(frames, output_path=f"gifs/output.gif", fps=fps)
 
     if return_trees:
         return trajectory, trees
@@ -359,7 +339,7 @@ def run_episode_minitrees(
     observation, info = env.reset(seed=seed)
 
     if render:
-        vis_env = copy.deepcopy(env) # Used to visualize the environment in the case of the frozenlake
+        vis_env = copy_environment(env)  # Use the utility function
         vis_env.unwrapped.render_mode = "rgb_array"
         frames = [vis_env.render()]
 
@@ -393,7 +373,7 @@ def run_episode_minitrees(
 
     tree, net_planning = solver.search(env,planning_budget, observation, 0.0, original_env = original_env, n=unroll_steps)
 
-    print(f"Net planning step 0: {net_planning}")
+    #print(f"Net planning step 0: {net_planning}")
 
     total_planning += net_planning
 
@@ -415,9 +395,9 @@ def run_episode_minitrees(
                     vis_env.step(action)
                     frames.append(vis_env.render())
 
-                new_pos_row = new_obs // observation_embedding.ncols
-                new_pos_col = new_obs % observation_embedding.ncols
-                print(f"obs = ({new_pos_row}, {new_pos_col}), reward = {reward}, terminated = {terminated}, truncated = {truncated}")
+                # new_pos_row = new_obs // observation_embedding.ncols
+                # new_pos_col = new_obs % observation_embedding.ncols
+                # print(f"obs = ({new_pos_row}, {new_pos_col}), reward = {reward}, terminated = {terminated}, truncated = {truncated}")
 
                 if original_env is not None:
                     if new_obs != old_obs:
@@ -478,12 +458,14 @@ def run_episode_minitrees(
             trees.append(tree_copy)
 
         if solver.problem_idx is None: # If no problem was detected, we act following the prior (quick)
-            print("No problem detected, acting normally.")
+            #print("No problem detected, acting normally.")
             action = th.argmax(tree.prior_policy).item()
 
         else: # If a problem was detected, we act following the policy distribution
+
+            print("Problem detected, acting according to the policy distribution.")
+
             distribution = th.distributions.Categorical(probs=custom_softmax(policy_dist.probs, temperature, None)) # apply extra softmax
-            print(distribution.probs)
 
             # Check if any children has zero visits, or if any logit is equal to another logit (tie)
             if th.any(get_children_visits(tree) == 0) or th.equal(th.max(policy_dist.logits), th.min(policy_dist.logits)):
@@ -493,7 +475,7 @@ def run_episode_minitrees(
             # else:
             action = distribution.sample().item() # Note that if the temperature of the softmax was zero, this becomes an argmax
 
-            print(f"Env: action = {actions_dict[action]}")
+            #print(f"Env: action = {actions_dict[action]}")
 
         new_obs, reward, terminated, truncated, _ = env.step(action)
 
@@ -502,10 +484,10 @@ def run_episode_minitrees(
             frames.append(vis_env.render())
 
         # Convert the observation to a 2D position, hardcoded size of the grid for now
-        new_pos_row = new_obs // observation_embedding.ncols
-        new_pos_col = new_obs % observation_embedding.ncols
+        # new_pos_row = new_obs // observation_embedding.ncols
+        # new_pos_col = new_obs % observation_embedding.ncols
 
-        print(f"Env: obs = ({new_pos_row}, {new_pos_col}), reward = {reward}, terminated = {terminated}, truncated = {truncated}")
+        #print(f"Env: obs = ({new_pos_row}, {new_pos_col}), reward = {reward}, terminated = {terminated}, truncated = {truncated}")
 
         if original_env is not None:
             if new_obs != old_obs:
@@ -530,7 +512,7 @@ def run_episode_minitrees(
 
         tree, net_planning = solver.search(env, planning_budget, new_obs, reward, original_env=original_env, n=unroll_steps) 
 
-        print(f"Net planning step {step+1}: {net_planning}")
+        #print(f"Planning step {step+1}: {net_planning}")
         total_planning += net_planning
 
         new_observation_tensor = observation_embedding.obs_to_tensor(new_obs, dtype=th.float32)
@@ -539,7 +521,10 @@ def run_episode_minitrees(
         step += 1
 
     if render:
-        save_gif_imageio(frames, output_path=f"gifs/output.gif", fps=5)
+        fps = 5
+        if isinstance(env.unwrapped, CustomLunarLander):
+            fps = 30
+        save_gif_imageio(frames, output_path=f"gifs/output.gif", fps=fps)
 
     if return_trees:
         return trajectory, trees
@@ -769,7 +754,10 @@ def run_episode_megatree(
         step += 1
     
     if render:
-        save_gif_imageio(frames, output_path=f"gifs/output.gif", fps=5)
+        fps = 5
+        if isinstance(env.unwrapped, CustomLunarLander):
+            fps = 30
+        save_gif_imageio(frames, output_path=f"gifs/output.gif", fps=fps)
 
     if return_trees:
         return trajectory, trees
