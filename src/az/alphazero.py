@@ -306,7 +306,7 @@ class AlphaZeroController:
         if current_mean_return > self.best_mean_return:
             print(f"New best mean return: {current_mean_return}. Saving model...")
             self.best_mean_return = current_mean_return
-            self.agent.model.save_model(f"{self.run_dir}/best_model.pth")
+            self.agent.model.save_model(f"{self.run_dir}/checkpoint.pth")
 
         # self.agent.dir_epsilon = eps
         self.agent.dir_alpha = alpha
