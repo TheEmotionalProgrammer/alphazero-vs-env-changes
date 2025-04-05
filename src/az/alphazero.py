@@ -62,7 +62,7 @@ class AlphaZeroController:
         save_plots=True,
         batch_size=32,
         ema_beta=0.3,
-        evaluation_interval=20,
+        evaluation_interval=10,
     ) -> None:
         self.replay_buffer = replay_buffer
         self.training_epochs = training_epochs
@@ -96,6 +96,7 @@ class AlphaZeroController:
         self.batch_size = batch_size
         self.ema_beta = ema_beta
         self.evaluation_interval = evaluation_interval
+        self.best_mean_discounted_return = float('-inf')  # Initialize to negative infinity
 
     def iterate(self, temp_schedule: List[float], seed=None):
         """
@@ -156,9 +157,9 @@ class AlphaZeroController:
                 i,
             )
 
-            if self.checkpoint_interval != -1 and i % self.checkpoint_interval == 0:
-                print(f"Saving model at iteration {i}")
-                self.agent.model.save_model(f"{self.run_dir}/checkpoint.pth")
+            # if self.checkpoint_interval != -1 and i % self.checkpoint_interval == 0:
+            #     print(f"Saving model at iteration {i}")
+            #     self.agent.model.save_model(f"{self.run_dir}/checkpoint.pth")
 
             if self.scheduler is not None:
                 self.scheduler.step()
@@ -222,9 +223,9 @@ class AlphaZeroController:
                 print("Evaluating...")
                 self.evaluate(i, start_seed=seed)
 
-        if self.checkpoint_interval != -1:
-            print(f"Saving model at iteration {iterations}")
-            self.agent.model.save_model(f"{self.run_dir}/checkpoint.pth")
+        # if self.checkpoint_interval != -1:
+        #     print(f"Saving model at iteration {iterations}")
+        #     self.agent.model.save_model(f"{self.run_dir}/checkpoint.pth")
 
         return {"average_return": total_return / iterations}
 
@@ -299,6 +300,14 @@ class AlphaZeroController:
             eval_res,
             step=step,
         )
+
+        # Save the model if the current mean discounted return is better than the best so far
+        current_mean_discounted_return = eval_res["Evaluation/Mean_Discounted_Returns"]
+        if current_mean_discounted_return > self.best_mean_discounted_return:
+            print(f"New best mean discounted return: {current_mean_discounted_return}. Saving model...")
+            self.best_mean_discounted_return = current_mean_discounted_return
+            self.agent.model.save_model(f"{self.run_dir}/best_model.pth")
+
         # self.agent.dir_epsilon = eps
         self.agent.dir_alpha = alpha
         return eval_res
