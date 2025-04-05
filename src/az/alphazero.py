@@ -96,7 +96,7 @@ class AlphaZeroController:
         self.batch_size = batch_size
         self.ema_beta = ema_beta
         self.evaluation_interval = evaluation_interval
-        self.best_mean_discounted_return = float('-inf')  # Initialize to negative infinity
+        self.best_mean_return = float('-inf')  # Initialize to negative infinity
 
     def iterate(self, temp_schedule: List[float], seed=None):
         """
@@ -302,10 +302,10 @@ class AlphaZeroController:
         )
 
         # Save the model if the current mean discounted return is better than the best so far
-        current_mean_discounted_return = eval_res["Evaluation/Mean_Discounted_Returns"]
-        if current_mean_discounted_return > self.best_mean_discounted_return:
-            print(f"New best mean discounted return: {current_mean_discounted_return}. Saving model...")
-            self.best_mean_discounted_return = current_mean_discounted_return
+        current_mean_return = eval_res["Evaluation/Mean_Returns"]
+        if current_mean_return > self.best_mean_return:
+            print(f"New best mean return: {current_mean_return}. Saving model...")
+            self.best_mean_return = current_mean_return
             self.agent.model.save_model(f"{self.run_dir}/best_model.pth")
 
         # self.agent.dir_epsilon = eps
