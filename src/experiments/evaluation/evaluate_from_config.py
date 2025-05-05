@@ -648,7 +648,7 @@ if __name__ == "__main__":
     parser.add_argument("--model_file", type=str, default= "", help="Model file")
 
     parser.add_argument( "--train_seeds", type=int, default=10, help="The number of random seeds to use for training.")
-    parser.add_argument("--eval_seeds", type=int, default=1, help="The number of random seeds to use for evaluation.")
+    parser.add_argument("--eval_seeds", type=int, default=10, help="The number of random seeds to use for evaluation.")
 
     # Rendering
     parser.add_argument("--render", type=bool, default=False, help="Render the environment")
