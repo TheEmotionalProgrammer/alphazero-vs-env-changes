@@ -365,10 +365,11 @@ class NoLoopsMCTS(MCTS):
                 eval_node.value_evaluation = value # Set the value of the node
 
                 if eval_node.observation in visited:
-                    #print("Loop")
                     eval_node.parent.mask[selected_action] = 0
-    
-                self.backup(eval_node, value) # If the parent has been masked, this will only update the visits
+                    eval_node.value_evaluation = 0.0
+                    self.backup(eval_node, 0)
+                else:
+                    self.backup(eval_node, value) # If the parent has been masked, this will only update the visits
 
         return root_node # Return the root node,
     

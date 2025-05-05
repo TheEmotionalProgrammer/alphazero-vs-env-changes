@@ -24,16 +24,16 @@ def custom_softmax(
     """
 
     if action_mask is not None:
-        raw_probs = probs.clone()
+        #raw_probs = probs.clone()
         probs = probs * action_mask
-        if probs.sum() == 0.0:
-            # Set a uniform for all the ones in the action mask
-            if action_mask.sum() > 0:
-                probs = th.ones_like(probs) * action_mask
-            else:
-                print("Warning: No valid actions available")
-                # Ignore the mask
-                probs = raw_probs
+        # if probs.sum() == 0.0:
+        #     # Set a uniform for all the ones in the action mask
+        #     if action_mask.sum() > 0:
+        #         probs = th.ones_like(probs) * action_mask
+        #     else:
+        #         print("Warning: No valid actions available")
+        #         # Ignore the mask
+        #         probs = raw_probs
 
     if temperature is None: # No softmax is applied, returns the full distribution.
         p = probs
@@ -83,6 +83,7 @@ class PolicyDistribution(Policy):
         """
         Returns an action from the distribution
         """
+
         return int(self.softmaxed_distribution(node, action_mask=mask).sample().item())
 
     @abstractmethod
@@ -130,7 +131,7 @@ class PolicyDistribution(Policy):
 
         # Get the "raw" probability logits
         probs = self._probs(node) 
-
+        
         # Softmax the logits. This applies the temperature parameter.
         # Note that this is not applied to the probability of a_v.
 

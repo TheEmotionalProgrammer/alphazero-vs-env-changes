@@ -418,10 +418,12 @@ def eval_budget_sweep(
     """
     if config["agent_type"] == "mini-trees" or config["agent_type"] == "mega-tree":
         run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_c_({config['puct_c']})_Predictor_({config['predictor']})_n_({config['unroll_budget']})_eps_({config['threshold']})_ValueSearch_({config['value_search']})_ValueEst_({config['value_estimate']})_UpdateEst_({config['update_estimator']})_{config['map_size']}x{config['map_size']}_{config['train_config']}_{config['test_config']}"
-    elif config["agent_type"] == "azmcts" or config["agent_type"] == "azmcts_no_loops":
+    elif config["agent_type"] == "azmcts":
         run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_c_({config['puct_c']})_ValueEst_({config['value_estimate']})_{config['map_size']}x{config['map_size']}_{config['train_config']}_{config['test_config']}"
     elif config["agent_type"] == "pddp":
         run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_c_({config['puct_c']})_Beta_({config['eval_param']})_Predictor_({config['predictor']})_eps_({config['threshold']})_subthresh_({config['subopt_threshold']})_ValueEst_({config['value_estimate']})_ttemp_({config['tree_temperature']})_Value_Penalty_{config['value_penalty']}_{config['map_size']}x{config['map_size']}_{config['train_config']}_{config['test_config']}"
+    elif config["agent_type"] == "azmcts_no_loops":
+        run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_c_({config['puct_c']})_Beta_({config['eval_param']})_ttemp_({config['tree_temperature']})_ValueEst_({config['value_estimate']})_{config['map_size']}x{config['map_size']}_{config['train_config']}_{config['test_config']}"
     else:
         run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_c_({config['puct_c']})_Predictor_({config['predictor']})_eps_({config['threshold']})_ValueEst_({config['value_estimate']})_{config['map_size']}x{config['map_size']}_{config['train_config']}_{config['test_config']}"
 
