@@ -1,11 +1,9 @@
 import torch as th
 
-from core.mcts import MCTS
+from core.mcts import MCTS, NoLoopsMCTS
 from az.model import AlphaZeroModel
 from core.node import Node
-from policies.policies import Policy
 from environments.frozenlake.heuristic_value import fz_compute_distances, fz_perfect_value
-
 
 class AlphaZeroMCTS(MCTS):
 
@@ -37,8 +35,7 @@ class AlphaZeroMCTS(MCTS):
         self.dir_epsilon = dir_epsilon
         self.dir_alpha = dir_alpha
         self.value_estimate = value_estimate
-        self.ncols = self.model.observation_embedding.ncols
-
+    
         if self.value_estimate == "perfect":
             desc = self.model.env.unwrapped.desc.tolist() # Get the original desc of the training env
             self.distances = fz_compute_distances(desc) # Compute the distances from each cell to the goal cell
@@ -64,6 +61,7 @@ class AlphaZeroMCTS(MCTS):
         assert node.env is not None
 
         value, policy = self.model.single_observation_forward(observation)
+
         # if root and dir_epsilon > 0.0, add dirichlet noise to the prior policy
         if node.parent is None and self.dir_epsilon > 0.0:
             if self.dir_alpha is not None:
@@ -79,4 +77,18 @@ class AlphaZeroMCTS(MCTS):
         else:
             node.prior_policy = policy
 
-        return value if self.value_estimate == "nn" else fz_perfect_value(self.distances, node.observation, self.ncols, self.discount_factor)
+        return value if self.value_estimate == "nn" else fz_perfect_value(self.distances, node.observation, node.env.unwrapped.ncol, self.discount_factor)
+
+class AlphaZeroNoLoops(NoLoopsMCTS, AlphaZeroMCTS):
+    """
+    Implementation of the AlphaZero Monte Carlo Tree Search (AZMCTS) algorithm with no loops.
+
+    Args:
+        model (AlphaZeroModel): The AlphaZero model used for value and policy prediction.
+        *args: Variable length argument list.
+        dir_epsilon (float, optional): The epsilon value for adding Dirichlet noise to the prior policy. Defaults to 0.0.
+        dir_alpha (float, optional): The alpha value for the Dirichlet distribution. Defaults to 0.3.
+        **kwargs: Arbitrary keyword arguments.
+    """
+    pass
+

@@ -8,7 +8,7 @@ import sys
 sys.path.append("src/")
 from log_code.gen_renderings import save_gif_imageio
 
-actions_dict = {
+fz_actions_dict = {
     0: "Left",
     1: "Down",
     2: "Right",
@@ -21,9 +21,10 @@ class CustomFrozenLakeEnv(FrozenLakeEnv):
     def __init__(
         self, desc=None, map_name="4x4", is_slippery=False,  hole_reward=0, terminate_on_hole=False, render_mode=None, deviation_type = "bump"
     ):
-        super().__init__(desc=desc, map_name=map_name, hole_reward=hole_reward, is_slippery=is_slippery, render_mode=render_mode)
+        super().__init__(desc=desc, map_name=map_name, is_slippery=is_slippery, render_mode=render_mode)
         self.terminate_on_hole = terminate_on_hole  # Decide if falling into a hole ends the episode
         self.deviation_type = deviation_type
+        self.hole_reward = hole_reward  # Custom penalty for falling into a hole
 
     def step(self, action):
         # Take the standard step in the environment

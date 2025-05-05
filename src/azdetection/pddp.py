@@ -9,11 +9,10 @@ from az.azmcts import AlphaZeroMCTS
 from core.node import Node
 from policies.policies import Policy
 import numpy as np
-from environments.frozenlake.frozen_lake import actions_dict
 
-from policies.utility_functions import policy_value
-
-class Octopus(AlphaZeroMCTS):
+from core.utils import print_obs, copy_environment
+   
+class PDDP(AlphaZeroMCTS):
 
     def __init__(
             self,
@@ -26,11 +25,10 @@ class Octopus(AlphaZeroMCTS):
             root_selection_policy: Policy | None = None,
             predictor: str = "current_value",
             value_estimate: str = "nn",
-            var_penalty: float = 1.0,
             value_penalty: float = 0.0,
             update_estimator: bool = False,
-            policy_det_rule: bool = False,
-            reuse_tree: bool = True
+            reuse_tree: bool = True,
+            subopt_threshold: float = 0.1,
     ):
         super().__init__(
             model = model,
@@ -43,25 +41,14 @@ class Octopus(AlphaZeroMCTS):
         )
 
         self.threshold = 0 if predictor == "original_env" else threshold # If we use the original env predictor, we can set the threshold arbitrarily low
-        self.problem_idx = None # Index of the problematic node in the trajectory, i.e. first node whose value estimate is disregarded
-        self.last_value_estimate = None 
         self.predictor = predictor # The predictor to use for the n-step prediction
 
         self.previous_root = None
         self.update_estimator = update_estimator
-        self.var_penalty = var_penalty
         self.value_penalty = value_penalty
-
-        self.policy_det_rule = policy_det_rule
-        self.check_policy = copy.deepcopy(selection_policy)
-        self.check_policy.c = 0.0
-
+  
         self.reuse_tree = reuse_tree
-
-        self.trees_dict = {}
-
-    def coords(self, observ):
-        return (observ // self.ncols, observ % self.ncols) if observ is not None else None
+        self.subopt_threshold = subopt_threshold
 
     def n_step_prediction(self, node: Node | None, n: int, original_node: None | Node) -> float:
 
@@ -70,12 +57,12 @@ class Octopus(AlphaZeroMCTS):
         """
 
         if self.predictor == "current_value":
-             
-             """
-             We just use the nn value at the current step as the n-step prediction.
-             """
+                
+                """
+                We just use the nn value at the current step as the n-step prediction.
+                """
 
-             return node.value_evaluation
+                return node.value_evaluation
 
         elif self.predictor == "original_env":
 
@@ -122,7 +109,7 @@ class Octopus(AlphaZeroMCTS):
         """
 
         nodes = []
-        prior_ok = True
+        actions = []
 
         i = 0
         node = from_node
@@ -130,22 +117,18 @@ class Octopus(AlphaZeroMCTS):
         nodes.append(node)
         
         action = self.root_selection_policy.sample(node) # Select which node to step into
+        actions.append(action)
 
         cumulated_reward = node.reward
 
         i_pred = node.value_evaluation
-        
+
         if action not in node.children: # If the selection policy returns None, this indicates that the current node should be expanded
-            return node, action, cumulated_reward, i, i_pred, nodes, prior_ok
+            return node, action, cumulated_reward, i, i_pred, nodes, actions
         
-        #if self.policy_det_rule and th.argmax(node.prior_policy).item() != action and self.check_policy.sample(node) != action:
-        #print("Prior policy:", node.prior_policy)
-       
-        if self.policy_det_rule and (action == 0):
-            #print("Stopped criterion")
-            prior_ok = False
- 
-        
+        prev_prior = node.prior_policy
+        problem = node.problematic
+
         node = node.step(action)  # Step into the chosen node
 
         while not node.is_terminal():
@@ -154,44 +137,46 @@ class Octopus(AlphaZeroMCTS):
 
             i+=1
 
-            if self.discount_factor**i * node.value_evaluation > i_pred:
-                i_pred = self.discount_factor**i * node.value_evaluation
-
-            cumulated_reward += (self.discount_factor**i) * node.reward
+            if self.issuboptimal(prev_prior, action, self.subopt_threshold):
+                i=0
+                nodes = [node]
+                cumulated_reward = node.reward
+                i_pred = node.value_evaluation
+            elif problem:
+                i=-1
+                nodes = []
+                cumulated_reward = 0
+                i_pred = 0
+            else:
+                if cumulated_reward + self.discount_factor**i * node.value_evaluation > i_pred:
+                    i_pred = cumulated_reward + self.discount_factor**i * node.value_evaluation
+                cumulated_reward += (self.discount_factor**i) * node.reward
             
             action = self.selection_policy.sample(node) # Select which node to step into
+            prev_prior = node.prior_policy
+            problem = node.problematic
 
-            if self.policy_det_rule and (action == 0): #and th.argmax(node.prior_policy).item() != action and self.check_policy.sample(node) != action:
-                prior_ok = False
+            actions.append(action)
 
             if action not in node.children: # This means the node is not expanded, so we stop traversing the tree
+                prev_prior = node.prior_policy
+                if self.issuboptimal(prev_prior, action, self.subopt_threshold):
+                    i=0
+                    nodes = [node]
+                    cumulated_reward = node.reward
+                    i_pred = node.value_evaluation
+                elif problem:
+                    i=-1
+                    nodes = []
+                    cumulated_reward = 0
+                    i_pred = 0
                 break
 
             node = node.step(action) # Step into the chosen node
 
-        return node, action, cumulated_reward, i, i_pred, nodes, prior_ok
-    
+        return node, action, cumulated_reward, i, i_pred, nodes, actions
+
     def search(self, env: Env, iterations: int, obs, reward: float, lastaction: int = None) -> Node:
-
-        # if obs not in self.trees_dict:
-        #     self.trees_dict[obs] =  Node(
-        #         env = env,
-        #         parent = None,
-        #         reward = reward,
-        #         action_space = env.action_space,
-        #         observation = obs,
-        #         terminal = False,
-        #         ncols=self.ncols
-        #     )
-            
-        #     root_node = self.trees_dict[obs]
-        #     root_node.value_evaluation = self.value_function(root_node)
-        #     self.backup(root_node, root_node.value_evaluation)
-
-        # else:
-
-        #     root_node = self.trees_dict[obs]
-
 
         if self.previous_root is None or not self.reuse_tree:
             
@@ -202,7 +187,6 @@ class Octopus(AlphaZeroMCTS):
                 action_space = env.action_space,
                 observation = obs,
                 terminal = False,
-                ncols=self.ncols
             )
 
             self.previous_root = root_node
@@ -218,21 +202,15 @@ class Octopus(AlphaZeroMCTS):
             root_node = self.previous_root
             
             found = False
-
-            # for action in root_node.children:
-                
-            #     if root_node.children[action].observation == obs:
-            #         root_node = root_node.children[action]
-            #         self.previous_root = root_node
-            #         root_node.parent = None
-            #         found = True
-            #         break
+            max_depth = 0
+            for _, child in root_node.children.items():
+                if child.observation == obs and child.height > max_depth:
+                    found = True
+                    max_depth = child.height
+                    root_node = child
+                    self.previous_root = root_node
             
-            if lastaction in root_node.children:
-                root_node = root_node.children[lastaction]
-                self.previous_root = root_node
-                root_node.parent = None
-                found = True
+            root_node.parent = None
 
             if not found:
                 root_node = Node(
@@ -242,56 +220,42 @@ class Octopus(AlphaZeroMCTS):
                     action_space = env.action_space,
                     observation = obs,
                     terminal = False,
-                    ncols=self.ncols
+
                 )
 
                 self.previous_root = root_node
 
                 root_node.value_evaluation = self.value_function(root_node)
                 self.backup(root_node, root_node.value_evaluation)
-        
-        # if root_node.value_evaluation == 0.0:
-        #     root_node.value_evaluation = self.value_function(root_node)
-        #     #self.backup(root_node, root_node.value_evaluation)
-                
+                        
         counter = root_node.visits 
         
         while root_node.visits - counter < iterations:
             
-            selected_node_for_expansion, selected_action, cumulated_reward, i, i_pred, nodes, prior_ok = self.traverse(root_node) # Traverse the existing tree until a leaf node is reached
+            selected_node_for_expansion, selected_action, cumulated_reward, i, i_pred, nodes, _ = self.traverse(root_node) # Traverse the existing tree until a leaf node is reached
 
             predictor_rootval = i_pred + 1e-9
 
             if selected_node_for_expansion.is_terminal(): 
-                i_root = cumulated_reward + self.discount_factor**(i) * selected_node_for_expansion.reward
+                # Note: the value function gives zero by default for terminal nodes, so we need to explicitly call the nn
+                i_root = cumulated_reward + self.discount_factor**(i) * self.model.single_observation_forward(selected_node_for_expansion.observation)[0]
             else:
                 i_root  = cumulated_reward + (self.discount_factor**(i)) * selected_node_for_expansion.value_evaluation
 
-            criterion = (i_root/predictor_rootval < 1 - self.threshold)
+            criterion = (i_root/predictor_rootval < 1 - self.threshold) if i >=0 else False
 
-            safe_index = floor(i - (np.log(1 - self.threshold) / np.log(self.discount_factor)))
+            if criterion:
+                #print("index", i, "cumulated reward", cumulated_reward, "predictor root value", predictor_rootval, "root value", i_root)
+                safe_index = floor(i - (np.log(1 - self.threshold) / np.log(self.discount_factor)))
+                safe_index = max(0, safe_index)
 
-            safe_index = max(0, safe_index)
-
-            prob_index = min(safe_index+1, len(nodes)-1)
-
-            if prior_ok and criterion:
-                
+                prob_index = min(safe_index+1, len(nodes)-1)
                 prob_node = nodes[prob_index]
                 prob_node.problematic = True
-                prob_node.var_penalty = self.var_penalty
-                #prob_node.value_penalty = self.value_penalty   
-                prob_node.value_evaluation = max(0, prob_node.value_evaluation - self.value_penalty)
-                #prob_node.value_evaluation = prob_node.value_evaluation - self.value_penalty
-                # observations = [self.coords(node.observation) for node in nodes]
-                # print("Problem detected on trajectory:", observations, "i_root:", i_root, "i_pred:", predictor_rootval)
-                # print("Problematic node:", self.coords(prob_node.observation), "idx:", prob_index)
 
-                #print("Problem detected at node", self.coords(selected_node_for_expansion.observation), "i_root:", i_root, "i_pred:", predictor_rootval)
-                # selected_node_for_expansion.problematic = True
-                # selected_node_for_expansion.var_penalty = self.var_penalty
-                # selected_node_for_expansion.value_evaluation  = max(0, selected_node_for_expansion.value_evaluation - self.value_penalty)                
-                #print("Problem detected on trajectory:", obss, "i_root:", i_root, "i_pred:", predictor_rootval)
+                #print("Trajectory", [print_obs(n.env, n.observation) for n in nodes], "Action", selected_action, "Reward", cumulated_reward, "Predictor root value", predictor_rootval, "Root value", i_root, "Safe index", safe_index, "Prob index", prob_index)
+
+                prob_node.value_evaluation = prob_node.value_evaluation - self.value_penalty # Set the value of the node to 0
 
             # Predict the value of the node n steps into the future
 
@@ -305,25 +269,61 @@ class Octopus(AlphaZeroMCTS):
                 eval_node = self.expand(selected_node_for_expansion, selected_action) # Expand the node
 
                 value = self.value_function(eval_node) # Estimate the value of the node
-    
+
                 eval_node.value_evaluation = value # Set the value of the node
 
                 self.backup(eval_node, value) # Backup the value of the node
 
-                # second_node, second_action = self.traverse(eval_node)[0:2] # Traverse the tree again to get the second node
-
-                # if second_node.is_terminal(): # If the second node is terminal, set its value to 0 and backup
-                    
-                #     second_node.value_evaluation = 0.0
-                #     self.backup(second_node, 0)
-
-                # else:
-                    
-                #     second_eval_node = self.expand(second_node, second_action)
-                #     second_value = self.value_function(second_eval_node)
-                #     second_eval_node.value_evaluation = second_value
-                #     self.backup(second_eval_node, second_value)
-
         return root_node # Return the root node, which will now have updated statistics after the tree has been built
 
-   
+    def issuboptimal(self, prior_policy, action, threshold = 0.1) -> bool:
+
+        """
+        Check if the action is suboptimal according to the prior policy.
+        """
+
+        if prior_policy is None:
+            return False
+        
+        return (prior_policy[action] < threshold)
+
+        # return th.argmax(prior_policy).item() != action
+
+    def expand(
+        self, node: Node, action: int
+    ) -> Node:
+        
+        """
+        Expands the node and returns the expanded node.
+        """
+
+        # Copy the environment
+        env = copy_environment(node.env)
+
+        assert env is not None
+
+        # Step into the environment
+
+        observation, reward, terminated, truncated, _ = env.step(action)
+        terminal = terminated
+
+        # assert not truncated
+        # if terminated:
+        #     observation = None
+
+        node_class = type(node)
+
+        # Create the node for the new state
+        new_child = node_class(
+            env=env,
+            parent=node,
+            reward=reward,
+            action_space=node.action_space,
+            terminal=terminal,
+            observation=observation,
+            action=action,
+        )
+
+        node.children[action] = new_child # Add the new node to the children of the parent node
+
+        return new_child

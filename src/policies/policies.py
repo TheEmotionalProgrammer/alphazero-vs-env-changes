@@ -23,6 +23,18 @@ def custom_softmax(
         th.Tensor: Probs after applying softmax.
     """
 
+    if action_mask is not None:
+        raw_probs = probs.clone()
+        probs = probs * action_mask
+        if probs.sum() == 0.0:
+            # Set a uniform for all the ones in the action mask
+            if action_mask.sum() > 0:
+                probs = th.ones_like(probs) * action_mask
+            else:
+                print("Warning: No valid actions available")
+                # Ignore the mask
+                probs = raw_probs
+
     if temperature is None: # No softmax is applied, returns the full distribution.
         p = probs
 
@@ -32,10 +44,7 @@ def custom_softmax(
 
     else: # Softmax with temperature
         p = th.nn.functional.softmax(probs / temperature, dim=-1)
-
-    if action_mask is not None:
-        p[~action_mask] = 0.0
-
+    
     return p
 
 
@@ -70,11 +79,11 @@ class PolicyDistribution(Policy):
         self.temperature = temperature
         self.value_transform = value_transform
 
-    def sample(self, node: Node) -> int:
+    def sample(self, node: Node, mask=None) -> int:
         """
-        Returns a random action from the distribution
+        Returns an action from the distribution
         """
-        return int(self.softmaxed_distribution(node).sample().item())
+        return int(self.softmaxed_distribution(node, action_mask=mask).sample().item())
 
     @abstractmethod
     def _probs(self, node: Node) -> th.Tensor:
@@ -104,7 +113,7 @@ class PolicyDistribution(Policy):
         return th.cat([probs, th.tensor([self_prob])])
 
     def softmaxed_distribution(
-        self, node: Node, include_self=False
+        self, node: Node, include_self=False, action_mask = None
     ) -> th.distributions.Categorical:
         
         """
@@ -124,7 +133,8 @@ class PolicyDistribution(Policy):
 
         # Softmax the logits. This applies the temperature parameter.
         # Note that this is not applied to the probability of a_v.
-        softmaxed_probs = custom_softmax(probs, self.temperature, None)
+
+        softmaxed_probs = custom_softmax(probs, self.temperature, action_mask=action_mask)
 
         # Add the self probability. 
         if include_self:

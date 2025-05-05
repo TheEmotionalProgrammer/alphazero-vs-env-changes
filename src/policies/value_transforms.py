@@ -56,8 +56,6 @@ class SoftMaxValueTransform(ValueTransform):
     def normalize(values: th.Tensor) -> th.Tensor:
         return th.nn.functional.softmax(values, dim=-1)
 
-
-
 value_transform_dict = {
     "identity": IdentityValueTransform,
     "zero_one": ZeroOneValueTransform,

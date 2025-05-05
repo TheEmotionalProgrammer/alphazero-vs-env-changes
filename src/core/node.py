@@ -4,7 +4,8 @@ import gymnasium as gym
 import numpy as np
 import torch as th
 import graphviz
-from environments.frozenlake.frozen_lake import actions_dict
+from core.utils import actions_dict, print_obs
+from environments.frozenlake.frozen_lake import CustomFrozenLakeEnv
 
 ObservationType = TypeVar("ObservationType")
 
@@ -34,28 +35,39 @@ class Node(Generic[ObservationType]):
         action_space: gym.spaces.Discrete,
         observation: Optional[ObservationType],
         terminal: bool = False,
+        action: Optional[int] = None,
         ncols: int = 8,
     
     ):
         
         self.children = {} # dictionary of children where key is action, value is the child node
         self.action_space = action_space
+        self.mask = np.ones(self.action_space.n, dtype=np.int8)
         self.reward = reward
         self.parent = parent
+        self.parent_action = action
         self.terminal = terminal
         self.observation = observation
         self.env = env
         self.problematic = False
         self.value_penalty = 0.0
+        self.tracked = False
+        self.height = 0
 
-        self.ncols = ncols
+        self.ncols = None if not isinstance(env, CustomFrozenLakeEnv) else env.unwrapped.ncol
 
     def coords(self, observ):
         return (observ // self.ncols, observ % self.ncols) if observ is not None else None
 
     def is_terminal(self) -> bool:
         return self.terminal
-
+    
+    # Define equality and hash methods for Node
+    # def __eq__(self, other: "Node[ObservationType]") -> bool:
+    #     if not isinstance(other, Node):
+    #         return False
+    #     return self.observation == other.observation
+            
     def step(self, action: int) -> "Node[ObservationType]":
 
         """
@@ -127,7 +139,7 @@ class Node(Generic[ObservationType]):
     ) -> None:
         if max_depth is not None and max_depth == 0:
             return
-        label = f"O: {self.coords(self.observation)}, V: {self.value_evaluation: .2f}\nVisit: {self.visits}"
+        label = f"O: {print_obs(self.env, self.observation)}, V: {self.value_evaluation: .2f}, Visit: {self.visits}, \nT: {int(self.terminal)}, R: {self.reward}, P: {self.problematic}"
         if var_fn is not None:
             label += f", VarFn: {var_fn(self)}"
 
@@ -141,7 +153,7 @@ class Node(Generic[ObservationType]):
                 dot, var_fn, max_depth=max_depth - 1 if max_depth is not None else None
             )
 
-            dot.edge(str(id(self)), str(id(child)), label=f"Action: {actions_dict[action]}")
+            dot.edge(str(id(self)), str(id(child)), label=f"Action: {actions_dict(self.env)[action]}")
 
 
     def state_visitation_counts(self) -> Counter:
@@ -207,7 +219,7 @@ class Node(Generic[ObservationType]):
         # Recursively process children
         for child in self.children.values():
             if child.observation is not None:
-                # Get the child's mean_policy_values_dict recursively
+                # Get the child's mean_s_dict recursively
                 child_values = child.mean_policy_values_dict()
                 for obs, value in child_values.items():
                     if obs not in values:

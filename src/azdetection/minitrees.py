@@ -9,17 +9,9 @@ from az.azmcts import AlphaZeroMCTS
 from core.node import Node
 from policies.policies import Policy
 import numpy as np
-from environments.frozenlake.frozen_lake import actions_dict
-from core.utils import copy_environment, observations_equal
+from core.utils import copy_environment, observations_equal, actions_dict, print_obs
 
 class MiniTrees(AlphaZeroMCTS):
-
-    """
-    The algorithm alternates these steps after each step in the real environment:
-    1. Unroll the prior AZ policy for n steps.
-    2. Detect if the value function has changed, suggesting environment changes.
-    3. Grow the unrolled trajectory into a planning tree to overcome the changes, following a specified algorithm.
-    """
 
     def __init__(
             self,
@@ -53,10 +45,12 @@ class MiniTrees(AlphaZeroMCTS):
         self.update_estimator = update_estimator # If True, the agent will update the value estimator when a better estimate is found
 
         self.checked_obs = [] # List of observations that have been checked for detached unroll
+        self.last_action = None # Last action taken in the environment
         
     def unroll(
             self,
-            env: gym.Env, 
+            env: gym.Env,
+            last_action: int | None, 
             n: int,
             obs,
             reward: float,
@@ -69,22 +63,18 @@ class MiniTrees(AlphaZeroMCTS):
         The policy is always unrolled from the current root node.
         """
 
-        #create coordinate lambda function that maps the observation to a 2D position
-        coords = lambda observ: (observ // self.ncols, observ % self.ncols)
-
         len_traj = len(self.trajectory)
 
         if len_traj >= 1 and self.problem_idx is not None:
             if observations_equal(obs, self.trajectory[0][0].observation):
                 print("Reusing Trajectory: ")
-                #print([(self.trajectory[i][0].observation // self.ncols, self.trajectory[i][0].observation % self.ncols) for i in range(len(self.trajectory))])
                 return 0
             elif len_traj > 1 and observations_equal(obs, self.trajectory[1][0].observation):
                 print("Reusing Trajectory: ")
                 start_idx = 1
                 self.trajectory = self.trajectory[start_idx:] 
+                self.trajectory[0][0].parent = None # Set the parent of the root node to None
                 self.problem_idx -= start_idx
-                #print([(self.trajectory[i][0].observation // self.ncols, self.trajectory[i][0].observation % self.ncols) for i in range(len(self.trajectory))])
                 return 0
         
         self.trajectory = []
@@ -96,7 +86,6 @@ class MiniTrees(AlphaZeroMCTS):
             reward=reward,
             action_space=env.action_space,
             observation=obs,
-            ncols=self.ncols
         )
         
         original_root_node = (
@@ -107,7 +96,6 @@ class MiniTrees(AlphaZeroMCTS):
                 reward=0,
                 action_space=original_env.action_space,
                 observation=obs,
-                ncols=self.ncols
             )
         )
 
@@ -115,7 +103,7 @@ class MiniTrees(AlphaZeroMCTS):
 
         value_estimate = 0.0
 
-        val = self.value_function(node)
+        val = self.value_function(node) 
         policy = node.prior_policy
 
         node.value_evaluation = val
@@ -125,7 +113,7 @@ class MiniTrees(AlphaZeroMCTS):
 
         num_calls = 0
 
-        #print(f"Value estimate: {val}, Prediction: {val}", "obs", f"({coords(node.observation)[0]}, {coords(node.observation)[1]})")
+        print(f"Value estimate: {val}, Prediction: {i_pred}", "obs", f"({print_obs(env, node.observation)[0]}, {print_obs(env, node.observation)[1]})")
 
         for i in range(n):
 
@@ -137,7 +125,7 @@ class MiniTrees(AlphaZeroMCTS):
 
             child_env = copy_environment(node.env) # Use the utility function to copy the environment
 
-            observation, reward, terminated, truncated, _ = child_env.step(action)
+            observation, reward, terminated, _, _ = child_env.step(action)
 
             child_node = Node(
                 env=child_env,
@@ -146,18 +134,14 @@ class MiniTrees(AlphaZeroMCTS):
                 action_space=child_env.action_space,
                 observation=observation,
                 terminal=terminated,
-                ncols=self.ncols
-
             )
 
             node = child_node
 
-            if node.is_terminal():
-                break
+            val = node.reward if node.is_terminal() else self.value_function(node)
+            node.value_evaluation = 0 if node.is_terminal() else val
 
-            val = self.value_function(node)
-            node.value_evaluation = val
-            policy = node.prior_policy
+            policy = None if node.is_terminal() else node.prior_policy
 
             num_calls += 1
 
@@ -171,7 +155,7 @@ class MiniTrees(AlphaZeroMCTS):
             if self.predictor == "current_value" and self.update_estimator and i_est > i_pred:
                 i_pred = i_est # We found a better estimate for the value of the node, assuming we are following the optimal policy
 
-            #print(f"Value estimate: {i_est}, Prediction: {i_pred}", "obs", f"({coords(node.observation)[0]}, {coords(node.observation)[1]})")
+            print(f"Value estimate: {i_est}, Prediction: {i_pred}", "obs", f"({print_obs(env, node.observation)[0]}, {print_obs(env, node.observation)[1]})")
 
             # Add a very small delta to avoid division by zero
             i_pred = i_pred + 1e-9
@@ -179,14 +163,13 @@ class MiniTrees(AlphaZeroMCTS):
 
             if i_est/i_pred < 1 - self.threshold:
 
+                print("Problem!")
+
                 # We compute the safe number of steps estimation with this formula:
                 # t = taken_steps - log(1-threshold)/log(discount_factor)
                 # NOTE: at i in the for loop, we have taken i+1 steps
                 
                 safe_index = i+1 - (np.log(1-self.threshold)/np.log(self.discount_factor))
-
-                # if self.predictor == "current_value": # Log Error correction 
-                #     safe_index -= np.log(i+1)
 
                 safe_index = floor(safe_index)
 
@@ -200,21 +183,21 @@ class MiniTrees(AlphaZeroMCTS):
                 if problem_index == len(self.trajectory):
                     self.trajectory.append((node, None))
 
-                problem_obs = self.trajectory[problem_index][0].observation # Observation of the first node whose value estimate is disregarded
-                #print(f"Problem detected at state ({coords(problem_obs)[0]}, {coords(problem_obs)[1]}), after {problem_index} steps ")
-
                 self.problem_idx = problem_index
                 self.trajectory = self.trajectory[:problem_index+1] # +1 to include the problematic node
 
-                #self.trajectory[problem_index][0].reward = -1 # Set the reward of the problematic node to 0
-
-                #print("Trajectory:", [(coords(node.observation)[0], coords(node.observation)[1], None if action is None else actions_dict[action]) for node, action in self.trajectory])
-
                 return num_calls
+            
+            if node.is_terminal():
+                print("Terminal node reached")
+                break
+
+        print("No problem")
+
         return num_calls
              
         
-    def detached_unroll(self, env: gym.Env, n: int, obs, reward: float, init_val: float , init_pol: float , original_env: None | gym.Env) -> bool:
+    def detached_unroll(self, env: gym.Env, n: int, obs, reward: float, init_val: float , init_pol: float , original_env: None | gym.Env):
 
         """
         Unroll the prior from an arbitrary node (not necessarily the root). 
@@ -231,7 +214,6 @@ class MiniTrees(AlphaZeroMCTS):
             reward=reward,
             action_space=env.action_space,
             observation=obs,
-            ncols=self.ncols
         )
 
         original_root_node = (
@@ -242,7 +224,6 @@ class MiniTrees(AlphaZeroMCTS):
                 reward=0,
                 action_space=original_env.action_space,
                 observation=obs,
-                ncols=self.ncols
             )
         )
 
@@ -279,18 +260,12 @@ class MiniTrees(AlphaZeroMCTS):
                     action_space=child_env.action_space,
                     observation=observation,
                     terminal=terminated,
-                    ncols=self.ncols
                 )
     
                 node = child_node
-    
-                if node.is_terminal():
-                    break
 
-                #coords = lambda observ: (observ // self.ncols, observ % self.ncols)
-
-                val = self.value_function(node)
-                policy = node.prior_policy
+                val = self.value_function(node) if not node.is_terminal() else node.reward
+                policy = node.prior_policy if not node.is_terminal() else None
 
                 num_calls += 1
 
@@ -311,8 +286,9 @@ class MiniTrees(AlphaZeroMCTS):
     
                 if i_est/i_pred < 1 - self.threshold:
                     return True, num_calls # If a problem is detected, return True
-
-        #print("Clear detached unroll")
+                
+                if node.is_terminal():
+                    break
 
         return False, num_calls # No problem detected in the unroll
 
@@ -366,13 +342,11 @@ class MiniTrees(AlphaZeroMCTS):
 
             return value_estimate
         
-    def search(self, env: Env, iterations: int, obs, reward: float, original_env: Env | None, n: float = 5) -> Node:
-        #create coordinate lambda function that maps the observation to a 2D position
-        coords = lambda observ: (observ // self.ncols, observ % self.ncols)
+    def search(self, env: Env, iterations: int, obs, reward: float, original_env: Env | None, n: float = 5, last_action = None) -> Node:
 
         net_planning = 0 # To keep track of how many nn calls are made during planning
 
-        num_calls = self.unroll(env, n, obs, reward, original_env) # We always unroll the prior before planning in azdetection
+        num_calls = self.unroll(env, last_action , n, obs, reward, original_env) # We always unroll the prior before planning in azdetection
 
         net_planning += num_calls
 
@@ -416,14 +390,18 @@ class MiniTrees(AlphaZeroMCTS):
                     eval_node.value_evaluation = self.value_function(eval_node)
                     net_planning += 1
 
+                    check_val = eval_node.reward if eval_node.is_terminal() else eval_node.value_evaluation
+
                     if (
                         self.value_search 
                         and net_planning <= iterations - n
-                        and not observations_equal(eval_node.observation, self.trajectory[self.problem_idx][0].observation)
-                        and eval_node.value_evaluation >= self.trajectory[self.problem_idx][0].value_evaluation
-                        and all(not observations_equal(eval_node.observation, checked_obs) for checked_obs in self.checked_obs)
+                        and not observations_equal(eval_node.observation, self.trajectory[self.problem_idx-1][0].observation)
+                        and check_val >= self.trajectory[self.problem_idx-1][0].value_evaluation
+                        and all(not observations_equal(eval_node.observation, obs) for obs in self.checked_obs)
                     ):
-                        #print("Candidate obs:", coords(eval_node.observation))
+
+                        if eval_node.is_terminal():
+                            return candidate_actions, net_planning
                         
                         # We create copies of the envs to avoid any interference with the standard ongoing planning
                         eval_node_env = copy_environment(eval_node.env)
@@ -437,7 +415,6 @@ class MiniTrees(AlphaZeroMCTS):
 
                         if not problem:
                             self.problem_idx = None # The problem has been solved
-                            #self.checked_obs = [] # Reset the checked observations
                             return candidate_actions, net_planning
                         else:
                             self.checked_obs.append(eval_node.observation)

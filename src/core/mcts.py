@@ -2,15 +2,15 @@ from collections import deque
 import copy
 from typing import Dict, List, Tuple
 import gymnasium as gym
+from gymnasium import Env
 import numpy as np
 from core.node import Node
 import torch as th
 from environments.observation_embeddings import CoordinateEmbedding, ObservationEmbedding
 from policies.policies import Policy
 from environments.lunarlander.lunar_lander import CustomLunarLander
-from pickle import dumps, loads
 import matplotlib.pyplot as plt
-from core.utils import copy_environment
+from core.utils import copy_environment, print_obs
 
 
 class MCTS:
@@ -51,14 +51,14 @@ class MCTS:
         assert isinstance(env.action_space, gym.spaces.Discrete) # Assert that the type of the action space is discrete
 
         new_env = copy_environment(env) # Copy the environment
-
+        
         root_node = Node(
             env= new_env,
             parent=None,
             reward=reward,
             action_space=env.action_space,
             observation=obs,
-            ncols=self.ncols
+            #ncols=self.ncols
         )
 
         root_node.value_evaluation = self.value_function(root_node) # Estimate the value of the root node
@@ -145,37 +145,8 @@ class MCTS:
         Expands the node and returns the expanded node.
         """
 
-        # If the class is not CustomLunarLander, we need to copy the environment
-
-        # Render the original environment
-        # original_env_snapshot = None
-        # node.env.render_mode = "rgb_array"
-        # if node.env.render_mode == "rgb_array":
-        #     original_env_snapshot = node.env.render()
-
-        # print("Before", node.env.unwrapped.state)
-
         # Copy the environment
         env = copy_environment(node.env)
-
-        # Render the copied environment
-        # copied_env_snapshot = None
-        # if node.env.render_mode == "rgb_array":
-        #     copied_env_snapshot = env.render()
-
-        # # Visual comparison
-        # if original_env_snapshot is not None and copied_env_snapshot is not None:
-        #     fig, axes = plt.subplots(1, 2, figsize=(12, 6))
-        #     axes[0].imshow(original_env_snapshot)
-        #     axes[0].set_title("Original Environment")
-        #     axes[0].axis("off")
-
-        #     axes[1].imshow(copied_env_snapshot)
-        #     axes[1].set_title("Copied Environment")
-        #     axes[1].axis("off")
-        #     plt.show()
-
-        # print("After", env.unwrapped.state)
 
         assert env is not None
 
@@ -183,6 +154,7 @@ class MCTS:
 
         observation, reward, terminated, truncated, _ = env.step(action)
         terminal = terminated
+
         assert not truncated
         if terminated:
             observation = None
@@ -197,7 +169,8 @@ class MCTS:
             action_space=node.action_space,
             terminal=terminal,
             observation=observation,
-            ncols=self.ncols
+            action=action,
+            #ncols=self.ncols
         )
 
         node.children[action] = new_child # Add the new node to the children of the parent node
@@ -207,28 +180,230 @@ class MCTS:
     def backup(self, start_node: Node, value: float, new_visits: int = 1) -> None:
         
         """
-        Backups the value of the start node to its parent, grandparent, etc.,  all the way to the root node.
+        Backups the value of the start node to its parent, grandparent, etc., all the way to the root node.
         Updates the statistic of the nodes in the path:
-            - subtree_sum: the sum of the value of the node and its children
-            - visits: the number of times the node has been visited
+        - subtree_sum: the sum of the value of the node and its children
+        - visits: the number of times the node has been visited
+        - height: the maximum number of steps from the node to a leaf
         """
 
         node = start_node
         cumulative_reward = value
 
-        #problem_vicinity = 1.0
         while node is not None: # The parent is None if node is the root
+            
             cumulative_reward *= self.discount_factor
             cumulative_reward += node.reward
             node.subtree_sum += cumulative_reward
             node.visits += new_visits
+
+            # Update the height of the node
+            if node.children:
+                node.height = max(child.height for child in node.children.values()) + 1
+            else:
+                node.height = 0  # Leaf nodes have a height of 0
+
+            # Reset the prior policy and value evaluation (mark as needing update)
+
+            node.policy_value = None
+            node.variance = None
+
+            node = node.parent
+    
+class NoLoopsMCTS(MCTS):
+
+    def __init__(self, reuse_tree, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.previous_root = None
+        self.reuse_tree = reuse_tree
+
+    def traverse(
+        self, from_node: Node
+    ) -> Tuple[Node, int]:
+        
+        """
+        Traverses the tree starting from the input node until a leaf node is reached.
+        Returns the node and action to be expanded next.
+        Returns None if the node is terminal.
+        Note: The selection policy returns None if the input node should be expanded.
+        """
+
+        visited = set()
+
+        node = from_node
+
+        visited.add(node.observation)
+
+        action = self.root_selection_policy.sample(node, mask=node.mask) # Select which node to step into
+
+        if action not in node.children: # If the selection policy returns None, this indicates that the current node should be expanded
+            return node, action, visited
+                        
+        node = node.step(action)  # Step into the chosen node
+
+        visited.add(node.observation)
+
+        while not node.is_terminal():   
+
+            action = self.selection_policy.sample(node, mask=node.mask)
+
+            if action not in node.children: # This means the node is not expanded, so we stop traversing the tree
+                break
+
+            node = node.step(action) # Step into the chosen node
+
+            visited.add(node.observation)
+
+        return node, action, visited
+    
+    def expand(
+        self, node: Node, action: int
+    ) -> Node:
+        
+        """
+        Expands the node and returns the expanded node.
+        """
+
+        # Copy the environment
+        env = copy_environment(node.env)
+
+        assert env is not None
+
+        # Step into the environment
+
+        observation, reward, terminated, truncated, _ = env.step(action)
+        terminal = terminated
+
+        assert not truncated
+        if terminated:
+            observation = None
+
+        node_class = type(node)
+
+        # Create the node for the new state
+        new_child = node_class(
+            env=env,
+            parent=node,
+            reward=reward,
+            action_space=node.action_space,
+            terminal=terminal,
+            observation=observation,
+            action=action,
+        )
+
+        node.children[action] = new_child # Add the new node to the children of the parent node
+
+        return new_child
+    
+    def search(self, env: Env, iterations: int, obs, reward: float, lastaction: int = None) -> Node:
+
+        if self.previous_root is None or not self.reuse_tree:
+            
+            root_node = Node(
+                env = env,
+                parent = None,
+                reward = reward,
+                action_space = env.action_space,
+                observation = obs,
+                terminal = False,
+            )
+
+            self.previous_root = root_node
+
+            root_node.value_evaluation = self.value_function(root_node)
+            self.backup(root_node, root_node.value_evaluation)
+
+        else:
+
+            root_node = self.previous_root
+            
+            found = False
+            max_depth = 0
+            for _, child in root_node.children.items():
+                if child.observation == obs and child.height > max_depth:
+                    found = True
+                    max_depth = child.height
+                    root_node = child
+                    self.previous_root = root_node
+            
+            root_node.parent = None
+
+            if not found:
+                root_node = Node(
+                    env = env,
+                    parent = None,
+                    reward = reward,
+                    action_space = env.action_space,
+                    observation = obs,
+                    terminal = False,
+
+                )
+
+                self.previous_root = root_node
+
+                root_node.value_evaluation = self.value_function(root_node)
+                self.backup(root_node, root_node.value_evaluation)
+                        
+        counter = root_node.visits 
+        
+        while root_node.visits - counter < iterations:
+            
+            selected_node_for_expansion, selected_action, visited = self.traverse(root_node) # Traverse the existing tree until a leaf node is reached
+
+            if selected_node_for_expansion.is_terminal(): # If the node is terminal, set its value to 0 and backup
+                
+                selected_node_for_expansion.value_evaluation = 0.0
+                self.backup(selected_node_for_expansion, 0)
+
+            else:
+                
+                eval_node = self.expand(selected_node_for_expansion, selected_action) # Expand the node
+                
+                value = self.value_function(eval_node) # Estimate the value of the node
+                        
+                eval_node.value_evaluation = value # Set the value of the node
+
+                if eval_node.observation in visited:
+                    #print("Loop")
+                    eval_node.parent.mask[selected_action] = 0
+    
+                self.backup(eval_node, value) # If the parent has been masked, this will only update the visits
+
+        return root_node # Return the root node,
+    
+    def backup(self, start_node: Node, value: float, new_visits: int = 1) -> None:
+        
+        """
+        Backups the value of the start node to its parent, grandparent, etc., all the way to the root node.
+        Updates the statistic of the nodes in the path:
+        - subtree_sum: the sum of the value of the node and its children
+        - visits: the number of times the node has been visited
+        - height: the maximum number of steps from the node to a leaf
+        """
+
+        node = start_node
+        cumulative_reward = value
+
+        while node is not None: # The parent is None if node is the root
+            
+            cumulative_reward *= self.discount_factor
+            cumulative_reward += node.reward
+            node.subtree_sum += cumulative_reward
+            node.visits += new_visits
+
+            # Update the height of the node
+            if node.children:
+                node.height = max(child.height for child in node.children.values()) + 1
+            else:
+                node.height = 0  # Leaf nodes have a height of 0
 
             # Reset the prior policy and value evaluation (mark as needing update)
             node.policy_value = None
             node.variance = None
 
             node = node.parent
-
+                
 class RandomRolloutMCTS(MCTS):
     def __init__(self, rollout_budget=40, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -250,16 +425,16 @@ class RandomRolloutMCTS(MCTS):
 
         # if the node is not terminal, simulate the enviroment with random actions and return the accumulated reward until termination
         accumulated_reward = 0.0
-        discount = 0.0
+        discount = self.discount_factor
         env = copy_environment(node.env)
         assert env is not None
-        for _ in range(self.rollout_budget):
-            _, reward, terminated, truncated, _ = env.step(env.action_space.sample())
-            accumulated_reward += reward * discount
+        for i in range(self.rollout_budget):
+            obs, reward, terminated, truncated, _ = env.step(env.action_space.sample())
+            #print(print_obs(env, obs))
+            accumulated_reward += reward * (discount** (i+1))
             assert not truncated
-            if terminated:
+            if terminated or truncated:
                 break
-            discount *= self.discount_factor
 
         return accumulated_reward
 
@@ -361,3 +536,5 @@ class LakeDistanceMCTS(MCTS):
         observation = node.observation
         assert observation is not None
         return self.get_value(observation)
+
+

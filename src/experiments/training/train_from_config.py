@@ -33,7 +33,7 @@ from environments.minigrid.mini_grid import ObstaclesGridEnv
 from environments.minigrid.utilities.wrappers import SparseActionsWrapper, gym_wrapper
 from az.alphazero import AlphaZeroController
 from az.azmcts import AlphaZeroMCTS
-from azdetection.octopus import Octopus
+from azdetection.pddp import PDDP
 from az.model import (
     AlphaZeroModel,
     activation_function_dict,
@@ -71,6 +71,8 @@ def train_from_config(
         run_name = f"AZTrain_env={config['name_config']}_evalpol={config['tree_evaluation_policy']}_iterations={config['iterations']}_budget={config['planning_budget']}_df={config['discount_factor']}_lr={config['learning_rate']}_nstepslr={config['n_steps_learning']}_c={config['puct_c']}_seed={seed}"
     elif config['ENV'] == "LUNARLANDER":
         run_name = f"{config['name_config']}_budget={config['planning_budget']}_c={config['puct_c']}_df={config['discount_factor']}_lr={config['learning_rate']}_n={config['n_steps_learning']}_vw={config['value_loss_weight']}_pw={config['policy_loss_weight']}_eperit={config['episodes_per_iteration']}_bufmul={config['replay_buffer_multiplier']}_norm={config['norm_layer']}_seed={seed}"
+    elif config['ENV'] == "PARKING":
+        run_name = f"{config['name_config']}_evalpol={config['tree_evaluation_policy']}_iterations={config['iterations']}_budget={config['planning_budget']}_df={config['discount_factor']}_lr={config['learning_rate']}_nstepslr={config['n_steps_learning']}_c={config['puct_c']}_seed={seed}"
 
     # Create the folder ./wandb_logs if it does not exist
     if not os.path.exists("./wandb_logs"):
@@ -188,8 +190,8 @@ def train_from_config(
             dir_alpha=dir_alpha,
             discount_factor=discount_factor,
         )
-    elif hparams["agent_type"] == "octopus":
-        agent = Octopus(
+    elif hparams["agent_type"] == "pddp":
+        agent = PDDP(
             model=model,
             selection_policy=selection_policy,
             threshold=0.05,
@@ -202,7 +204,6 @@ def train_from_config(
             var_penalty=1.0,
             value_penalty=1.0,
             update_estimator=True,
-            policy_det_rule=False,
         )
 
     optimizer = th.optim.Adam(
@@ -277,23 +278,23 @@ def run_single(seed=None):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="AlphaZero Training with a specific seed.")
-    parser.add_argument("--ENV", type=str, default="LUNARLANDER", help="The environment to train on.")
+    parser.add_argument("--ENV", type=str, default="PARKING", help="The environment to train on.")
     parser.add_argument("--agent_type", type=str, default="azmcts", help="The type of agent to train.")
     parser.add_argument("--workers", type=int, default=6, help="Number of workers")
     parser.add_argument("--iterations", type=int, default=1000, help="Number of iterations")
-    parser.add_argument("--max_episode_length", type=int, default=1000, help="Max episode length")
+    parser.add_argument("--max_episode_length", type=int, default=150, help="Max episode length")
     parser.add_argument("--tree_evaluation_policy", type=str, default="visit", help="Tree evaluation policy")
     parser.add_argument("--selection_policy", type=str, default="PUCT", help="Selection policy")
     parser.add_argument("--planning_budget", type=int, default=64, help="Planning budget")
     parser.add_argument("--puct_c", type=float, default=1, help="PUCT constant")
     parser.add_argument("--n_steps_learning", type=int, default=1, help="Number of steps for learning")
     parser.add_argument("--discount_factor", type=float, default=0.995, help="Discount factor")
-    parser.add_argument("--learning_rate", type=float, default=0.0005, help="Learning rate")
+    parser.add_argument("--learning_rate", type=float, default=0.0001, help="Learning rate")
     parser.add_argument("--value_loss_weight", type=float, default=1, help="Value loss weight")
-    parser.add_argument("--policy_loss_weight", type=float, default=100, help="Policy loss weight")
+    parser.add_argument("--policy_loss_weight", type=float, default=0.1, help="Policy loss weight")
     parser.add_argument("--reg_loss_weight", type=float, default=0.0, help="Regularization loss weight")
     parser.add_argument("--replay_buffer_multiplier", type=int, default=15, help="Replay buffer multiplier")
-    parser.add_argument("--episodes_per_iteration", type=int, default=6, help="Episodes per iteration")
+    parser.add_argument("--episodes_per_iteration", type=int, default=5, help="Episodes per iteration")
     parser.add_argument("--norm_layer", type=str, default="batch_norm", help="Normalization layer")
     parser.add_argument("--layers", type=int, default=3, help="Number of layers")
     parser.add_argument("--scale_reward", type=bool, default=False, help="Scale reward")
@@ -330,6 +331,11 @@ if __name__ == "__main__":
         challenge["env_params"]["scale_reward"] = args.scale_reward
         name_config = f"LunarLander_ast={args.num_asteroids}"
         observation_embedding = "lunarlander"
+
+    elif ENV == "PARKING":
+        challenge = env_challenges["ParkingEnv"]
+        name_config = f"ParkingEnv"
+        observation_embedding = "parking"
 
     config_modifications = {
         "ENV": ENV,

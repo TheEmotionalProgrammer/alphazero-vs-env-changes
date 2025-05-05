@@ -31,7 +31,7 @@ def policy_value(
     if isinstance(policy, th.distributions.Categorical): # No need to softmax again
         pi = policy
     else:
-        pi = policy.softmaxed_distribution(node, include_self=True)
+        pi = policy.softmaxed_distribution(node, include_self=True, action_mask=node.mask)
 
     probabilities: th.Tensor = pi.probs
 
@@ -51,7 +51,7 @@ def policy_value(
         own_propability * node.value_evaluation
         + (child_propabilities * child_values).sum()
     )
-   
+
     node.policy_value = val
 
     return val
@@ -77,7 +77,7 @@ def policy_value_variance(
     if isinstance(policy, th.distributions.Categorical):
         pi = policy
     else:
-        pi = policy.softmaxed_distribution(node, include_self=True)
+        pi = policy.softmaxed_distribution(node, include_self=True, action_mask=node.mask)
 
     probabilities_squared = pi.probs**2  
     own_propability_squared = probabilities_squared[-1]
@@ -119,10 +119,6 @@ def value_evaluation_variance(node: Node):
 
     if node.terminal:
         return var / float(node.visits)
-
-    if node.problematic:
-
-        return node.var_penalty
 
     return var
     
@@ -188,11 +184,9 @@ def get_children_policy_values_and_inverse_variance(
 
     for action, child in parent.children.items():
 
-        pi = policy#.softmaxed_distribution(child, include_self=True)
-
-        vals[action] = policy_value(child, pi, discount_factor)
+        vals[action] = policy_value(child, policy, discount_factor)
         inv_vars[action] = 1 / policy_value_variance(
-            child, pi, discount_factor
+            child, policy, discount_factor
         )
 
     # Add value and variance of the special action a_v
@@ -230,39 +224,5 @@ def get_transformed_default_values(node: Node, transform: ValueTransform = Ident
 
     return transform.normalize(vals)
 
-
-# UNUSED
-
-def get_children_q_max_values(
-    parent: Node,
-    discount_factor: float,
-    transform: ValueTransform = IdentityValueTransform,   
-):
-    vals = th.ones(int(parent.action_space.n), dtype=th.float32) * -th.inf
-    for action, child in parent.children.items():
-        vals[action] = child.reward + discount_factor * q_max_value(child, discount_factor)
-    vals = transform.normalize(vals)
-
-    return vals
-
-def q_max_value(node: Node, discount_factor: float):
-
-    if node.terminal:
-        return node.reward
-    
-    if node.children == {}:
-        return node.value_evaluation
-    
-    children_values = [q_max_value(child, discount_factor) for child in node.children.values()]
-
-    values = children_values + [node.value_evaluation]
-
-    return node.reward + discount_factor * max(values)
-
-
-def expanded_mask(node: Node) -> th.Tensor:
-    mask = th.zeros(int(node.action_space.n), dtype=th.float32)
-    mask[node.children] = 1.0
-    return mask
 
 

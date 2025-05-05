@@ -13,13 +13,15 @@ import matplotlib.pyplot as plt
 
 from log_code.metrics import calc_metrics
 from experiments.evaluation.eval_agent import eval_agent
-from core.mcts import DistanceMCTS, LakeDistanceMCTS, RandomRolloutMCTS
+from core.mcts import RandomRolloutMCTS
 from environments.observation_embeddings import ObservationEmbedding, embedding_dict
-from az.azmcts import AlphaZeroMCTS
+from az.azmcts import AlphaZeroMCTS, AlphaZeroNoLoops
 
 from azdetection.minitrees import MiniTrees
 from azdetection.megatree import MegaTree
-from azdetection.octopus import Octopus
+from azdetection.pddp import PDDP
+
+from experiments.extra.create_gif import create_gif
 
 from az.model import (
     AlphaZeroModel,
@@ -34,7 +36,7 @@ from policies.value_transforms import value_transform_dict
 from environments.register import register_all
 
 import argparse
-from experiments.parameters import base_parameters, env_challenges, fz_env_descriptions
+from experiments.parameters import base_parameters, env_challenges, fz_env_descriptions, ll_env_descriptions
 
 from log_code.tree_visualizer import visualize_trees
 from log_code.plot_state_densities import plot_density, calculate_density, calculate_nn_value_means, calculate_policy_value_means, calculate_variance_means
@@ -82,7 +84,7 @@ def agent_from_config(hparams: dict):
         hparams["observation_embedding"]
     ](env.observation_space, hparams["ncols"] if "ncols" in hparams else None)
 
-    if hparams["agent_type"] == "random_rollout":
+    if hparams["agent_type"] == "rollout":
         if "rollout_budget" not in hparams:
             hparams["rollout_budget"] = 40
         agent = RandomRolloutMCTS(
@@ -92,25 +94,7 @@ def agent_from_config(hparams: dict):
             discount_factor=discount_factor,
         )
 
-    elif hparams["agent_type"] == "distance":
-        if "desc" in hparams["env_params"] and hparams["env_params"]["desc"] is not None:
-            lake_map = hparams["env_params"]["desc"]
-            agent = LakeDistanceMCTS(
-                lake_map=lake_map,
-                root_selection_policy=root_selection_policy,
-                selection_policy=selection_policy,
-                discount_factor=discount_factor,
-            )
-        else:
-
-            agent = DistanceMCTS(
-                embedding=observation_embedding,
-                root_selection_policy=root_selection_policy,
-                selection_policy=selection_policy,
-                discount_factor=discount_factor,
-            )
-
-    elif hparams["agent_type"] == "azmcts":
+    elif hparams["agent_type"] == "azmcts" or hparams["agent_type"] == "azmcts_no_loops":
 
         filename = hparams["model_file"]
 
@@ -131,18 +115,29 @@ def agent_from_config(hparams: dict):
         dir_epsilon = hparams["dir_epsilon"]
         dir_alpha = hparams["dir_alpha"]
 
+        if hparams["agent_type"] == "azmcts_no_loops":
+            agent = AlphaZeroNoLoops(
+                root_selection_policy=root_selection_policy,
+                selection_policy=selection_policy,
+                model=model,
+                dir_epsilon=dir_epsilon,
+                dir_alpha=dir_alpha,
+                discount_factor=discount_factor,
+                value_estimate=hparams["value_estimate"],
+                reuse_tree=hparams["reuse_tree"],
+            )
+        elif hparams["agent_type"] == "azmcts":
+            agent = AlphaZeroMCTS(
+                root_selection_policy=root_selection_policy,
+                selection_policy=selection_policy,
+                model=model,
+                dir_epsilon=dir_epsilon,
+                dir_alpha=dir_alpha,
+                discount_factor=discount_factor,
+                value_estimate=hparams["value_estimate"],
+            )
 
-        agent = AlphaZeroMCTS(
-            root_selection_policy=root_selection_policy,
-            selection_policy=selection_policy,
-            model=model,
-            dir_epsilon=dir_epsilon,
-            dir_alpha=dir_alpha,
-            discount_factor=discount_factor,
-            value_estimate=hparams["value_estimate"],
-        )
-
-    elif hparams["agent_type"] == "mini-trees" or hparams["agent_type"] == "mega-tree" or hparams["agent_type"] == "octopus":
+    elif hparams["agent_type"] == "mini-trees" or hparams["agent_type"] == "mega-tree" or hparams["agent_type"] == "pddp":
 
         filename = hparams["model_file"]
 
@@ -197,9 +192,9 @@ def agent_from_config(hparams: dict):
                 value_estimate=hparams["value_estimate"],
                 update_estimator=hparams["update_estimator"],
             )
-
-        elif hparams["agent_type"] == "octopus":
-            agent = Octopus(
+       
+        elif hparams["agent_type"] == "pddp":
+            agent = PDDP(
                 predictor=predictor,
                 root_selection_policy=root_selection_policy,
                 selection_policy=selection_policy,
@@ -210,10 +205,9 @@ def agent_from_config(hparams: dict):
                 threshold=threshold,
                 value_estimate=hparams["value_estimate"],
                 update_estimator=hparams["update_estimator"],
-                var_penalty=hparams["var_penalty"],
                 value_penalty=hparams["value_penalty"],
-                policy_det_rule=hparams["policy_det_rule"],
                 reuse_tree=hparams["reuse_tree"],
+                subopt_threshold=hparams["subopt_threshold"],
             )
 
     else:
@@ -231,7 +225,7 @@ def agent_from_config(hparams: dict):
 
 
 def eval_from_config(
-    project_name="AlphaZero", entity=None, job_name=None, config=None, tags=None
+    project_name="AlphaZero", entity=None, job_name=None, config=None, tags=None, eval_seed=None
 ):
     if tags is None:
         tags = []
@@ -254,12 +248,15 @@ def eval_from_config(
         agent_from_config(hparams)
     )
 
+    if hparams["predictor"] == "current_value":
+        train_env = None
+
     if "workers" not in hparams or hparams["workers"] is None:
         hparams["workers"] = multiprocessing.cpu_count()
     else:
         workers = hparams["workers"]
 
-    seeds = [3] * hparams["runs"]
+    seeds = [eval_seed] * hparams["runs"]
 
     test_env = gym.make(**hparams["test_env"])
 
@@ -301,14 +298,14 @@ def eval_from_config(
         for i, tree in enumerate(trees):
 
             states_density = calculate_density(tree, len(test_desc[0]), len(test_desc))
-            policy_values = calculate_policy_value_means(tree, len(test_desc[0]), len(test_desc))
-            nn_values = calculate_nn_value_means(tree, len(test_desc[0]), len(test_desc))
-            variances = calculate_variance_means(tree, len(test_desc[0]), len(test_desc))
+            #policy_values = calculate_policy_value_means(tree, len(test_desc[0]), len(test_desc))
+            #nn_values = calculate_nn_value_means(tree, len(test_desc[0]), len(test_desc))
+            #variances = calculate_variance_means(tree, len(test_desc[0]), len(test_desc))
 
             states_cmap = sns.diverging_palette(10, 120, as_cmap=True, center="light")
-            values_cmap = sns.diverging_palette(120, 10, as_cmap=True, center="light")
-            nn_values_cmap = sns.diverging_palette(120, 10, as_cmap=True, center="light")
-            variances_cmap = sns.diverging_palette(20, 240, as_cmap=True, center="light")
+            # values_cmap = sns.diverging_palette(120, 10, as_cmap=True, center="light")
+            # nn_values_cmap = sns.diverging_palette(120, 10, as_cmap=True, center="light")
+            # variances_cmap = sns.diverging_palette(20, 240, as_cmap=True, center="light")
 
             ax = plot_density(states_density, tree.observation, obst_coords, len(test_desc[0]), len(test_desc), cmap=states_cmap)
 
@@ -321,38 +318,41 @@ def eval_from_config(
             plt.savefig(f"states_density/{i}.png")
             plt.close()
 
-            ax = plot_density(policy_values, tree.observation, obst_coords, len(test_desc[0]), len(test_desc), cmap=values_cmap)
 
-            ax.set_title(f"Mean Policy Values at step {i}")
+            # ax = plot_density(policy_values, tree.observation, obst_coords, len(test_desc[0]), len(test_desc), cmap=values_cmap)
 
-            # If no path to folder, create it
-            if not os.path.exists("policy_values"):
-                os.makedirs("policy_values")
+            # ax.set_title(f"Mean Policy Values at step {i}")
 
-            plt.savefig(f"policy_values/{i}.png")
-            plt.close()
+            # # If no path to folder, create it
+            # if not os.path.exists("policy_values"):
+            #     os.makedirs("policy_values")
 
-            ax = plot_density(variances, tree.observation, obst_coords, len(test_desc[0]), len(test_desc), cmap=variances_cmap)
+            # plt.savefig(f"policy_values/{i}.png")
+            # plt.close()
 
-            ax.set_title(f"Mean Variances at step {i}")
+            # ax = plot_density(variances, tree.observation, obst_coords, len(test_desc[0]), len(test_desc), cmap=variances_cmap)
 
-            # If no path to folder, create it
-            if not os.path.exists("variances"):
-                os.makedirs("variances")
+            # ax.set_title(f"Mean Variances at step {i}")
 
-            plt.savefig(f"variances/{i}.png")
-            plt.close()
+            # # If no path to folder, create it
+            # if not os.path.exists("variances"):
+            #     os.makedirs("variances")
 
-            ax = plot_density(nn_values, tree.observation, obst_coords, len(test_desc[0]), len(test_desc), cmap=nn_values_cmap)
+            # plt.savefig(f"variances/{i}.png")
+            # plt.close()
 
-            ax.set_title(f"Mean NN Values at step {i}")
+            # ax = plot_density(nn_values, tree.observation, obst_coords, len(test_desc[0]), len(test_desc), cmap=nn_values_cmap)
 
-            # If no path to folder, create it
-            if not os.path.exists("nn_values"):
-                os.makedirs("nn_values")
+            # ax.set_title(f"Mean NN Values at step {i}")
 
-            plt.savefig(f"nn_values/{i}.png")
-            plt.close()
+            # # If no path to folder, create it
+            # if not os.path.exists("nn_values"):
+            #     os.makedirs("nn_values")
+
+            # plt.savefig(f"nn_values/{i}.png")
+            # plt.close()
+
+        create_gif("states_density")
             
     episode_returns, discounted_returns, time_steps, entropies = calc_metrics(
         results, agent.discount_factor, test_env.action_space.n
@@ -371,14 +371,16 @@ def eval_from_config(
 
     eval_res = {
         # wandb logs
-        "Evaluation/Returns": wandb.Histogram(np.array((episode_returns))),
-        "Evaluation/Discounted_Returns": wandb.Histogram(np.array((discounted_returns))),
-        "Evaluation/Timesteps": wandb.Histogram(np.array((time_steps))),
+        #"Evaluation/Returns": wandb.Histogram(np.array((episode_returns))),
+        #"Evaluation/Discounted_Returns": wandb.Histogram(np.array((discounted_returns))),
+        #"Evaluation/Timesteps": wandb.Histogram(np.array((time_steps))),
         # "Evaluation/Entropies": wandb.Histogram(np.array(((th.sum(entropies, dim=-1) / time_steps)))),
 
         # standard logs
         "Evaluation/Mean_Returns": episode_returns.mean().item(),
         "Evaluation/Mean_Discounted_Returns": discounted_returns.mean().item(),
+        "Evaluation/Mean_Timesteps": time_steps.mean().item(),
+
         # "Evaluation/Mean_Entropy": (th.sum(entropies, dim=-1) / time_steps).mean().item(),
         "trajectories": trajectories,
     }
@@ -416,23 +418,25 @@ def eval_budget_sweep(
     """
     if config["agent_type"] == "mini-trees" or config["agent_type"] == "mega-tree":
         run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_c_({config['puct_c']})_Predictor_({config['predictor']})_n_({config['unroll_budget']})_eps_({config['threshold']})_ValueSearch_({config['value_search']})_ValueEst_({config['value_estimate']})_UpdateEst_({config['update_estimator']})_{config['map_size']}x{config['map_size']}_{config['train_config']}_{config['test_config']}"
-    elif config["agent_type"] == "azmcts":
+    elif config["agent_type"] == "azmcts" or config["agent_type"] == "azmcts_no_loops":
         run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_c_({config['puct_c']})_ValueEst_({config['value_estimate']})_{config['map_size']}x{config['map_size']}_{config['train_config']}_{config['test_config']}"
-    elif config["agent_type"] == "octopus":
-        run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_c_({config['puct_c']})_Predictor_({config['predictor']})_eps_({config['threshold']})_ValueEst_({config['value_estimate']})_({config['update_estimator']})_ttemp_({config['tree_temperature']})_Value_Penalty_{config['value_penalty']}_{config['map_size']}x{config['map_size']}_{config['train_config']}_{config['test_config']}"
+    elif config["agent_type"] == "pddp":
+        run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_c_({config['puct_c']})_Beta_({config['eval_param']})_Predictor_({config['predictor']})_eps_({config['threshold']})_subthresh_({config['subopt_threshold']})_ValueEst_({config['value_estimate']})_ttemp_({config['tree_temperature']})_Value_Penalty_{config['value_penalty']}_{config['map_size']}x{config['map_size']}_{config['train_config']}_{config['test_config']}"
+    else:
+        run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_c_({config['puct_c']})_Predictor_({config['predictor']})_eps_({config['threshold']})_ValueEst_({config['value_estimate']})_{config['map_size']}x{config['map_size']}_{config['train_config']}_{config['test_config']}"
 
     if config["bad_training"]:
         run_name = run_name + "_BAD"
 
-    if config["agent_type"] == "octopus":
-        if not config["reuse_tree"]:
-            run_name = run_name + "_NO_REUSE"
-        if config["value_penalty"] == 0:
-            run_name = run_name + "_NO_VP"
-        if config["tree_temperature"] is None:
-            run_name = run_name + "_NONE_TEMP"
-        if config["puct_c"] > 0:
-            run_name = run_name + "_C>0"
+    # if config["agent_type"] == "pddp":
+    #     if not config["reuse_tree"]:
+    #         run_name = run_name + "_NO_REUSE"
+    #     if config["value_penalty"] == 0:
+    #         run_name = run_name + "_NO_VP"
+    #     if config["tree_temperature"] is None:
+    #         run_name = run_name + "_NONE_TEMP"
+    #     if config["puct_c"] > 0:
+    #         run_name = run_name + "_C>0"
     
     if config["test_env"]["deviation_type"] == "clockwise":
         run_name = "CW_" + run_name 
@@ -584,14 +588,13 @@ def eval_budget_sweep(
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="AlphaZero Evaluation Configuration")
-
     map_size = 8
 
     TRAIN_CONFIG = "NO_HOLES" # NO_HOLES, MAZE_RL, MAZE_LR
 
-    TEST_CONFIG = "SLALOM"
+    TEST_CONFIG = "DEFAULT" # NO_OBSTACLES, HOLES, MAZE_RL, MAZE_LR
 
-    parser.add_argument("--ENV", type=str, default="LUNARLANDER", help="Environment name")
+    parser.add_argument("--ENV", type=str, default="FROZENLAKE", help="Environment name")
     
     parser.add_argument("--map_size", type=int, default= map_size, help="Map size")
     parser.add_argument("--test_config", type=str, default= TEST_CONFIG, help="Config desc name")
@@ -603,22 +606,24 @@ if __name__ == "__main__":
     parser.add_argument("--runs", type=int, default= 1, help="Number of runs")
 
     # Basic search parameters
-    parser.add_argument("--tree_evaluation_policy", type= str, default="visit", help="Tree evaluation policy")
-    parser.add_argument("--selection_policy", type=str, default="PUCT", help="Selection policy")
-    parser.add_argument("--puct_c", type=float, default= 1, help="PUCT parameter")
+    parser.add_argument("--tree_evaluation_policy", type= str, default="mvc", help="Tree evaluation policy")
+    parser.add_argument("--selection_policy", type=str, default="PolicyUCT", help="Selection policy")
+    parser.add_argument("--puct_c", type=float, default= 0.1, help="PUCT parameter")
 
     # Only relevant for single run evaluation
-    parser.add_argument("--planning_budget", type=int, default = 256, help="Planning budget")
+    parser.add_argument("--planning_budget", type=int, default = 64, help="Planning budget")
+    # Only for MCTS
+    parser.add_argument("--rollout_budget", type=int, default= 100, help="Rollout budget")
 
     # Search algorithm
-    parser.add_argument("--agent_type", type=str, default= "azmcts", help="Agent type")
+    parser.add_argument("--agent_type", type=str, default= "pddp", help="Agent type")
 
     # Stochasticity parameters
     parser.add_argument("--eval_temp", type=float, default= 0, help="Temperature in tree evaluation softmax")
     parser.add_argument("--dir_epsilon", type=float, default= 0.0, help="Dirichlet noise parameter epsilon")
     parser.add_argument("--dir_alpha", type=float, default= None, help="Dirichlet noise parameter alpha")
 
-    parser.add_argument("--tree_temperature", type=float, default= None, help="Temperature in tree evaluation softmax")
+    parser.add_argument("--tree_temperature", type=float, default= 0, help="Temperature in tree evaluation softmax")
 
     parser.add_argument("--beta", type=float, default= 10, help="Beta parameter for mvc policy")
 
@@ -627,7 +632,7 @@ if __name__ == "__main__":
     parser.add_argument("--unroll_budget", type=int, default= 4, help="Unroll budget")
 
     # AZDetection replanning parameters
-    parser.add_argument("--value_search", type=bool, default=False, help="Enable value search")
+    parser.add_argument("--value_search", type=bool, default=True, help="Enable value search")
     parser.add_argument("--predictor", type=str, default="current_value", help="Predictor to use for detection")
     parser.add_argument("--update_estimator", type=bool, default=True, help="Update the estimator")
 
@@ -637,7 +642,7 @@ if __name__ == "__main__":
     parser.add_argument("--test_env_terminate_on_hole", type=bool, default= False, help="Terminate on hole")
     parser.add_argument("--deviation_type", type=str, default= "bump", help="Deviation type")
 
-    parser.add_argument("--num_asteroids", type=int, default=0, help="Number of asteroids")
+    parser.add_argument("--ll_test_config", type=str, default= "TWO_LATERAL_PENTAGONS", help="LunarLander test config")
 
     # Model file
     parser.add_argument("--model_file", type=str, default= "", help="Model file")
@@ -646,34 +651,39 @@ if __name__ == "__main__":
     parser.add_argument("--eval_seeds", type=int, default=1, help="The number of random seeds to use for evaluation.")
 
     # Rendering
-    parser.add_argument("--render", type=bool, default=True, help="Render the environment")
+    parser.add_argument("--render", type=bool, default=False, help="Render the environment")
+    parser.add_argument("--visualize_trees", type=bool, default=True, help="Visualize trees")
 
-    parser.add_argument("--run_full_eval", type=bool, default= False, help="Run type")
+    parser.add_argument("--run_full_eval", type=bool, default= True, help="Run type")
 
     parser.add_argument("--hpc", type=bool, default=False, help="HPC flag")
 
     parser.add_argument("--value_estimate", type=str, default="nn", help="Value estimate method")
-    parser.add_argument("--visualize_trees", type=bool, default=False, help="Visualize trees")
 
     parser.add_argument("--var_penalty", type=float, default=1, help="Variance penalty")
-    parser.add_argument("--value_penalty", type=float, default=0 , help="Value penalty")
+    parser.add_argument("--value_penalty", type=float, default=1, help="Value penalty")
 
     parser.add_argument("--final", type=bool, default=False)
 
-    parser.add_argument("--save", type=bool, default=False)
+    parser.add_argument("--save", type=bool, default=True)
 
     parser.add_argument("--bad_training", type=bool, default=False)
-
-    parser.add_argument("--policy_det_rule", type=bool, default= False, help="Policy detection rule")
 
     parser.add_argument("--reuse_tree", type=bool, default=True, help="Update the estimator")
 
     parser.add_argument("--plot_tree_densities", type=bool, default=False, help="Plot tree densities")
 
+    parser.add_argument("--max_episode_length", type=int, default=100, help="Max episode length")
+
+    parser.add_argument("--discount_factor", type=float, default=0.95, help="Discount factor")
+
+    parser.add_argument("--subopt_threshold", type=float, default=0.1, help="Suboptimality threshold")
+
     # Parse arguments
     args = parser.parse_args()
 
-    single_seed = 3 # Only for single run
+    single_train_seed = 0 # Only for single run
+    single_eval_seed = 0 # Only for single run
 
     ENV = args.ENV
 
@@ -681,21 +691,21 @@ if __name__ == "__main__":
         args.test_env_id = f"CustomFrozenLakeNoHoles{args.map_size}x{args.map_size}-v1"
         args.test_env_desc = f"{args.map_size}x{args.map_size}_{args.test_config}"
         if args.map_size == 8 and args.train_config == "NO_HOLES":
-            args.model_file = f"hyper/AZTrain_env=CustomFrozenLakeNoHoles8x8-v1_evalpol=visit_iterations=50_budget=64_df=0.95_lr=0.001_nstepslr=2_seed={single_seed}/checkpoint.pth"
+            args.model_file = f"hyper/AZTrain_env=CustomFrozenLakeNoHoles8x8-v1_evalpol=visit_iterations=50_budget=64_df=0.95_lr=0.001_nstepslr=2_seed={single_train_seed}/checkpoint.pth"
         elif args.map_size == 16 and args.train_config == "NO_HOLES":
-            args.model_file = f"hyper/AZTrain_env=CustomFrozenLakeNoHoles16x16-v1_evalpol=visit_iterations=60_budget=128_df=0.95_lr=0.003_nstepslr=2_seed={single_seed}/checkpoint.pth"
+            args.model_file = f"hyper/AZTrain_env=CustomFrozenLakeNoHoles16x16-v1_evalpol=visit_iterations=60_budget=128_df=0.95_lr=0.003_nstepslr=2_seed={single_train_seed}/checkpoint.pth"
         elif args.map_size == 8 and args.train_config == "MAZE_RL":
             if args.bad_training:
-                args.model_file = f"hyper/AZTrain_env=8x8_MAZE_RL_evalpol=visit_iterations=20_budget=64_df=0.95_lr=0.001_nstepslr=2_c=0.5_seed={single_seed}/checkpoint.pth"
+                args.model_file = f"hyper/AZTrain_env=8x8_MAZE_RL_evalpol=visit_iterations=20_budget=64_df=0.95_lr=0.001_nstepslr=2_c=0.5_seed={single_train_seed}/checkpoint.pth"
             else:
-                args.model_file = f"hyper/AZTrain_env=8x8_MAZE_RL_evalpol=visit_iterations=150_budget=64_df=0.95_lr=0.001_nstepslr=2_c=0.5_seed={single_seed}/checkpoint.pth"
+                args.model_file = f"hyper/AZTrain_env=8x8_MAZE_RL_evalpol=visit_iterations=150_budget=64_df=0.95_lr=0.001_nstepslr=2_c=0.5_seed={single_train_seed}/checkpoint.pth"
         elif args.map_size == 8 and args.train_config == "MAZE_LR":
             if args.bad_training:
-                args.model_file = f"hyper/AZTrain_env=8x8_MAZE_LR_evalpol=visit_iterations=10_budget=64_df=0.95_lr=0.001_nstepslr=2_c=0.5_seed={single_seed}/checkpoint.pth"
+                args.model_file = f"hyper/AZTrain_env=8x8_MAZE_LR_evalpol=visit_iterations=10_budget=64_df=0.95_lr=0.001_nstepslr=2_c=0.5_seed={single_train_seed}/checkpoint.pth"
             else:
-                args.model_file = f"hyper/AZTrain_env=8x8_MAZE_LR_evalpol=visit_iterations=100_budget=64_df=0.95_lr=0.001_nstepslr=2_c=0.5_seed={single_seed}/checkpoint.pth"
+                args.model_file = f"hyper/AZTrain_env=8x8_MAZE_LR_evalpol=visit_iterations=100_budget=64_df=0.95_lr=0.001_nstepslr=2_c=0.5_seed={single_train_seed}/checkpoint.pth"
         elif args.map_size == 16 and args.train_config == "MAZE_LR":
-            args.model_file = f"hyper/AZTrain_env=16x16_MAZE_LR_evalpol=visit_iterations=150_budget=64_df=0.95_lr=0.003_nstepslr=2_c=0.2_seed={single_seed}/checkpoint.pth"
+            args.model_file = f"hyper/AZTrain_env=16x16_MAZE_LR_evalpol=visit_iterations=150_budget=64_df=0.95_lr=0.003_nstepslr=2_c=0.2_seed={single_train_seed}/checkpoint.pth"
 
         challenge = env_challenges[f"CustomFrozenLakeNoHoles{args.map_size}x{args.map_size}-v1"]  # Training environment
 
@@ -720,12 +730,29 @@ if __name__ == "__main__":
 
         test_env_dict = {
             "id": "CustomLunarLander",
-            "num_asteroids": args.num_asteroids,
+            "num_asteroids": ll_env_descriptions[args.ll_test_config]["num_asteroids"],
+            "ast_sizes": ll_env_descriptions[args.ll_test_config]["ast_sizes"],
+            "ast_positions": ll_env_descriptions[args.ll_test_config]["ast_positions"],
+            "ast_shapes": ll_env_descriptions[args.ll_test_config]["ast_shapes"],
         }
 
-        args.model_file = "hyper/AZTrain_env=LunarLander_ast=0_evalpol=visit_iterations=1000_budget=64_df=0.99_lr=0.001_nstepslr=1_c=1_seed=None/checkpoint.pth"
+        args.model_file = f"hyper/LunarLander_ast=0_budget=32_c=0.5_df=0.995_lr=0.0005_n=1_vw=1.0_pw=100.0_eperit=6_bufmul=45_norm=batch_norm_seed={single_train_seed}/checkpoint.pth"
 
-        map_name = f"LunarLander-ast={args.num_asteroids}"
+        map_name = f"LunarLander-ast={args.ll_test_config}"
+
+    elif ENV == "PARKING":
+        challenge = env_challenges["ParkingEnv"]
+
+        observation_embedding = "parking" 
+
+        test_env_dict = {
+            "id": "ParkingEnv",
+            "render_mode": None,
+        }
+
+        map_name = f"CustomParking"
+
+        args.model_file = f"hyper/ParkingEnv_evalpol=visit_iterations=1000_budget=64_df=0.995_lr=0.0001_nstepslr=1_c=1_seed=0/checkpoint.pth"
 
     # Construct the config
     config_modifications = {
@@ -735,6 +762,7 @@ if __name__ == "__main__":
         "tree_evaluation_policy": args.tree_evaluation_policy,
         "selection_policy": args.selection_policy,
         "planning_budget": args.planning_budget,
+        "discount_factor": args.discount_factor,
         "puct_c": args.puct_c,
         "agent_type": args.agent_type,
         "eval_temp": args.eval_temp,
@@ -762,9 +790,11 @@ if __name__ == "__main__":
         "tree_temperature": args.tree_temperature,
         "save": args.save,
         "bad_training": args.bad_training,
-        "policy_det_rule": args.policy_det_rule,
         "reuse_tree": args.reuse_tree,
         "plot_tree_densities": args.plot_tree_densities,
+        "max_episode_length": args.max_episode_length,
+        "rollout_budget": args.rollout_budget,
+        "subopt_threshold": args.subopt_threshold,
     }
 
     run_config = {**base_parameters, **challenge, **config_modifications}
@@ -772,6 +802,6 @@ if __name__ == "__main__":
     # Execute the evaluation
 
     if args.run_full_eval:
-        eval_budget_sweep(config=run_config, budgets= [64],  num_train_seeds=args.train_seeds, num_eval_seeds=args.eval_seeds, final = args.final, save=args.save)
-    else:
-        eval_from_config(config=run_config)
+        eval_budget_sweep(config=run_config, budgets= [8, 16, 32, 64, 128],  num_train_seeds=args.train_seeds, num_eval_seeds=args.eval_seeds, final = args.final, save=args.save)
+    else: 
+        eval_from_config(config=run_config, eval_seed=single_eval_seed)

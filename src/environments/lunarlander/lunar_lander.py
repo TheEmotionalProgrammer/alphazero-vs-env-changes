@@ -10,6 +10,13 @@ from gymnasium.utils import EzPickle
 from gymnasium.utils.step_api_compatibility import step_api_compatibility
 from copy import deepcopy
 
+ll_actions_dict = {
+    0: "Noop",
+    1: "Left",
+    2: "Main",
+    3: "Right",
+}
+
 try:
     import Box2D
     from Box2D.b2 import (
@@ -97,7 +104,6 @@ def clone_body(current, other):
     current.linearVelocity = other.linearVelocity
     current.position = other.position
     current.angle = other.angle
-
 
 class CustomLunarLander(gym.Env, EzPickle):
     r"""
@@ -345,6 +351,7 @@ class CustomLunarLander(gym.Env, EzPickle):
 
         self.s = None
         self.scale_reward = scale_reward
+        self.actions_list = []
 
     def _destroy(self):
         if not self.moon:
@@ -357,6 +364,9 @@ class CustomLunarLander(gym.Env, EzPickle):
         self.lander = None
         self.world.DestroyBody(self.legs[0])
         self.world.DestroyBody(self.legs[1])
+        
+        for a in self.floating_terrain:
+            self.world.DestroyBody(a)
 
     def reset(
         self,
@@ -392,6 +402,7 @@ class CustomLunarLander(gym.Env, EzPickle):
         height[CHUNKS // 2 + 0] = self.helipad_y
         height[CHUNKS // 2 + 1] = self.helipad_y
         height[CHUNKS // 2 + 2] = self.helipad_y
+        self.height = height
         smooth_y = [
             0.33 * (height[i - 1] + height[i + 0] + height[i + 1])
             for i in range(CHUNKS)
@@ -413,8 +424,6 @@ class CustomLunarLander(gym.Env, EzPickle):
         # Create Floating Terrain (Asteroids)
         self.floating_terrain = []
         num_asteroids = self.num_asteroids  # Number of floating terrain pieces
-
-
 
         for a_idx in range(num_asteroids):
 
@@ -582,7 +591,7 @@ class CustomLunarLander(gym.Env, EzPickle):
         if self.render_mode == "human":
             self.render()
 
-        return self.step(np.array([0, 0]) if self.continuous else 0)[0], {}
+        return self.step(np.array([0, 0]) if self.continuous else 0, firstaction=True)[0], {}
 
     def _create_particle(self, mass, x, y, ttl):
         p = self.world.CreateDynamicBody(
@@ -606,7 +615,10 @@ class CustomLunarLander(gym.Env, EzPickle):
         while self.particles and (all_particle or self.particles[0].ttl < 0):
             self.world.DestroyBody(self.particles.pop(0))
 
-    def step(self, action, first_action=False):
+    def step(self, action, firstaction=False):
+
+        if not firstaction:
+            self.actions_list.append(action)
 
         # Update wind and apply to the lander
         assert self.lander is not None, "You forgot to call reset()"
@@ -659,7 +671,9 @@ class CustomLunarLander(gym.Env, EzPickle):
         side = (-tip[1], tip[0])
 
         # Generate two random numbers between -1/SCALE and 1/SCALE.
-        dispersion = [self.np_random.uniform(-1.0, +1.0) / SCALE for _ in range(2)]
+        
+        #dispersion = [self.np_random.uniform(-1.0, +1.0) / SCALE for _ in range(2)]
+        dispersion = [0,0]
 
         m_power = 0.0
         if (self.continuous and action[0] > 0.0) or (
@@ -758,6 +772,17 @@ class CustomLunarLander(gym.Env, EzPickle):
         pos = self.lander.position
         vel = self.lander.linearVelocity
 
+        # state = [
+        #     round((pos.x - VIEWPORT_W / SCALE / 2) / (VIEWPORT_W / SCALE / 2),5),
+        #     round((pos.y - (self.helipad_y + LEG_DOWN / SCALE)) / (VIEWPORT_H / SCALE / 2),5),
+        #     round(vel.x * (VIEWPORT_W / SCALE / 2) / FPS, 5),
+        #     round(vel.y * (VIEWPORT_H / SCALE / 2) / FPS,5),
+        #     round(self.lander.angle,5),
+        #     round(20.0 * self.lander.angularVelocity / FPS,5),
+        #     1.0 if self.legs[0].ground_contact else 0.0,
+        #     1.0 if self.legs[1].ground_contact else 0.0,
+        # ]
+
         state = [
             (pos.x - VIEWPORT_W / SCALE / 2) / (VIEWPORT_W / SCALE / 2),
             (pos.y - (self.helipad_y + LEG_DOWN / SCALE)) / (VIEWPORT_H / SCALE / 2),
@@ -768,6 +793,8 @@ class CustomLunarLander(gym.Env, EzPickle):
             1.0 if self.legs[0].ground_contact else 0.0,
             1.0 if self.legs[1].ground_contact else 0.0,
         ]
+
+
         assert len(state) == 8
 
         reward = 0
@@ -788,6 +815,11 @@ class CustomLunarLander(gym.Env, EzPickle):
         )  # less fuel spent is better, about -30 for heuristic landing
         reward -= s_power * 0.03
 
+        # Check if the lander is on the ground and not moving
+        # if self.legs[0].ground_contact and self.legs[1].ground_contact:
+        #     if self.lander.linearVelocity.lengthSquared < 0.001:
+        #         self.lander.awake = False
+
         terminated = False
         if self.game_over or abs(state[0]) >= 1.0:
             terminated = True
@@ -803,7 +835,7 @@ class CustomLunarLander(gym.Env, EzPickle):
 
         if self.scale_reward:
             # Scale the reward to be between -1 and 1
-            reward = np.clip(reward / 100, -1, 1)
+            reward = np.clip((reward + 100) / 200, 0, 1)
 
         # truncation=False as the time limit is handled by the `TimeLimit` wrapper added during `make`
         return np.array(state, dtype=np.float32), reward, terminated, False, {}
@@ -932,6 +964,7 @@ class CustomLunarLander(gym.Env, EzPickle):
             pygame.quit()
             self.isopen = False
 
+
     def create_copy(self):
         """
         Create a deep copy of the environment, including the Box2D world, bodies, and joints.
@@ -959,6 +992,8 @@ class CustomLunarLander(gym.Env, EzPickle):
         clone_body(new_env.legs[0], self.legs[0])
         clone_body(new_env.legs[1], self.legs[1])
         new_env.s = self.s.copy()
+        new_env.prev_shaping = self.prev_shaping
+        new_env.game_over = self.game_over
         
         if self.particles is not None:
             for particle in self.particles:
@@ -968,7 +1003,6 @@ class CustomLunarLander(gym.Env, EzPickle):
                 clone_body(new_particle, particle)
 
         return new_env
-
 def heuristic(env, s):
     """
     The heuristic for
@@ -1038,9 +1072,9 @@ def demo_heuristic_lander(env, seed=None, render=False):
                 break
 
         #if steps % 20 == 0 or terminated or truncated:
-        print("observations:", " ".join([f"{x:+0.2f}" for x in s]))
-        print("reward:", f"{r:+0.2f}")
-        print(f"step {steps} total_reward {total_reward:+0.2f}")
+        print("observations:", " ".join([f"{x}" for x in s]))
+        print("reward:", f"{r}")
+        print(f"step {steps} total_reward {total_reward}")
         steps += 1
         if terminated or truncated:
             break
@@ -1081,22 +1115,22 @@ if __name__ == "__main__":
     env = gym.make(
         "CustomLunarLander",
         render_mode="human",
-        num_asteroids=0,
+        num_asteroids=2,
         ast_sizes=sizes,
         ast_positions=positions,
         ast_shapes=shapes,
         scale_reward=False,
     )
     ## For random
-    env.reset(seed=2)
-    for _ in range(1000):
-        action = env.action_space.sample()  # replace with your agent's action
-        observation, reward, terminated, truncated, info = env.step(action)
-        print("reward:", reward)
-        if terminated or truncated:
-            break
+    # env.reset(seed=2)
+    # for _ in range(1000):
+    #     action = env.action_space.sample()  # replace with your agent's action
+    #     observation, reward, terminated, truncated, info = env.step(action)
+    #     print("reward:", reward)
+    #     if terminated or truncated:
+    #         break
 
     ## For heuristic
-    #demo_heuristic_lander(env, seed=2, render=True)
+    demo_heuristic_lander(env, seed=2, render=True)
     
     env.close()

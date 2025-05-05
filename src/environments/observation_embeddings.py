@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 import gymnasium as gym
 import numpy as np
 import torch as th
+from typing import Dict
 
 
 class ObservationEmbedding(ABC):
@@ -190,10 +191,95 @@ class LunarLanderEmbedding(ObservationEmbedding):
         For LunarLander, this simply converts the tensor back to a NumPy array.
         """
         return tensor.detach().cpu().numpy()
+    
+class ParkingEmbedding(ObservationEmbedding):
+    """
+    Embedding for the Parking environment.
+    Converts the 6-dimensional observation into a tensor.
+    """
 
+    observation_space: Dict
+
+    def __init__(self, observation_space: Dict, *args, **kwargs) -> None:
+        super().__init__(observation_space, *args, **kwargs)
+
+    def obs_to_tensor(self, observation, *args, **kwargs):
+        """
+        Converts the Parking observation into a tensor.
+        The observation is already a flat array, so this simply converts it to a PyTorch tensor.
+        """
+
+        obs_array = observation["observation"]
+
+        # Extract the dtype from kwargs or use a default value
+        dtype = kwargs.pop("dtype", th.float32)
+        return th.tensor(obs_array, dtype=dtype, *args, **kwargs)
+
+    def obs_dim(self):
+        """
+        Returns the dimensionality of the tensorized observation.
+        For Parking, this is 6.
+        """
+        return self.observation_space["observation"].shape[0]
+
+    def tensor_to_obs(self, tensor, *args, **kwargs):
+        """
+        Converts a tensor back to the original observation format.
+        For Parking, this simply converts the tensor back to a NumPy array.
+        """
+        return tensor.detach().cpu().numpy()
+    
+class ParkingFullEmbedding(ObservationEmbedding):
+    """
+    Embedding for the Parking environment.
+    Converts the 6-dimensional observation into a tensor.
+    """
+
+    observation_space: Dict
+
+    def __init__(self, observation_space: Dict, *args, **kwargs) -> None:
+        super().__init__(observation_space, *args, **kwargs)
+
+    def obs_to_tensor(self, observation, *args, **kwargs):
+        """
+        Converts the Parking observation into a tensor.
+        The observation is already a flat array, so this simply converts it to a PyTorch tensor.
+        """
+        obs, achieved_goal, desired_goal = th.tensor(observation["observation"]), th.tensor(observation["achieved_goal"]), th.tensor(observation["desired_goal"])
+        obs_array = th.concat(
+            [obs, achieved_goal, desired_goal],
+            dim=0,
+        )
+
+        # Extract the dtype from kwargs or use a default value
+        dtype = kwargs.pop("dtype", th.float32)
+
+        return obs_array.to(dtype)
+    
+    def obs_dim(self):
+        """
+        Returns the dimensionality of the tensorized observation.
+        """
+        return self.observation_space["observation"].shape[0] + self.observation_space["achieved_goal"].shape[0] + self.observation_space["desired_goal"].shape[0]
+    
+    def tensor_to_obs(self, tensor, *args, **kwargs):
+
+        """
+        Converts a tensor back to the original observation format.
+        For Parking, this simply converts the tensor back to a NumPy array.
+        """
+        obs_array = tensor.detach().cpu().numpy()
+        return {
+            "observation": obs_array[:self.observation_space["observation"].shape[0]],
+            "achieved_goal": obs_array[self.observation_space["observation"].shape[0]:self.observation_space["observation"].shape[0] + self.observation_space["achieved_goal"].shape[0]],
+            "desired_goal": obs_array[self.observation_space["observation"].shape[0] + self.observation_space["achieved_goal"].shape[0]:],
+        }
+        
 embedding_dict = {
     "default": DefaultEmbedding,
     "coordinate": CoordinateEmbedding,
     "minigrid": MiniGridEmbedding,
     "lunarlander": LunarLanderEmbedding,
+    "parking": ParkingEmbedding,
+    "parking_full": ParkingFullEmbedding,
 }

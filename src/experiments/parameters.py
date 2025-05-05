@@ -41,6 +41,13 @@ env_challenges = {
         "worst_value": -200.0,
     },
 
+    "ParkingEnv": {
+        "env_description": "ParkingEnv",
+        "env_params": dict(id="ParkingEnv", max_episode_steps=1000000000),
+        "optimal_value": 0.0,
+        "worst_value": -1.0,
+    },
+
     "CustomFrozenLakeNoHoles4x4-v1": {
         "env_description": "CustomFrozenLakeNoHoles4x4-v1",
         "max_episode_length": 40,
@@ -118,22 +125,29 @@ ll_env_descriptions = {
 
     "SINGLE_CENTRAL_PENTAGON" : {
         "num_asteroids": 1,
-        "ast_positions": [(0.5, 0.5)],
+        "ast_positions": [(0.5, 0.6)],
         "ast_shapes": ["pentagon", "pentagon"],
         "ast_sizes": [15],
     },
 
     "TWO_LATERAL_PENTAGONS" : {
         "num_asteroids": 2,
-        "ast_positions": [(0.4, 0.5), (0.6, 0.5)],
+        "ast_positions": [(0.4, 0.6), (0.6, 0.6)],
         "ast_shapes": ["pentagon", "pentagon"],
         "ast_sizes": [15, 15],
+    },
+
+    "RIGHT_PENTAGON" : {
+        "num_asteroids": 1,
+        "ast_positions": [(0.6, 0.6)],
+        "ast_shapes": ["pentagon"],
+        "ast_sizes": [15],
     },
 }
 
 fz_env_descriptions = {
     
-    "NO_OBSTACLES": [
+    "8x8_NO_OBSTACLES": [
         "SFFFFFFF",
         "FFFFFFFF",
         "FFFFFFFF",
@@ -228,8 +242,8 @@ fz_env_descriptions = {
     ],
 
     "8x8_NARROW": [
-        "SFFFFFFF",
-        "FFFFFFFF",
+        "SFFFFFHH",
+        "FFFFFFHH",
         "HHFHHHHH",
         "HHFHHHHH",
         "FFFFFFFF",
@@ -239,10 +253,10 @@ fz_env_descriptions = {
     ],
 
     "16x16_NARROW": [
-        "SFFFFFFFFFFFFFFF",
-        "FFFFFFFFFFFFFFFF",
-        "FFFFFFFFFFFFFFFF",
-        "FFFFFFFFFFFFFFFF",
+        "SFFFFFFFFFFFHHHH",
+        "FFFFFFFFFFFFHHHH",
+        "FFFFFFFFFFFFHHHH",
+        "FFFFFFFFFFFFHHHH",
         "HHHHFFHHHHHHHHHH",
         "HHHHFFHHHHHHHHHH",
         "HHHHFFHHHHHHHHHH",

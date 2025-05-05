@@ -3,8 +3,8 @@ import torch as th
 
 from core.node import Node
 from policies.policies import PolicyDistribution
-from policies.tree_policies import MinimalVarianceConstraintPolicy, Q_max
-from policies.utility_functions import get_children_policy_values, get_children_visits, get_transformed_default_values, get_children_policy_values_and_inverse_variance, value_evaluation_variance, reward_variance, get_children_q_max_values
+from policies.tree_policies import MinimalVarianceConstraintPolicy
+from policies.utility_functions import get_children_policy_values, get_children_visits, get_transformed_default_values, get_children_policy_values_and_inverse_variance, value_evaluation_variance, reward_variance
 from policies.value_transforms import IdentityValueTransform
 
 class SelectionPolicy(PolicyDistribution):
@@ -172,7 +172,9 @@ class PUCT(UCT):
     """
 
     def _probs(self, node: Node) -> th.Tensor:
+
         child_visits = get_children_visits(node)
+
         # if any child_visit is 0
         unvisited = child_visits == 0
         if th.any(unvisited):

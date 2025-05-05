@@ -1,8 +1,7 @@
 import torch as th
-
 from core.node import Node
 from policies.policies import PolicyDistribution
-from policies.utility_functions import get_children_policy_values, get_children_policy_values_and_inverse_variance, get_children_visits, get_children_q_max_values
+from policies.utility_functions import get_children_policy_values, get_children_policy_values_and_inverse_variance, get_children_visits
 from policies.value_transforms import IdentityValueTransform
 
 
@@ -46,14 +45,48 @@ class MinimalVarianceConstraintPolicy(PolicyDistribution):
         # We handle nan values and compute the final mvc distribution
         logits = beta * th.nan_to_num(normalized_vals)
 
-        #print("logits", logits)
-
-        probs = inv_vars * th.exp(logits)
-        #probs = th.exp(logits - logits.max())
-
-        #probs = logits - th.log(1/inv_vars) # This would be the same as the line above, but maybe more readable
+        probs = inv_vars * th.exp(logits - logits.max())
 
         return probs
+    
+class ValuePolicy(PolicyDistribution):
+    def __init__(self, discount_factor, **kwargs):
+
+        super().__init__(**kwargs)
+        self.discount_factor = discount_factor
+
+    def _probs(self, node: Node) -> th.Tensor:
+        
+        vals = get_children_policy_values(node, self, self.discount_factor, self.value_transform)
+        vals = th.nan_to_num(vals)
+        vals = th.exp(vals - vals.max())
+
+        return vals
+    
+class PriorPolicy(PolicyDistribution):
+    """
+    Prior Evaluator. 
+    The action is chosen based on the prior policy of the children nodes.
+    """
+
+    def _probs(self, node: Node) -> th.Tensor:
+        return node.prior_policy
+    
+class PriorValuePolicy(PolicyDistribution):
+    """
+    Prior Evaluator. 
+    The action is chosen based on the prior policy of the children nodes.
+    """
+
+    def _probs(self, node: Node) -> th.Tensor:
+        values = []
+        for action, child in node.children.items():
+            values.append(child.value_evaluation)
+        values = th.tensor(values, dtype=th.float32)
+        values = th.nan_to_num(values)
+    
+        return values
+    
     
 class MinimalVarianceConstraintPolicyPrior(MinimalVarianceConstraintPolicy):
 
@@ -71,48 +104,11 @@ class MinimalVarianceConstraintPolicyPrior(MinimalVarianceConstraintPolicy):
 
         return probs
 
-
-class ValuePolicy(PolicyDistribution):
-    def __init__(self, discount_factor = 1.0, **kwargs):
-
-        super().__init__(**kwargs)
-        self.discount_factor = discount_factor
-        self.temperature = 0 # Do not modify
-
-    """
-    Deterministic policy that selects the action with the highest value estimate 
-    obtained by the MVC policy, but without the variance constraint.
-    """
-
-    def _probs(self, node: Node) -> th.Tensor:
-        
-        mvc_temp = 0
-        mvc = MinimalVarianceConstraintPolicy(beta = 10.0, discount_factor=self.discount_factor, temperature=mvc_temp, value_transform=IdentityValueTransform)
-
-        vals = get_children_policy_values(node, mvc, self.discount_factor, self.value_transform)
-
-        return vals
-
-class Q_max(PolicyDistribution):
-    def __init__(self, discount_factor = 1.0, **kwargs):
-
-        super().__init__(**kwargs)
-        self.discount_factor = discount_factor
-        self.temperature = 0.0 # Do not modify
-
-    """
-    Deterministic policy that selects the action with the highest value estimate 
-    obtained by the MVC policy, but without the variance constraint.
-    """
-
-    def _probs(self, node: Node) -> th.Tensor:
-        return get_children_q_max_values(node, self.discount_factor)
-    
-
 tree_eval_dict = lambda param, discount, c=1.0, temperature=None, value_transform=IdentityValueTransform: {
     "visit": VisitationPolicy(temperature, value_transform=value_transform),
     "qt_max": ValuePolicy(discount_factor=discount, temperature=temperature, value_transform=value_transform),
-    "q_max": Q_max(discount_factor=discount, temperature=temperature, value_transform=value_transform),
     "mvc": MinimalVarianceConstraintPolicy(discount_factor=discount, beta=param, temperature=temperature, value_transform=value_transform),
     "mvc_prior": MinimalVarianceConstraintPolicyPrior(discount_factor=discount, beta=param, temperature=temperature, value_transform=value_transform),
+    "prior": PriorPolicy(temperature, value_transform=value_transform),
+    "prior_value": PriorValuePolicy(temperature, value_transform=value_transform),
 }

@@ -161,13 +161,14 @@ class AlphaZeroModel(th.nn.Module):
             "output_dimensions": self.action_dim,
             "hidden_dim": self.hidden_dim,
             "layers": self.nlayers,
+            "norm_layer": self.norm_layer,
             
         }
         th.save(model_info, filename)
 
     @classmethod
     def load_model(
-        cls, filename: str, env: gym.Env, pref_gpu=False, default_hidden_dim=128
+        cls, filename: str, env: gym.Env, pref_gpu=False, default_hidden_dim=128, default_norm_layer=None
     ):
         """
         Load a saved model from a file and create a new instance of the model with the saved specifications.
@@ -188,6 +189,9 @@ class AlphaZeroModel(th.nn.Module):
         # Get hidden_dim, use a default if not found
         hidden_dim = model_info.get("hidden_dim", default_hidden_dim)
 
+        # Get the norm_layer, use a default if not found
+        norm_layer = model_info.get("norm_layer", default_norm_layer)
+
         nlayers = model_info["layers"]
 
         # Create a new instance of the model with the saved specifications
@@ -197,6 +201,7 @@ class AlphaZeroModel(th.nn.Module):
             nlayers=nlayers,
             observation_embedding=model_info["observation_embedding"],
             pref_gpu=pref_gpu,
+            norm_layer=norm_layer,
         )
 
         # Load the state dict into the newly created model

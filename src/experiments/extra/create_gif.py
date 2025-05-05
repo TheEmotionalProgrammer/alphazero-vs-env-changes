@@ -38,7 +38,7 @@ def create_gif(dir_name: str):
             im = ax.imshow(data, cmap='hot', animated=True)
             ims.append([im])
 
-    ani = animation.ArtistAnimation(fig, ims, interval=200, blit=True, repeat_delay=1000)  # Slower GIF with increased interval
+    ani = animation.ArtistAnimation(fig, ims, interval=500, blit=True, repeat_delay=1000)  # Slower GIF with increased interval
     ani.save(f"./gifs/{dir_name}.gif")  # Save the animation as a single gif
     plt.close(fig)
     print("Created gif for all files")

@@ -3,6 +3,7 @@ import sys
 sys.path.append('src/')
 from core.node import Node
 import os
+import torch as th
 
 def visualize_tree(tree: Node, filename: str, var_fn=None, max_depth=None):
     """
@@ -18,7 +19,7 @@ def visualize_tree(tree: Node, filename: str, var_fn=None, max_depth=None):
     tree._add_node_to_graph(dot, var_fn, max_depth=max_depth)
     dot.render(filename=filename, view=False)
 
-def visualize_trees(trees, output_dir, var_fn=None, max_depth=None, max_trees=100):
+def visualize_trees(trees, output_dir, var_fn=None, max_depth=None, max_trees=th.inf):
     """
     Visualize multiple trees and save them to the specified directory.
 
