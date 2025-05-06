@@ -24,16 +24,18 @@ def custom_softmax(
     """
 
     if action_mask is not None:
-        #raw_probs = probs.clone()
+        raw_probs = probs.clone()
         probs = probs * action_mask
-        # if probs.sum() == 0.0:
-        #     # Set a uniform for all the ones in the action mask
-        #     if action_mask.sum() > 0:
-        #         probs = th.ones_like(probs) * action_mask
-        #     else:
-        #         print("Warning: No valid actions available")
-        #         # Ignore the mask
-        #         probs = raw_probs
+        if probs.sum() == 0.0:
+            # Set a uniform for all the ones in the action mask
+            if action_mask.sum() > 0:
+                probs = th.ones_like(probs) * action_mask
+            else:
+                # print("Warning: No valid actions available")
+                # print(f"Action mask: {action_mask}")
+                # print(f"Raw probs: {raw_probs}")
+                # Ignore the mask
+                probs = raw_probs
 
     if temperature is None: # No softmax is applied, returns the full distribution.
         p = probs
