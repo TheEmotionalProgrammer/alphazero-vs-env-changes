@@ -14,6 +14,8 @@ from azdetection.pddp import PDDP
 from environments.observation_embeddings import ObservationEmbedding
 from environments.lunarlander.lunar_lander import CustomLunarLander
 from environments.frozenlake.frozen_lake import CustomFrozenLakeEnv
+from environments.highwayenv.parking_new import ParkingSimple
+from environments.highwayenv.parking_acc import ParkingAcc
 from policies.policies import PolicyDistribution, custom_softmax
 from policies.tree_policies import MinimalVarianceConstraintPolicyPrior
 from policies.utility_functions import policy_value, policy_value_variance
@@ -94,7 +96,7 @@ def run_episode_azmcts(
 
     observation, _ = env.reset(seed=seed)
 
-    print(f"Env: obs = {print_obs(env, observation)}")
+    #print(f"Env: obs = {print_obs(env, observation)}")
 
     if render:
         vis_env = copy_environment(env)  # Use the utility function
@@ -142,11 +144,11 @@ def run_episode_azmcts(
 
         action = distribution.sample().item()
 
-        print(f"Env: action = {actions_dict(env)[action]}")
+        #print(f"Env: action = {actions_dict(env)[action]}")
 
         new_obs, reward, terminated, truncated, _ = env.step(action)
 
-        print(f"Env: step = {step}, obs = {print_obs(env, new_obs)}, reward = {reward}, terminated = {terminated}, truncated = {truncated}")
+        #print(f"Env: step = {step}, obs = {print_obs(env, new_obs)}, reward = {reward}, terminated = {terminated}, truncated = {truncated}")
 
         if render:
             vis_env.step(action)
@@ -177,6 +179,8 @@ def run_episode_azmcts(
         fps = 5
         if isinstance(env.unwrapped, CustomLunarLander):
             fps = 30
+        if isinstance(env.unwrapped, ParkingSimple) or isinstance(env.unwrapped, ParkingAcc):
+            fps = 20
         save_gif_imageio(frames, output_path=f"gifs/output.gif", fps=fps)
 
     if return_trees:
@@ -291,6 +295,8 @@ def run_episode_no_loop(
         fps = 5
         if isinstance(env.unwrapped, CustomLunarLander):
             fps = 30
+        if isinstance(env.unwrapped, ParkingSimple) or isinstance(env.unwrapped, ParkingAcc):
+            fps = 20
         save_gif_imageio(frames, output_path=f"gifs/output.gif", fps=fps)
 
     if return_trees:
@@ -376,7 +382,7 @@ def run_episode_pddp(
 
         #print(tree.prior_policy)
 
-        policy_dist = tree_evaluation_policy.softmaxed_distribution(tree) # Evaluates the tree using the given evaluation policy (e.g., visitation counts)
+        policy_dist = tree_evaluation_policy.softmaxed_distribution(tree, action_mask=tree.mask) # Evaluates the tree using the given evaluation policy (e.g., visitation counts)
 
         if return_trees:
             tree.policy_value = policy_value(tree, tree_evaluation_policy, solver.discount_factor)
@@ -421,6 +427,8 @@ def run_episode_pddp(
         fps = 5
         if isinstance(env.unwrapped, CustomLunarLander):
             fps = 30
+        if isinstance(env.unwrapped, ParkingSimple) or isinstance(env.unwrapped, ParkingAcc):
+            fps = 20
         save_gif_imageio(frames, output_path=f"gifs/output.gif", fps=fps)
 
     if return_trees:
@@ -644,6 +652,8 @@ def run_episode_minitrees(
         fps = 5
         if isinstance(env.unwrapped, CustomLunarLander):
             fps = 30
+        if isinstance(env.unwrapped, ParkingSimple) or isinstance(env.unwrapped, ParkingAcc):
+            fps = 20
         save_gif_imageio(frames, output_path=f"gifs/output.gif", fps=fps)
 
     if return_trees:
@@ -860,6 +870,8 @@ def run_episode_megatree(
         fps = 5
         if isinstance(env.unwrapped, CustomLunarLander):
             fps = 30
+        if isinstance(env.unwrapped, ParkingSimple) or isinstance(env.unwrapped, ParkingAcc):
+            fps = 20
         save_gif_imageio(frames, output_path=f"gifs/output.gif", fps=fps)
 
     if return_trees:

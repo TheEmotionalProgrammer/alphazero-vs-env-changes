@@ -274,6 +274,44 @@ class ParkingFullEmbedding(ObservationEmbedding):
             "achieved_goal": obs_array[self.observation_space["observation"].shape[0]:self.observation_space["observation"].shape[0] + self.observation_space["achieved_goal"].shape[0]],
             "desired_goal": obs_array[self.observation_space["observation"].shape[0] + self.observation_space["achieved_goal"].shape[0]:],
         }
+
+class ParkingEgoEmbedding(ObservationEmbedding):
+    """
+    Embedding for the Parking environment that only uses the ego vehicle's observation (first row of the (N, 13) vector).
+    """
+
+    def __init__(self, observation_space: gym.Space, *args, **kwargs) -> None:
+        super().__init__(observation_space, *args, **kwargs)
+
+    def obs_to_tensor(self, observation, *args, **kwargs):
+        """
+        Converts only the ego vehicle's observation (obs[0]) into a tensor.
+        """
+        dtype = kwargs.pop("dtype", th.float32)
+        # If observation is a dict, extract the array
+        if isinstance(observation, dict):
+            obs_array = observation["observation"]
+        else:
+            obs_array = observation
+        ego_obs = np.asarray(obs_array)  # Take only the first row
+        # Don't need the last 3 elements 
+        return th.tensor(ego_obs, dtype=dtype, *args, **kwargs)
+
+    def obs_dim(self):
+        """
+        Returns the dimensionality of the ego vehicle's observation.
+        """
+        # Assumes shape (N, 13)
+        # if hasattr(self.observation_space, "shape"):
+        #     return self.observation_space.shape[1]
+        # Fallback for dict spaces
+        return 5
+
+    def tensor_to_obs(self, tensor, *args, **kwargs):
+        """
+        Converts a tensor back to the ego vehicle's observation (as a numpy array).
+        """
+        return tensor.detach().cpu().numpy()
         
 embedding_dict = {
     "default": DefaultEmbedding,
@@ -282,4 +320,5 @@ embedding_dict = {
     "lunarlander": LunarLanderEmbedding,
     "parking": ParkingEmbedding,
     "parking_full": ParkingFullEmbedding,
+    "parking_ego": ParkingEgoEmbedding,
 }

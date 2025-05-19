@@ -31,7 +31,7 @@ def policy_value(
     if isinstance(policy, th.distributions.Categorical): # No need to softmax again
         pi = policy
     else:
-        pi = policy.softmaxed_distribution(node, include_self=True) #, action_mask=node.mask)
+        pi = policy.softmaxed_distribution(node, include_self=True)#, action_mask=node.mask)
 
     probabilities: th.Tensor = pi.probs
 
@@ -77,7 +77,7 @@ def policy_value_variance(
     if isinstance(policy, th.distributions.Categorical):
         pi = policy
     else:
-        pi = policy.softmaxed_distribution(node, include_self=True) #, action_mask=node.mask)
+        pi = policy.softmaxed_distribution(node, include_self=True)#, action_mask=node.mask)
 
     probabilities_squared = pi.probs**2  
     own_propability_squared = probabilities_squared[-1]
@@ -130,6 +130,7 @@ def get_children_policy_values(
 ) -> th.Tensor:
 
     vals = th.ones(int(parent.action_space.n), dtype=th.float32) * -th.inf
+    #vals = th.zeros(int(parent.action_space.n), dtype=th.float32) 
 
     for action, child in parent.children.items():
         vals[action] = policy_value(child, policy, discount_factor)

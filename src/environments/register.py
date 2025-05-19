@@ -154,6 +154,16 @@ gym.register(
     entry_point="environments.highwayenv.parking:ParkingEnv",
 )
 
+gym.register(
+    id="ParkingSimple",
+    entry_point="environments.highwayenv.parking_new:ParkingSimple",
+)
+
+gym.register(
+    id="ParkingAcc",
+    entry_point="environments.highwayenv.parking_acc:ParkingAcc",
+)
+
 #  self,
 #         render_mode: Optional[str] = None,
 #         continuous: bool = False,

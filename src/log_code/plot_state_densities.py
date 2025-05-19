@@ -23,6 +23,19 @@ def calculate_density(tree: Node, ncols, nrows):
         density[row, col] = count
     return density
 
+def calculate_repetitions(tree: Node, ncols, nrows):
+    goal_coord = (ncols - 1, nrows - 1)
+
+    repetitions = tree.state_repetitions()
+    density = np.zeros((nrows, ncols))
+    for state, count in repetitions.items():
+        if state == None:
+            row, col = goal_coord
+        else:
+            row, col = obs_to_cords(state, ncols)
+        density[row, col] = count
+    return density
+
 def calculate_nn_value_means(tree: Node, ncols, nrows):
     
     goal_coord = (ncols - 1, nrows - 1)
@@ -37,6 +50,20 @@ def calculate_nn_value_means(tree: Node, ncols, nrows):
         density[row, col] = value
     return density
 
+def calculate_nn_value_sums(tree: Node, ncols, nrows):
+    
+    goal_coord = (ncols - 1, nrows - 1)
+
+    value_sums = tree.sum_nn_values_dict()
+    density = np.zeros((nrows, ncols))
+    for state, value in value_sums.items():
+        if state == None:
+            row, col = goal_coord
+        else:
+            row, col = obs_to_cords(state, ncols)
+        density[row, col] = value
+    return density
+
 def calculate_policy_value_means(tree: Node, ncols, nrows):
 
     goal_coord = (ncols - 1, nrows - 1)
@@ -44,6 +71,19 @@ def calculate_policy_value_means(tree: Node, ncols, nrows):
     policy_means = tree.mean_policy_values_dict()
     density = np.zeros((nrows, ncols))
     for state, value in policy_means.items():
+        if state == None:
+            row, col = goal_coord
+        else:
+            row, col = obs_to_cords(state, ncols)
+        density[row, col] = value
+    return density
+
+def calculate_policy_value_sums(tree: Node, ncols, nrows):
+    goal_coord = (ncols - 1, nrows - 1)
+
+    policy_sums = tree.sum_policy_values_dict()
+    density = np.zeros((nrows, ncols))
+    for state, value in policy_sums.items():
         if state == None:
             row, col = goal_coord
         else:

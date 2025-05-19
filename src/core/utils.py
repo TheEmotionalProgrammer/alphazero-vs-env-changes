@@ -4,6 +4,7 @@ from environments.lunarlander.lunar_lander import CustomLunarLander, ll_actions_
 from environments.lunarlander.lunar_lander import VIEWPORT_H, VIEWPORT_W, SCALE, LEG_AWAY, LEG_DOWN
 from environments.frozenlake.frozen_lake import CustomFrozenLakeEnv, fz_actions_dict
 from environments.highwayenv.parking import ParkingEnv, pk_actions_dict
+from environments.highwayenv.parking_new import ParkingSimple 
 import gymnasium as gym
 
 def safe_deepcopy_env(obj):
@@ -52,6 +53,8 @@ def actions_dict(env: gym.Env) -> dict:
         return fz_actions_dict
     elif isinstance(env.unwrapped, ParkingEnv):
         return pk_actions_dict
+    elif isinstance(env.unwrapped, ParkingSimple):
+        return pk_actions_dict
 
     else:
         raise ValueError(f"Unsupported environment: {env.spec.id}")
@@ -72,12 +75,14 @@ def print_obs(env: gym.Env, obs):
         # posy = float(str(round(posy, 3)))
 
         return obs
-    
+        
     elif isinstance(env.unwrapped, CustomFrozenLakeEnv):
         ncols = env.unwrapped.ncol
         return obs // ncols, obs % ncols
     elif isinstance(env.unwrapped, ParkingEnv):
         obs = obs["observation"]
         return obs
+    elif isinstance(env.unwrapped, ParkingSimple):
+        return "A"
     else:
         print("Unknown Observation Type")

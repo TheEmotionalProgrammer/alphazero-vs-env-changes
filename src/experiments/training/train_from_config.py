@@ -46,7 +46,7 @@ from policies.value_transforms import value_transform_dict
 
 from environments.register import register_all
 
-from experiments.parameters import base_parameters, env_challenges, fz_env_descriptions
+from experiments.parameters import base_parameters, env_challenges, fz_env_descriptions, parking_simple_obstacles
 
 
 def train_from_config(
@@ -71,8 +71,8 @@ def train_from_config(
         run_name = f"AZTrain_env={config['name_config']}_evalpol={config['tree_evaluation_policy']}_iterations={config['iterations']}_budget={config['planning_budget']}_df={config['discount_factor']}_lr={config['learning_rate']}_nstepslr={config['n_steps_learning']}_c={config['puct_c']}_seed={seed}"
     elif config['ENV'] == "LUNARLANDER":
         run_name = f"{config['name_config']}_budget={config['planning_budget']}_c={config['puct_c']}_df={config['discount_factor']}_lr={config['learning_rate']}_n={config['n_steps_learning']}_vw={config['value_loss_weight']}_pw={config['policy_loss_weight']}_eperit={config['episodes_per_iteration']}_bufmul={config['replay_buffer_multiplier']}_norm={config['norm_layer']}_seed={seed}"
-    elif config['ENV'] == "PARKING":
-        run_name = f"{config['name_config']}_evalpol={config['tree_evaluation_policy']}_iterations={config['iterations']}_budget={config['planning_budget']}_df={config['discount_factor']}_lr={config['learning_rate']}_nstepslr={config['n_steps_learning']}_c={config['puct_c']}_seed={seed}"
+    elif config['ENV'] == "PARKING" or config['ENV'] == "PARKING_SIMPLE" or config['ENV'] == "PARKING_ACC":
+        run_name = f"{config['name_config']}_budget={config['planning_budget']}_evalpol={config['tree_evaluation_policy']}_iterations={config['iterations']}_epperit={config['episodes_per_iteration']}_n={config['n_steps_learning']}_vw={config['value_loss_weight']}_pw={config['policy_loss_weight']}_df={config['discount_factor']}_lr={config['learning_rate']}_nstepslr={config['n_steps_learning']}_c={config['puct_c']}_nlayers={config['layers']}_norm={config['norm_layer']}_seed={seed}_bump={config['bump_on_collision']}"
 
     # Create the folder ./wandb_logs if it does not exist
     if not os.path.exists("./wandb_logs"):
@@ -278,23 +278,23 @@ def run_single(seed=None):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="AlphaZero Training with a specific seed.")
-    parser.add_argument("--ENV", type=str, default="PARKING", help="The environment to train on.")
+    parser.add_argument("--ENV", type=str, default="PARKING_ACC", help="The environment to train on.")
     parser.add_argument("--agent_type", type=str, default="azmcts", help="The type of agent to train.")
     parser.add_argument("--workers", type=int, default=6, help="Number of workers")
     parser.add_argument("--iterations", type=int, default=1000, help="Number of iterations")
-    parser.add_argument("--max_episode_length", type=int, default=150, help="Max episode length")
+    parser.add_argument("--max_episode_length", type=int, default=200, help="Max episode length")
     parser.add_argument("--tree_evaluation_policy", type=str, default="visit", help="Tree evaluation policy")
     parser.add_argument("--selection_policy", type=str, default="PUCT", help="Selection policy")
-    parser.add_argument("--planning_budget", type=int, default=64, help="Planning budget")
+    parser.add_argument("--planning_budget", type=int, default=128, help="Planning budget")
     parser.add_argument("--puct_c", type=float, default=1, help="PUCT constant")
-    parser.add_argument("--n_steps_learning", type=int, default=1, help="Number of steps for learning")
-    parser.add_argument("--discount_factor", type=float, default=0.995, help="Discount factor")
+    parser.add_argument("--n_steps_learning", type=int, default=2, help="Number of steps for learning")
+    parser.add_argument("--discount_factor", type=float, default=0.99, help="Discount factor")
     parser.add_argument("--learning_rate", type=float, default=0.0001, help="Learning rate")
-    parser.add_argument("--value_loss_weight", type=float, default=1, help="Value loss weight")
-    parser.add_argument("--policy_loss_weight", type=float, default=0.1, help="Policy loss weight")
+    parser.add_argument("--value_loss_weight", type=float, default=150, help="Value loss weight")
+    parser.add_argument("--policy_loss_weight", type=float, default=1, help="Policy loss weight")
     parser.add_argument("--reg_loss_weight", type=float, default=0.0, help="Regularization loss weight")
-    parser.add_argument("--replay_buffer_multiplier", type=int, default=15, help="Replay buffer multiplier")
-    parser.add_argument("--episodes_per_iteration", type=int, default=5, help="Episodes per iteration")
+    parser.add_argument("--replay_buffer_multiplier", type=int, default=10, help="Replay buffer multiplier")
+    parser.add_argument("--episodes_per_iteration", type=int, default=12, help="Episodes per iteration")
     parser.add_argument("--norm_layer", type=str, default="batch_norm", help="Normalization layer")
     parser.add_argument("--layers", type=int, default=3, help="Number of layers")
     parser.add_argument("--scale_reward", type=bool, default=False, help="Scale reward")
@@ -306,6 +306,12 @@ if __name__ == "__main__":
     parser.add_argument("--train_deviation_type", type=str, default="bump", help="The type of deviation to use.")
     parser.add_argument("--num_asteroids", type=int, default=0, help="Number of asteroids")
     parser.add_argument("--train_seed", type=int, default=0, help="The random seed to use for training.")
+
+    # Only ParkingSimple
+    parser.add_argument("--parking_test_config", type=str, default= "NO_OBS", help="ParkingSimple test config")
+    parser.add_argument("--add_walls", type=bool, default= True, help="Add walls to the environment")
+    parser.add_argument("--bump_on_collision", type=bool, default= True, help="Bump on collision") 
+    parser.add_argument("--rand_start", type=bool, default= True, help="Random initial state")
 
     # ---------------------------------------------------------
     # 3. Set default to False so you can pass --offline to enable
@@ -335,7 +341,25 @@ if __name__ == "__main__":
     elif ENV == "PARKING":
         challenge = env_challenges["ParkingEnv"]
         name_config = f"ParkingEnv"
-        observation_embedding = "parking"
+        observation_embedding = "parking_full"
+
+    elif ENV == "PARKING_SIMPLE":
+        challenge = env_challenges["ParkingSimple"]
+        name_config = f"ParkingSimple"
+        observation_embedding = "parking_ego"
+        challenge["env_params"]["obstacles"] = parking_simple_obstacles[args.parking_test_config]
+        challenge["env_params"]["add_walls"] = args.add_walls
+        challenge["env_params"]["bump_on_collision"] = args.bump_on_collision
+        challenge["env_params"]["rand_start"] = args.rand_start
+
+    elif ENV == "PARKING_ACC":
+        challenge = env_challenges["ParkingAcc"]
+        name_config = f"ParkingAcc"
+        observation_embedding = "parking_ego"
+        challenge["env_params"]["obstacles"] = parking_simple_obstacles[args.parking_test_config]
+        challenge["env_params"]["add_walls"] = args.add_walls
+        challenge["env_params"]["bump_on_collision"] = args.bump_on_collision
+        challenge["env_params"]["rand_start"] = args.rand_start
 
     config_modifications = {
         "ENV": ENV,

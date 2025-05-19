@@ -1,3 +1,5 @@
+import numpy as np
+
 base_parameters = {
     "model_type": "seperated",
     "observation_embedding": "default",
@@ -44,6 +46,20 @@ env_challenges = {
     "ParkingEnv": {
         "env_description": "ParkingEnv",
         "env_params": dict(id="ParkingEnv", max_episode_steps=1000000000),
+        "optimal_value": 0.0,
+        "worst_value": -1.0,
+    },
+
+    "ParkingSimple": {
+        "env_description": "ParkingSimple",
+        "env_params": dict(id="ParkingSimple", max_episode_steps=1000000000),
+        "optimal_value": 0.0,
+        "worst_value": -1.0,
+    },
+
+    "ParkingAcc": {
+        "env_description": "ParkingAcc",
+        "env_params": dict(id="ParkingAcc", max_episode_steps=1000000000),
         "optimal_value": 0.0,
         "worst_value": -1.0,
     },
@@ -114,6 +130,33 @@ env_challenges = {
         "ncols": 8,
     },
 }
+
+parking_simple_obstacles = {
+
+    "NO_OBS": np.array([
+    ]),
+
+    "OBS_EASY": np.array([
+    [-5 * 3 / 2, -20, np.pi / 2, 0, 4.8, 1.8, 0],
+    [-3 * 3 / 2, -20, np.pi / 2, 0, 4.8, 1.8, 0],
+    [-5 * 3 / 2, -5, -np.pi / 2, 0, 4.8, 1.8, 0],
+    [7 * 3 / 2, -5, -np.pi / 2, 0, 4.8, 1.8, 0],
+    [-3 / 2, 5, np.pi / 2, 0, 4.8, 1.8, 0],
+    [-3 * 3 / 2, 20, -np.pi / 2, 0, 4.8, 1.8, 0],
+    ]),
+
+    "OBS_HARD": np.array([
+    [-5 * 3 / 2, -20, np.pi / 2, 0, 4.8, 1.8, 0],
+    [-3 * 3 / 2, -20, np.pi / 2, 0, 4.8, 1.8, 0],
+    [-5 * 3 / 2, -5, -np.pi / 2, 0, 4.8, 1.8, 0],
+    [7 * 3 / 2, -5, -np.pi / 2, 0, 4.8, 1.8, 0],
+    [-3 / 2, 5, np.pi / 2, 0, 4.8, 1.8, 0],
+    [-3 * 3 / 2, 20, -np.pi / 2, 0, 4.8, 1.8, 0],
+    [-3 * 3 / 2, 0, -np.pi / 2, 0, 4.8, 1.8, 0],
+    ]),
+
+}
+
 
 ll_env_descriptions = {
     "NO_ASTEROIDS": {

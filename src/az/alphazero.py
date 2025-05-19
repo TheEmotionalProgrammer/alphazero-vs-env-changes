@@ -97,6 +97,7 @@ class AlphaZeroController:
         self.ema_beta = ema_beta
         self.evaluation_interval = evaluation_interval
         self.best_mean_return = float('-inf')  # Initialize to negative infinity
+        self.best_mean_discounted_return = float('-inf')  # Initialize to negative infinity
 
     def iterate(self, temp_schedule: List[float], seed=None):
         """
@@ -303,9 +304,14 @@ class AlphaZeroController:
 
         # Save the model if the current mean discounted return is better than the best so far
         current_mean_return = eval_res["Evaluation/Mean_Returns"]
-        if current_mean_return > self.best_mean_return:
-            print(f"New best mean return: {current_mean_return}. Saving model...")
-            self.best_mean_return = current_mean_return
+        current_mean_discounted_return = eval_res["Evaluation/Mean_Discounted_Returns"]
+        # if current_mean_return >= self.best_mean_return:
+        #     print(f"New best mean return: {current_mean_return}. Saving model...")
+        #     self.best_mean_return = current_mean_return
+        #     self.agent.model.save_model(f"{self.run_dir}/checkpoint.pth")
+        if current_mean_discounted_return >= self.best_mean_discounted_return:
+            print(f"New best mean discounted return: {current_mean_discounted_return}. Saving model...")
+            self.best_mean_discounted_return = current_mean_discounted_return
             self.agent.model.save_model(f"{self.run_dir}/checkpoint.pth")
 
         # self.agent.dir_epsilon = eps
@@ -316,14 +322,13 @@ class AlphaZeroController:
         """Play games in parallel and store the data in the replay buffer."""
         self.agent.model.eval()
 
-        # Generate unique seeds for each task if a seed is provided
+        #Generate unique seeds for each task if a seed is provided
         seeds = (
             [seed * self.episodes_per_iteration + i for i in range(self.episodes_per_iteration)]
             if seed is not None
             else [None] * self.episodes_per_iteration
         )
 
-        # Create tasks with unique seeds
         tasks = [
             (
                 self.agent,
@@ -332,11 +337,14 @@ class AlphaZeroController:
                 self.agent.model.observation_embedding,
                 self.planning_budget,
                 self.max_episode_length,
-                task_seed,
+                None,
                 temperature,
             )
             for task_seed in seeds
         ]
+
+        # Create tasks with unique seeds
+
 
         return collect_trajectories(tasks, self.self_play_workers)
 

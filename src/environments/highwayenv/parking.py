@@ -6,6 +6,7 @@ import numpy as np
 import gymnasium as gym
 from gymnasium import Env
 import copy
+import random
 
 from highway_env.envs.common.abstract import AbstractEnv
 from highway_env.envs.common.observation import (
@@ -111,8 +112,8 @@ class ParkingEnv(AbstractEnv, GoalEnv):
                 },
                 "action": {"type": "DiscreteAction"},
                 "reward_weights": [1, 0.3, 0, 0, 0.02, 0.02],
-                "success_goal_reward": 0.12,
-                "collision_reward": -10,
+                "success_goal_reward": 0.14,
+                "collision_reward": -20,
                 "steering_range": np.deg2rad(45),
                 "simulation_frequency": 15,
                 "policy_frequency": 5,
@@ -123,7 +124,7 @@ class ParkingEnv(AbstractEnv, GoalEnv):
                 "scaling": 7,
                 "controlled_vehicles": 1,
                 "vehicles_count": 0,
-                "add_walls": False,
+                "add_walls": True,
             }
         )
         return config
@@ -200,6 +201,9 @@ class ParkingEnv(AbstractEnv, GoalEnv):
             vehicle = self.action_type.vehicle_class(
                 self.road, [x0, 0], 2 * np.pi * self.np_random.uniform(), 0
             )
+            # vehicle = self.action_type.vehicle_class(
+            #     self.road, [x0, 0], 2 * np.pi * self.np_random.uniform(), 0
+            # )
             vehicle.color = VehicleGraphics.EGO_COLOR
             self.road.vehicles.append(vehicle)
             self.controlled_vehicles.append(vehicle)
@@ -207,7 +211,7 @@ class ParkingEnv(AbstractEnv, GoalEnv):
 
         # Goal
         for vehicle in self.controlled_vehicles:
-            lane_index = empty_spots[1] #empty_spots[self.np_random.choice(np.arange(len(empty_spots)))]
+            lane_index = empty_spots[0]#empty_spots[self.np_random.choice(np.arange(len(empty_spots)))]
             lane = self.road.network.get_lane(lane_index)
             vehicle.goal = Landmark(
                 self.road, lane.position(lane.length / 2, 0), heading=lane.heading
@@ -225,7 +229,11 @@ class ParkingEnv(AbstractEnv, GoalEnv):
             empty_spots.remove(lane_index)
 
         # Add obstacles
-        obstacle_positions =  []
+        obstacle_positions = [
+            # [random.uniform(-30, 30), random.uniform(-20, 20)]  # Random x, y positions
+            # for _ in range(5)  # Number of obstacles to generate
+        ]
+
         for pos in obstacle_positions:
             obstacle = Obstacle(self.road, pos)
             obstacle.LENGTH, obstacle.WIDTH = (3, 3)  # Set obstacle size
@@ -300,19 +308,25 @@ class ParkingEnv(AbstractEnv, GoalEnv):
         reward += self.config["collision_reward"] * sum(
             v.crashed for v in self.controlled_vehicles
         )
+        
+
+        # reward += 10*self._is_success(
+        #     obs[0]["achieved_goal"], obs[0]["desired_goal"]
+        # ) #* (1 - self.time / self.config["duration"])
+
         return reward
 
     def _is_success(self, achieved_goal: np.ndarray, desired_goal: np.ndarray) -> bool:
-        neg_rew =  self.compute_reward(
-            achieved_goal, desired_goal, {}
-        )
-        # -np.power(
-        #     np.dot(
-        #         np.abs(achieved_goal - desired_goal),
-        #         np.array(self.config["reward_weights"]),
-        #     ),
-        #     0.5,
+        # neg_rew =  self.compute_reward(
+        #     achieved_goal, desired_goal, {}
         # )
+        neg_rew =  -np.power(
+            np.dot(
+                np.abs(achieved_goal - desired_goal),
+                np.array(self.config["reward_weights"]),
+            ),
+            0.5,
+        )
         return (
             neg_rew
             > -self.config["success_goal_reward"]
