@@ -45,7 +45,7 @@ class Node(Generic[ObservationType]):
         self.mask = np.ones(self.action_space.n, dtype=np.int8)
         self.reward = reward
         self.parent = parent
-        self.parent_action = action
+        self.action = action
         self.terminal = terminal
         self.observation = observation
         self.env = env
@@ -164,10 +164,22 @@ class Node(Generic[ObservationType]):
 
         counter = Counter()
         # add the current node
-        counter[self.observation] = self.visits if self.is_terminal() else 1
+        counter[self.observation] = self.visits #if not self.is_terminal() else 1
         # add all children
         for child in self.children.values():
             counter.update(child.state_visitation_counts())
+
+        return counter
+    
+    def state_repetitions(self) -> Counter:
+        """
+        Returns a counter of the number of times each state appears in the tree (in different nodes)"""
+        counter = Counter()
+        # add the current node
+        counter[self.observation] = 1
+        # add all children
+        for child in self.children.values():
+            counter.update(child.state_repetitions())
 
         return counter
     
@@ -203,6 +215,30 @@ class Node(Generic[ObservationType]):
 
         return values
     
+    def sum_nn_values_dict(self) -> Dict[int, float]:
+        """
+        Returns a dictionary with the observations as keys and the sum of value estimates
+        of the subtrees as values, recursively including all descendants.
+        """
+        values = {}
+
+        # Initialize with the current node's observation and value
+        if self.observation is not None:
+            values[self.observation] = self.value_evaluation
+
+        # Recursively process children
+        for child in self.children.values():
+            if child.observation is not None:
+                # Get the child's nn_sum_values_dict recursively
+                child_values = child.sum_nn_values_dict()
+                for obs, value in child_values.items():
+                    if obs not in values:
+                        values[obs] = value
+                    else:
+                        values[obs] += value
+
+        return values
+    
     def mean_policy_values_dict(self) -> Dict[int, float]:
         """
         Returns a dictionary with the observations as keys and the mean policy estimates
@@ -232,6 +268,30 @@ class Node(Generic[ObservationType]):
         # Compute the mean for each observation
         for key in values.keys():
             values[key] /= counts[key]
+
+        return values
+    
+    def sum_policy_values_dict(self) -> Dict[int, float]:
+        """
+        Returns a dictionary with the observations as keys and the sum of policy estimates
+        of the subtrees as values, recursively including all descendants.
+        """
+        values = {}
+
+        # Initialize with the current node's observation and policy value
+        if self.observation is not None:
+            values[self.observation] = self.policy_value
+
+        # Recursively process children
+        for child in self.children.values():
+            if child.observation is not None:
+                # Get the child's nn_sum_values_dict recursively
+                child_values = child.sum_policy_values_dict()
+                for obs, value in child_values.items():
+                    if obs not in values:
+                        values[obs] = value
+                    else:
+                        values[obs] += value
 
         return values
     

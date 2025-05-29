@@ -113,7 +113,7 @@ class MiniTrees(AlphaZeroMCTS):
 
         num_calls = 0
 
-        print(f"Value estimate: {val}, Prediction: {i_pred}", "obs", f"({print_obs(env, node.observation)[0]}, {print_obs(env, node.observation)[1]})")
+        #print(f"Value estimate: {val}, Prediction: {i_pred}", "obs", f"({print_obs(env, node.observation)[0]}, {print_obs(env, node.observation)[1]})")
 
         for i in range(n):
 
@@ -155,7 +155,7 @@ class MiniTrees(AlphaZeroMCTS):
             if self.predictor == "current_value" and self.update_estimator and i_est > i_pred:
                 i_pred = i_est # We found a better estimate for the value of the node, assuming we are following the optimal policy
 
-            print(f"Value estimate: {i_est}, Prediction: {i_pred}", "obs", f"({print_obs(env, node.observation)[0]}, {print_obs(env, node.observation)[1]})")
+            #print(f"Value estimate: {i_est}, Prediction: {i_pred}", "obs", f"({print_obs(env, node.observation)[0]}, {print_obs(env, node.observation)[1]})")
 
             # Add a very small delta to avoid division by zero
             i_pred = i_pred + 1e-9
@@ -164,6 +164,8 @@ class MiniTrees(AlphaZeroMCTS):
             if i_est/i_pred < 1 - self.threshold:
 
                 print("Problem!")
+
+                print("Problem detected at step", i+1, "with value estimate", i_est, "and prediction", i_pred)
 
                 # We compute the safe number of steps estimation with this formula:
                 # t = taken_steps - log(1-threshold)/log(discount_factor)

@@ -10,7 +10,7 @@ from environments.observation_embeddings import CoordinateEmbedding, Observation
 from policies.policies import Policy
 from environments.lunarlander.lunar_lander import CustomLunarLander
 import matplotlib.pyplot as plt
-from core.utils import copy_environment, print_obs
+from core.utils import copy_environment, print_obs, observations_equal
 
 
 class MCTS:
@@ -212,11 +212,12 @@ class MCTS:
     
 class NoLoopsMCTS(MCTS):
 
-    def __init__(self, reuse_tree, *args, **kwargs):
+    def __init__(self, reuse_tree, block_loops, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.previous_root = None
         self.reuse_tree = reuse_tree
+        self.block_loops = block_loops
 
     def traverse(
         self, from_node: Node
@@ -233,7 +234,7 @@ class NoLoopsMCTS(MCTS):
 
         node = from_node
 
-        visited.add(node.observation)
+        visited.add(tuple(node.observation.flatten()) if isinstance(node.observation, np.ndarray) else node.observation)
 
         action = self.root_selection_policy.sample(node, mask=node.mask) # Select which node to step into
 
@@ -242,7 +243,7 @@ class NoLoopsMCTS(MCTS):
                         
         node = node.step(action)  # Step into the chosen node
 
-        visited.add(node.observation)
+        visited.add(tuple(node.observation.flatten()) if isinstance(node.observation, np.ndarray) else node.observation)
 
         while not node.is_terminal():   
 
@@ -253,7 +254,7 @@ class NoLoopsMCTS(MCTS):
 
             node = node.step(action) # Step into the chosen node
 
-            visited.add(node.observation)
+            visited.add(tuple(node.observation.flatten()) if isinstance(node.observation, np.ndarray) else node.observation)
 
         return node, action, visited
     
@@ -321,7 +322,7 @@ class NoLoopsMCTS(MCTS):
             found = False
             max_depth = 0
             for _, child in root_node.children.items():
-                if child.observation == obs and child.height > max_depth:
+                if observations_equal(child.observation, obs) and child.height > max_depth:
                     found = True
                     max_depth = child.height
                     root_node = child
@@ -364,7 +365,9 @@ class NoLoopsMCTS(MCTS):
                         
                 eval_node.value_evaluation = value # Set the value of the node
 
-                if eval_node.observation in visited:
+                tuple_obs = tuple(eval_node.observation.flatten()) if isinstance(eval_node.observation, np.ndarray) else eval_node.observation
+                if self.block_loops and is_close_in_set(tuple_obs, visited):
+                    print(f"Loop detected at {eval_node.observation}, blocking the action {selected_action}")
                     eval_node.parent.mask[selected_action] = 0
                     eval_node.value_evaluation = 0.0
                     self.backup(eval_node, 0)
@@ -423,6 +426,7 @@ class RandomRolloutMCTS(MCTS):
         # if the node is terminal, return 0
         if node.is_terminal():
             return 0.0
+            #return 1.0 / (1 - self.discount_factor)
 
         # if the node is not terminal, simulate the enviroment with random actions and return the accumulated reward until termination
         accumulated_reward = 0.0
@@ -435,6 +439,7 @@ class RandomRolloutMCTS(MCTS):
             accumulated_reward += reward * (discount** (i+1))
             assert not truncated
             if terminated or truncated:
+                #accumulated_reward += sum(discount**(j+1) for j in range(i+1, self.rollout_budget-1))
                 break
 
         return accumulated_reward
@@ -537,5 +542,24 @@ class LakeDistanceMCTS(MCTS):
         observation = node.observation
         assert observation is not None
         return self.get_value(observation)
+
+def is_close_in_set(obs, visited, alpha=0):
+    """
+    Checks if obs is within L2 distance alpha of any element in visited.
+    obs and elements of visited can be tuples or numpy arrays.
+    Skips comparisons if obs or v contains None.
+    """
+    if obs is None or (isinstance(obs, (tuple, list, np.ndarray)) and any(x is None for x in obs)):
+        return False
+    obs_arr = np.array(obs)
+    for v in visited:
+        if v is None or (isinstance(v, (tuple, list, np.ndarray)) and any(x is None for x in v)):
+            continue
+        v_arr = np.array(v)
+        if obs_arr.shape != v_arr.shape:
+            continue
+        if np.linalg.norm(obs_arr - v_arr) < alpha:
+            return True
+    return False
 
 

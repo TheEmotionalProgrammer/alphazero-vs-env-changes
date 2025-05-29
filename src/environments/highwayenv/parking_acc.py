@@ -34,14 +34,22 @@ STATE_SCALE = np.array(
     + [SCREEN_W / SCALE, SCREEN_H / SCALE] * 4
 )
 FPS = 30
-RED = (255, 100, 100)
-GREEN = (50, 200, 0)
-BLUE = (100, 200, 255)
-YELLOW = (200, 200, 0)
-BLACK = (0, 0, 0)
-GREY = (100, 100, 100)
-WHITE = (255, 255, 255)
+# Modern soft color palette
+RED = (239, 83, 80)       # Soft red
+GREEN = (76, 175, 80)     # Emerald green
+BLUE = (66, 165, 245)     # Sky blue
+YELLOW = (255, 235, 59)   # Warm yellow
+BLACK = (33, 33, 33)      # Charcoal black
+GREY = (120, 144, 156)    # Cool grey
+WHITE = (245, 245, 245)   # Off-white
+PURPLE = (171, 71, 188)   # Optional for accents
+TEAL = (0, 150, 136)      # Optional contrast
+GOLDEN = (255, 193, 7)      # Optional gold for highlights
 
+#BACKGROUND_COLOR = (38, 50, 56)  # a more dramatic dark theme # light modern background
+
+# Create a light gray background color
+BACKGROUND_COLOR = (100, 100, 100)  
 
 # position[2], heading, speed, length, width, type
 FIXED_INIT_STATE = np.array([-18, 18, -PI/2, 0, CAR_LENGTH, CAR_WIDTH, 0])
@@ -104,47 +112,59 @@ def randomise_state(state: np.ndarray):
 def collision_check(
     ego: np.ndarray, ego_angle: float, others: np.ndarray, others_angle: np.ndarray
 ):
-    # AABB
+    # --- AABB filtering (cheap bounding box check) ---
     ego_min_x = ego[:, 0].min()
     ego_max_x = ego[:, 0].max()
     ego_min_y = ego[:, 1].min()
     ego_max_y = ego[:, 1].max()
+
     for i in range(others.shape[0]):
-        other_min_x = others[i, :, 0].min()
-        other_max_x = others[i, :, 0].max()
-        other_min_y = others[i, :, 1].min()
-        other_max_y = others[i, :, 1].max()
+        other = others[i]
+        angle = others_angle[i]
+
+        other_min_x = other[:, 0].min()
+        other_max_x = other[:, 0].max()
+        other_min_y = other[:, 1].min()
+        other_max_y = other[:, 1].max()
+
+        # AABB rejection
         if (
-            ego_min_x > other_max_x
-            or ego_max_x < other_min_x
-            or ego_min_y > other_max_y
-            or ego_max_y < other_min_y
+            ego_max_x < other_min_x or ego_min_x > other_max_x or
+            ego_max_y < other_min_y or ego_min_y > other_max_y
         ):
             continue
-        else:
-            # OBB
-            def get_rot_mat(angle: float):
-                return np.array(
-                    [[np.cos(angle), np.sin(angle)], [-np.sin(angle), np.cos(angle)]]
-                )
 
-            ego_rot_mat = get_rot_mat(ego_angle)
-            other_rot_mat = get_rot_mat(others_angle[i])
-            rot_mat = np.vstack((ego_rot_mat, other_rot_mat))
-            projections_ego = np.dot(np.asfortranarray(ego), rot_mat.T)
-            projections_other = np.dot(np.asfortranarray(others[i]), rot_mat.T)
-            for j in range(len(rot_mat)):
-                min1, max1 = np.min(projections_ego[:, j]), np.max(
-                    projections_ego[:, j]
-                )
-                min2, max2 = np.min(projections_other[:, j]), np.max(
-                    projections_other[:, j]
-                )
-                if max1 < min2 or max2 < min1:
-                    continue
-                return True
+        # --- OBB (Separating Axis Theorem) ---
+        def get_rot_mat(theta: float):
+            return np.array([
+                [np.cos(theta), -np.sin(theta)],
+                [np.sin(theta),  np.cos(theta)],
+            ])
+
+        ego_rot = get_rot_mat(ego_angle)
+        other_rot = get_rot_mat(angle)
+
+        # Use local axes of both rectangles as projection axes
+        axes = [
+            ego_rot[0],  # Ego's local X
+            ego_rot[1],  # Ego's local Y
+            other_rot[0],  # Other's local X
+            other_rot[1],  # Other's local Y
+        ]
+
+        collision = True
+        for axis in axes:
+            ego_proj = np.dot(ego, axis)
+            other_proj = np.dot(other, axis)
+
+            if ego_proj.max() < other_proj.min() or other_proj.max() < ego_proj.min():
+                collision = False
+                break  # Separating axis found → no collision
+
+        if collision:
+            return True
+
     return False
-
 
 @njit("f8[:](f8[:], f8)", fastmath=True, cache=True)
 def rotate_rad(pos, theta):
@@ -197,7 +217,7 @@ def draw_rectangle(
         if obj_type == 0:
             color = YELLOW
         elif obj_type == 1:
-            color = GREY
+            color = BLACK
     pygame.draw.polygon(
         object_surface,
         color,
@@ -205,6 +225,7 @@ def draw_rectangle(
         width=2,
     )
     gfxdraw.filled_polygon(object_surface, vertices, color)
+    
     surface.blit(object_surface, (0, 0))
 
 
@@ -222,6 +243,42 @@ def draw_direction_pattern(
         vertices = to_pixel(compute_vertices(state_copy))
         draw_rectangle(surface, vertices, RED)
 
+def draw_wheels(
+    surface: pygame.Surface,
+    state: np.ndarray,
+    wheel_width: float = 0.5,
+    wheel_length: float = 1.0,
+    color: tuple = BLACK,
+):
+    """
+    Draws 4 wheels slightly protruding outside and placed closer to the center than the car's corners.
+    """
+    car_x, car_y, car_theta = state[0], state[1], state[2]
+    car_length, car_width = state[4], state[5]
+
+    # Closer placement: reduce offset from full length/width
+    # Still allow slight protrusion outside car body
+    longitudinal_offset = car_length * 0.35  # closer than half length
+    lateral_offset = car_width * 0.55        # slightly outside the width
+
+    # Positions relative to car center (before rotation)
+    wheel_offsets = np.array([
+        [-longitudinal_offset, -lateral_offset],  # rear left
+        [-longitudinal_offset,  lateral_offset],  # rear right
+        [ longitudinal_offset, -lateral_offset],  # front left
+        [ longitudinal_offset,  lateral_offset],  # front right
+    ])
+
+    for offset in wheel_offsets:
+        wheel_center = rotate_rad(offset, car_theta) + np.array([car_x, car_y])
+        l, r = -wheel_length / 2, wheel_length / 2
+        b, t = -wheel_width / 2, wheel_width / 2
+        wheel_vertices = np.array([[l, b], [l, t], [r, t], [r, b]])
+
+        for i in range(4):
+            wheel_vertices[i] = rotate_rad(wheel_vertices[i], car_theta) + wheel_center
+
+        draw_rectangle(surface, to_pixel(wheel_vertices), color)
 
 class ParkingAcc(gym.Env):
     metadata = {
@@ -254,6 +311,10 @@ class ParkingAcc(gym.Env):
         rand_start: bool = True,
     ) -> None:
         super().__init__()
+
+
+
+
         assert render_mode in self.metadata["render_modes"]
         assert observation_type in self.metadata["observation_types"]
         assert action_type in self.metadata["action_types"]
@@ -324,8 +385,13 @@ class ParkingAcc(gym.Env):
                 collision = True
 
             if self.bump_on_collision and collision:
+                
                 # Ignore the action, set velocity to zero
-                self.movable[0, 3] = 0.0
+                self.movable[0, 3]= 0.0
+                # Bump backwards
+                # self.movable[0, 0] -= np.cos(self.movable[0, 2]) * 0.5
+                # self.movable[0, 1] -= np.sin(self.movable[0, 2]) * 0.5
+                
                 # Do not update position or angle
                 # Recompute vertices for rendering/observation
                 self.movable_vertices = compute_vertices(self.movable[0])
@@ -442,6 +508,9 @@ class ParkingAcc(gym.Env):
             return self._render(self.render_mode)
 
     def _render(self, mode: str, rgb_w: int = SCREEN_W, rgb_h: int = SCREEN_H):
+
+        if not pygame.font.get_init():
+            pygame.font.init()
         assert mode in self.metadata["render_modes"]
 
         if mode == "human" and self.screen is None:
@@ -457,23 +526,47 @@ class ParkingAcc(gym.Env):
                     (SCREEN_W, SCREEN_H), flags=pygame.SRCALPHA
                 )
                 for i in range(self.stationary.shape[0]):
+                    if self.stationary[i, -1] == 0:
+                        draw_wheels(
+                            self.surf_stationary, self.stationary[i],
+                            wheel_width=0.5, wheel_length=0.8, color=BLACK
+                        )
                     draw_rectangle(
                         self.surf_stationary,
                         to_pixel(self.stationary_vertices[i]),
                         obj_type=self.stationary[i, -1],
                     )
                     draw_direction_pattern(self.surf_stationary, self.stationary[i])
-                draw_rectangle(self.surf_stationary, to_pixel(self.goal_vertices), BLUE)
+                # Render the dollar symbol for the goal
+                font = pygame.font.SysFont("arial", 32, bold=True)
+                text_surf = font.render("$", True, GOLDEN)
+
+                text_surf = pygame.transform.flip(text_surf, False, True)
+
+                # Position it at the goal's center (transformed to pixel coordinates)
+                goal_pos_px = GOAL_STATE[:2] * SCALE + np.array([SCREEN_W / 2, SCREEN_H / 2])
+                #goal_pos_px[1] = SCREEN_H - goal_pos_px[1]  # Flip Y axis (pygame coordinates)
+
+                # Center the text
+                text_rect = text_surf.get_rect(center=goal_pos_px)
+                self.surf_stationary.blit(text_surf, text_rect)
 
             if self.surf_movable is None:
                 self.surf_movable = pygame.Surface(
                     (SCREEN_W, SCREEN_H), flags=pygame.SRCALPHA
                 )
             self.surf_movable.fill((0, 0, 0, 0))
+            draw_wheels(
+                self.surf_movable, self.movable[0],
+                wheel_width=0.5, wheel_length=0.8, color=BLACK
+            )
             draw_rectangle(self.surf_movable, to_pixel(self.movable_vertices), GREEN)
             draw_direction_pattern(self.surf_movable, self.movable[0])
 
-            surf = self.surf_stationary.copy()
+            # NEW: Create final surface and fill background
+            surf = pygame.Surface((SCREEN_W, SCREEN_H))
+            surf.fill(BACKGROUND_COLOR)
+            surf.blit(self.surf_stationary, (0, 0))
             surf.blit(self.surf_movable, (0, 0))
             surf = pygame.transform.flip(surf, False, True)
 
@@ -481,7 +574,7 @@ class ParkingAcc(gym.Env):
             pygame.event.pump()
             self.clock.tick(self.metadata["render_fps"])
             assert self.screen is not None
-            self.screen.fill(BLACK)
+            self.screen.fill(BACKGROUND_COLOR)
             self.screen.blit(surf, (0, 0))
             pygame.display.flip()
         elif mode == "rgb_array":
@@ -495,6 +588,7 @@ class ParkingAcc(gym.Env):
 
     def _create_image_array(self, screen, size):
         scaled_screen = pygame.transform.smoothscale(screen, size)
+        # make the background background color 
         return np.transpose(
             np.array(pygame.surfarray.pixels3d(scaled_screen)), axes=(1, 0, 2)
         )
@@ -504,7 +598,7 @@ if __name__ == "__main__":
 
     env = ParkingAcc(
         render_mode="human", observation_type="vector", action_type="discrete",
-        bump_on_collision=True, rand_start=True, obstacles=[]
+        bump_on_collision=True, rand_start=True
     )
     
     env.reset()

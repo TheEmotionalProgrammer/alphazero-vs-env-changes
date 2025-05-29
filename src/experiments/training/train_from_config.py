@@ -384,6 +384,7 @@ if __name__ == "__main__":
         "offline": args.offline,
         "norm_layer": args.norm_layer,
         "layers": args.layers,
+        "bump_on_collision": args.bump_on_collision,
     }
 
     run_config = {**base_parameters, **challenge, **config_modifications}

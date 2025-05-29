@@ -36,7 +36,8 @@ from policies.value_transforms import value_transform_dict
 from environments.register import register_all
 
 import argparse
-from experiments.parameters import base_parameters, env_challenges, fz_env_descriptions, ll_env_descriptions
+from experiments.parameters import base_parameters, env_challenges, fz_env_descriptions, ll_env_descriptions, parking_simple_obstacles
+
 
 from log_code.tree_visualizer import visualize_trees
 from log_code.plot_state_densities import plot_density, calculate_density, calculate_nn_value_means, calculate_policy_value_means, calculate_variance_means
@@ -125,6 +126,7 @@ def agent_from_config(hparams: dict):
                 discount_factor=discount_factor,
                 value_estimate=hparams["value_estimate"],
                 reuse_tree=hparams["reuse_tree"],
+                block_loops=hparams["block_loops"],
             )
         elif hparams["agent_type"] == "azmcts":
             agent = AlphaZeroMCTS(
@@ -297,38 +299,38 @@ def eval_from_config(
         
         for i, tree in enumerate(trees):
 
-            states_density = calculate_density(tree, len(test_desc[0]), len(test_desc))
-            #policy_values = calculate_policy_value_means(tree, len(test_desc[0]), len(test_desc))
+            #states_density = calculate_density(tree, len(test_desc[0]), len(test_desc))
+            policy_values = calculate_policy_value_means(tree, len(test_desc[0]), len(test_desc))
             #nn_values = calculate_nn_value_means(tree, len(test_desc[0]), len(test_desc))
             #variances = calculate_variance_means(tree, len(test_desc[0]), len(test_desc))
 
-            states_cmap = sns.diverging_palette(10, 120, as_cmap=True, center="light")
-            # values_cmap = sns.diverging_palette(120, 10, as_cmap=True, center="light")
+            #states_cmap = sns.diverging_palette(10, 120, as_cmap=True, center="light")
+            values_cmap = sns.diverging_palette(120, 10, as_cmap=True, center="light")
             # nn_values_cmap = sns.diverging_palette(120, 10, as_cmap=True, center="light")
             # variances_cmap = sns.diverging_palette(20, 240, as_cmap=True, center="light")
 
-            ax = plot_density(states_density, tree.observation, obst_coords, len(test_desc[0]), len(test_desc), cmap=states_cmap)
+            # ax = plot_density(states_density, tree.observation, obst_coords, len(test_desc[0]), len(test_desc), cmap=states_cmap)
 
-            ax.set_title(f"State Visitation Counts at step {i}")
-
-            # If no path to folder, create it
-            if not os.path.exists("states_density"):
-                os.makedirs("states_density")
-
-            plt.savefig(f"states_density/{i}.png")
-            plt.close()
-
-
-            # ax = plot_density(policy_values, tree.observation, obst_coords, len(test_desc[0]), len(test_desc), cmap=values_cmap)
-
-            # ax.set_title(f"Mean Policy Values at step {i}")
+            # ax.set_title(f"State Visitation Counts at step {i}")
 
             # # If no path to folder, create it
-            # if not os.path.exists("policy_values"):
-            #     os.makedirs("policy_values")
+            # if not os.path.exists("states_density"):
+            #     os.makedirs("states_density")
 
-            # plt.savefig(f"policy_values/{i}.png")
+            # plt.savefig(f"states_density/{i}.png")
             # plt.close()
+
+
+            ax = plot_density(policy_values, tree.observation, obst_coords, len(test_desc[0]), len(test_desc), cmap=values_cmap)
+
+            ax.set_title(f"Mean Policy Values at step {i}")
+
+            # If no path to folder, create it
+            if not os.path.exists("policy_values"):
+                os.makedirs("policy_values")
+
+            plt.savefig(f"policy_values/{i}.png")
+            plt.close()
 
             # ax = plot_density(variances, tree.observation, obst_coords, len(test_desc[0]), len(test_desc), cmap=variances_cmap)
 
@@ -416,17 +418,28 @@ def eval_budget_sweep(
         num_train_seeds (int): Number of training seeds.
         num_eval_seeds (int): Number of evaluation seeds.
     """
-    if config["agent_type"] == "mini-trees" or config["agent_type"] == "mega-tree":
-        run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_c_({config['puct_c']})_Predictor_({config['predictor']})_n_({config['unroll_budget']})_eps_({config['threshold']})_ValueSearch_({config['value_search']})_ValueEst_({config['value_estimate']})_UpdateEst_({config['update_estimator']})_{config['map_size']}x{config['map_size']}_{config['train_config']}_{config['test_config']}"
-    elif config["agent_type"] == "azmcts":
-        run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_c_({config['puct_c']})_ValueEst_({config['value_estimate']})_{config['map_size']}x{config['map_size']}_{config['train_config']}_{config['test_config']}"
-    elif config["agent_type"] == "pddp":
-        run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_c_({config['puct_c']})_Beta_({config['eval_param']})_Predictor_({config['predictor']})_eps_({config['threshold']})_subthresh_({config['subopt_threshold']})_ValueEst_({config['value_estimate']})_ttemp_({config['tree_temperature']})_Value_Penalty_{config['value_penalty']}_{config['map_size']}x{config['map_size']}_{config['train_config']}_{config['test_config']}"
-    elif config["agent_type"] == "azmcts_no_loops":
-        run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_c_({config['puct_c']})_Beta_({config['eval_param']})_ttemp_({config['tree_temperature']})_ValueEst_({config['value_estimate']})_{config['map_size']}x{config['map_size']}_{config['train_config']}_{config['test_config']}"
-    else:
-        run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_c_({config['puct_c']})_Predictor_({config['predictor']})_eps_({config['threshold']})_ValueEst_({config['value_estimate']})_{config['map_size']}x{config['map_size']}_{config['train_config']}_{config['test_config']}"
 
+    if config["ENV"] == "FROZENLAKE":
+        if config["agent_type"] == "mini-trees" or config["agent_type"] == "mega-tree":
+            run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_c_({config['puct_c']})_Predictor_({config['predictor']})_n_({config['unroll_budget']})_eps_({config['threshold']})_ValueSearch_({config['value_search']})_ValueEst_({config['value_estimate']})_UpdateEst_({config['update_estimator']})_{config['map_size']}x{config['map_size']}_{config['train_config']}_{config['test_config']}"
+        elif config["agent_type"] == "azmcts":
+            run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_c_({config['puct_c']})_ValueEst_({config['value_estimate']})_{config['map_size']}x{config['map_size']}_{config['train_config']}_{config['test_config']}"
+        elif config["agent_type"] == "pddp":
+            run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_c_({config['puct_c']})_Beta_({config['eval_param']})_Predictor_({config['predictor']})_eps_({config['threshold']})_subthresh_({config['subopt_threshold']})_ValueEst_({config['value_estimate']})_ttemp_({config['tree_temperature']})_Value_Penalty_{config['value_penalty']}_treuse_{config['reuse_tree']}_{config['map_size']}x{config['map_size']}_{config['train_config']}_{config['test_config']}"
+        elif config["agent_type"] == "azmcts_no_loops":
+            run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_c_({config['puct_c']})_Beta_({config['eval_param']})_treuse_{config['reuse_tree']}_bloops_{config['block_loops']}_ttemp_({config['tree_temperature']})_ValueEst_({config['value_estimate']})_{config['map_size']}x{config['map_size']}_{config['train_config']}_{config['test_config']}"
+        else:
+            run_name = f"Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_c_({config['puct_c']})_Predictor_({config['predictor']})_eps_({config['threshold']})_ValueEst_({config['value_estimate']})_{config['map_size']}x{config['map_size']}_{config['train_config']}_{config['test_config']}"
+    elif config["ENV"] == "PARKING_ACC":
+        if config["agent_type"] == "mini-trees" or config["agent_type"] == "mega-tree":
+            run_name = f"PARKING-ACC_Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_c_({config['puct_c']})_Predictor_({config['predictor']})_n_({config['unroll_budget']})_eps_({config['threshold']})_ValueSearch_({config['value_search']})_ValueEst_({config['value_estimate']})_UpdateEst_({config['update_estimator']})_{config['parking_test_config']}_bump_{config['bump_on_collision']}_randstart_{config['rand_start']}"
+        elif config["agent_type"] == "azmcts":
+            run_name = f"PARKING-ACC_Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_c_({config['puct_c']})_Beta_({config['eval_param']})_ValueEst_({config['value_estimate']})_{config['parking_test_config']}_bump_{config['bump_on_collision']}_randstart_{config['rand_start']}"
+        elif config["agent_type"] == "pddp":
+            run_name = f"PARKING-ACC_Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_c_({config['puct_c']})_Beta_({config['eval_param']})_Predictor_({config['predictor']})_eps_({config['threshold']})_subthresh_({config['subopt_threshold']})_ValueEst_({config['value_estimate']})_ttemp_({config['tree_temperature']})_Value_Penalty_{config['value_penalty']}_treuse_{config['reuse_tree']}_{config['parking_test_config']}_bump_{config['bump_on_collision']}_randstart_{config['rand_start']}"
+        elif config["agent_type"] == "azmcts_no_loops":
+            run_name = f"PARKING-ACC_Algorithm_({config['agent_type']})_EvalPol_({config['tree_evaluation_policy']})_SelPol_({config['selection_policy']})_c_({config['puct_c']})_Beta_({config['eval_param']})_treuse_{config['reuse_tree']}_bloops_{config['block_loops']}_ttemp_({config['tree_temperature']})_ValueEst_({config['value_estimate']})_{config['parking_test_config']}_bump_{config['bump_on_collision']}_randstart_{config['rand_start']}"
+        
     if config["bad_training"]:
         run_name = run_name + "_BAD"
 
@@ -440,10 +453,10 @@ def eval_budget_sweep(
     #     if config["puct_c"] > 0:
     #         run_name = run_name + "_C>0"
     
-    if config["test_env"]["deviation_type"] == "clockwise":
+    if config["ENV"] == "FROZENLAKE" and config["test_env"]["deviation_type"] == "clockwise":
         run_name = "CW_" + run_name 
     
-    if config["test_env"]["deviation_type"] == "counter_clockwise":
+    if config["ENV"] == "FROZENLAKE" and config["test_env"]["deviation_type"] == "counter_clockwise":
         run_name = "CCW_" + run_name
     
     print(f"Run Name: {run_name}")
@@ -473,25 +486,31 @@ def eval_budget_sweep(
     for model_seed in range(num_train_seeds):
         print(f"Training Seed: {model_seed}")
 
-        if config["map_size"] == 8 and config["train_config"] == "NO_HOLES":
-            model_file = f"hyper/AZTrain_env=CustomFrozenLakeNoHoles8x8-v1_evalpol=visit_iterations=50_budget=64_df=0.95_lr=0.001_nstepslr=2_seed={model_seed}/checkpoint.pth"
-        elif config["map_size"] == 16 and config["train_config"] == "NO_HOLES":
-            model_file = f"hyper/AZTrain_env=CustomFrozenLakeNoHoles16x16-v1_evalpol=visit_iterations=60_budget=128_df=0.95_lr=0.003_nstepslr=2_seed={model_seed}/checkpoint.pth"
+        if config["ENV"] == "FROZENLAKE":
 
-        elif config["map_size"] == 8 and config["train_config"] == "MAZE_RL":
-            if config["bad_training"]:
-                model_file = f"hyper/AZTrain_env=8x8_MAZE_RL_evalpol=visit_iterations=20_budget=64_df=0.95_lr=0.001_nstepslr=2_c=0.5_seed={model_seed}/checkpoint.pth"
-            else:
-                model_file = f"hyper/AZTrain_env=8x8_MAZE_RL_evalpol=visit_iterations=150_budget=64_df=0.95_lr=0.001_nstepslr=2_c=0.5_seed={model_seed}/checkpoint.pth"
+            if config["map_size"] == 8 and config["train_config"] == "NO_HOLES":
+                model_file = f"hyper/AZTrain_env=CustomFrozenLakeNoHoles8x8-v1_evalpol=visit_iterations=50_budget=64_df=0.95_lr=0.001_nstepslr=2_seed={model_seed}/checkpoint.pth"
+            elif config["map_size"] == 16 and config["train_config"] == "NO_HOLES":
+                model_file = f"hyper/AZTrain_env=CustomFrozenLakeNoHoles16x16-v1_evalpol=visit_iterations=60_budget=128_df=0.95_lr=0.003_nstepslr=2_seed={model_seed}/checkpoint.pth"
 
-        elif config["map_size"] == 8 and config["train_config"] == "MAZE_LR":
-            if config["bad_training"]:
-                model_file = f"hyper/AZTrain_env=8x8_MAZE_LR_evalpol=visit_iterations=10_budget=64_df=0.95_lr=0.001_nstepslr=2_c=0.5_seed={model_seed}/checkpoint.pth"
-            else:
-                model_file = f"hyper/AZTrain_env=8x8_MAZE_LR_evalpol=visit_iterations=100_budget=64_df=0.95_lr=0.001_nstepslr=2_c=0.5_seed={model_seed}/checkpoint.pth"
+            elif config["map_size"] == 8 and config["train_config"] == "MAZE_RL":
+                if config["bad_training"]:
+                    model_file = f"hyper/AZTrain_env=8x8_MAZE_RL_evalpol=visit_iterations=20_budget=64_df=0.95_lr=0.001_nstepslr=2_c=0.5_seed={model_seed}/checkpoint.pth"
+                else:
+                    model_file = f"hyper/AZTrain_env=8x8_MAZE_RL_evalpol=visit_iterations=150_budget=64_df=0.95_lr=0.001_nstepslr=2_c=0.5_seed={model_seed}/checkpoint.pth"
 
-        elif config["map_size"] == 16 and config["train_config"] == "MAZE_LR":
-            model_file = f"hyper/AZTrain_env=16x16_MAZE_LR_evalpol=visit_iterations=150_budget=64_df=0.95_lr=0.003_nstepslr=2_c=0.2_seed={model_seed}/checkpoint.pth"
+            elif config["map_size"] == 8 and config["train_config"] == "MAZE_LR":
+                if config["bad_training"]:
+                    model_file = f"hyper/AZTrain_env=8x8_MAZE_LR_evalpol=visit_iterations=10_budget=64_df=0.95_lr=0.001_nstepslr=2_c=0.5_seed={model_seed}/checkpoint.pth"
+                else:
+                    model_file = f"hyper/AZTrain_env=8x8_MAZE_LR_evalpol=visit_iterations=100_budget=64_df=0.95_lr=0.001_nstepslr=2_c=0.5_seed={model_seed}/checkpoint.pth"
+
+            elif config["map_size"] == 16 and config["train_config"] == "MAZE_LR":
+                model_file = f"hyper/AZTrain_env=16x16_MAZE_LR_evalpol=visit_iterations=150_budget=64_df=0.95_lr=0.003_nstepslr=2_c=0.2_seed={model_seed}/checkpoint.pth"
+
+        elif config["ENV"] == "PARKING_ACC":
+            model_file = f"hyper/ParkingAcc_budget=128_evalpol=visit_iterations=1000_epperit=12_n=1_vw=100.0_pw=0.01_df=0.975_lr=0.0001_nstepslr=1_c=1.0_nlayers=3_norm=batch_norm_seed={model_seed}_bump=True/checkpoint.pth"
+            #model_file = f"hyper/ParkingAcc_budget=128_evalpol=visit_iterations=1000_epperit=12_n=1_vw=100.0_pw=0.01_df=0.99_lr=0.0001_nstepslr=1_c=0.1_nlayers=3_norm=batch_norm_seed={model_file}_bump=True/checkpoint.pth"
 
         for budget in budgets:
             eval_results = []  # Store results across evaluation seeds for a given training seed
@@ -594,9 +613,9 @@ if __name__ == "__main__":
 
     TRAIN_CONFIG = "NO_HOLES" # NO_HOLES, MAZE_RL, MAZE_LR
 
-    TEST_CONFIG = "DEFAULT" # NO_OBSTACLES, HOLES, MAZE_RL, MAZE_LR
+    TEST_CONFIG = "SLALOM" # NO_OBSTACLES, HOLES, MAZE_RL, MAZE_LR
 
-    parser.add_argument("--ENV", type=str, default="FROZENLAKE", help="Environment name")
+    parser.add_argument("--ENV", type=str, default="PARKING_ACC", help="Environment name")
     
     parser.add_argument("--map_size", type=int, default= map_size, help="Map size")
     parser.add_argument("--test_config", type=str, default= TEST_CONFIG, help="Config desc name")
@@ -608,29 +627,30 @@ if __name__ == "__main__":
     parser.add_argument("--runs", type=int, default= 1, help="Number of runs")
 
     # Basic search parameters
-    parser.add_argument("--tree_evaluation_policy", type= str, default="mvc", help="Tree evaluation policy")
-    parser.add_argument("--selection_policy", type=str, default="PolicyUCT", help="Selection policy")
-    parser.add_argument("--puct_c", type=float, default= 0.1, help="PUCT parameter")
+    parser.add_argument("--tree_evaluation_policy", type= str, default="visit", help="Tree evaluation policy")
+    parser.add_argument("--selection_policy", type=str, default="PUCT", help="Selection policy")
+    parser.add_argument("--puct_c", type=float, default= 0, help="PUCT parameter")
 
     # Only relevant for single run evaluation
     parser.add_argument("--planning_budget", type=int, default = 64, help="Planning budget")
+
     # Only for MCTS
-    parser.add_argument("--rollout_budget", type=int, default= 100, help="Rollout budget")
+    parser.add_argument("--rollout_budget", type=int, default= 10, help="Rollout budget")
 
     # Search algorithm
-    parser.add_argument("--agent_type", type=str, default= "pddp", help="Agent type")
+    parser.add_argument("--agent_type", type=str, default= "azmcts", help="Agent type")
 
     # Stochasticity parameters
     parser.add_argument("--eval_temp", type=float, default= 0, help="Temperature in tree evaluation softmax")
     parser.add_argument("--dir_epsilon", type=float, default= 0.0, help="Dirichlet noise parameter epsilon")
     parser.add_argument("--dir_alpha", type=float, default= None, help="Dirichlet noise parameter alpha")
 
-    parser.add_argument("--tree_temperature", type=float, default= 0, help="Temperature in tree evaluation softmax")
+    parser.add_argument("--tree_temperature", type=float, default= None, help="Temperature in tree evaluation softmax")
 
     parser.add_argument("--beta", type=float, default= 10, help="Beta parameter for mvc policy")
 
     # AZDetection detection parameters
-    parser.add_argument("--threshold", type=float, default= 0.05, help="Detection threshold")
+    parser.add_argument("--threshold", type=float, default= 0.025, help="Detection threshold")
     parser.add_argument("--unroll_budget", type=int, default= 4, help="Unroll budget")
 
     # AZDetection replanning parameters
@@ -642,8 +662,9 @@ if __name__ == "__main__":
     parser.add_argument("--test_env_is_slippery", type=bool, default= False, help="Slippery environment")
     parser.add_argument("--test_env_hole_reward", type=int, default=0, help="Hole reward")
     parser.add_argument("--test_env_terminate_on_hole", type=bool, default= False, help="Terminate on hole")
-    parser.add_argument("--deviation_type", type=str, default= "bump", help="Deviation type")
+    parser.add_argument("--deviation_type", type=str, default= "counter_clockwise", help="Deviation type")
 
+    # Only LunarLander
     parser.add_argument("--ll_test_config", type=str, default= "TWO_LATERAL_PENTAGONS", help="LunarLander test config")
 
     # Model file
@@ -654,16 +675,16 @@ if __name__ == "__main__":
 
     # Rendering
     parser.add_argument("--render", type=bool, default=False, help="Render the environment")
-    parser.add_argument("--visualize_trees", type=bool, default=True, help="Visualize trees")
+    parser.add_argument("--visualize_trees", type=bool, default=False, help="Visualize trees")
 
-    parser.add_argument("--run_full_eval", type=bool, default= True, help="Run type")
+    parser.add_argument("--run_full_eval", type=bool, default= False, help="Run type")
 
     parser.add_argument("--hpc", type=bool, default=False, help="HPC flag")
 
     parser.add_argument("--value_estimate", type=str, default="nn", help="Value estimate method")
 
     parser.add_argument("--var_penalty", type=float, default=1, help="Variance penalty")
-    parser.add_argument("--value_penalty", type=float, default=1, help="Value penalty")
+    parser.add_argument("--value_penalty", type=float, default=0.5,help="Value penalty")
 
     parser.add_argument("--final", type=bool, default=False)
 
@@ -671,21 +692,29 @@ if __name__ == "__main__":
 
     parser.add_argument("--bad_training", type=bool, default=False)
 
-    parser.add_argument("--reuse_tree", type=bool, default=True, help="Update the estimator")
+    parser.add_argument("--reuse_tree", type=bool, default=False, help="Update the estimator")
+
+    parser.add_argument("--block_loops", type=bool, default=False, help="Block loops")
 
     parser.add_argument("--plot_tree_densities", type=bool, default=False, help="Plot tree densities")
 
-    parser.add_argument("--max_episode_length", type=int, default=100, help="Max episode length")
+    parser.add_argument("--max_episode_length", type=int, default=200, help="Max episode length")
 
-    parser.add_argument("--discount_factor", type=float, default=0.95, help="Discount factor")
+    parser.add_argument("--discount_factor", type=float, default=0.975, help="Discount factor")
 
-    parser.add_argument("--subopt_threshold", type=float, default=0.1, help="Suboptimality threshold")
+    parser.add_argument("--subopt_threshold", type=float, default=0.05, help="Suboptimality threshold")
+
+    # Only ParkingSimple
+    parser.add_argument("--parking_test_config", type=str, default= "OBS_HORIZONTAL", help="ParkingSimple test config")
+    parser.add_argument("--add_walls", type=bool, default= True, help="Add walls to the environment")
+    parser.add_argument("--bump_on_collision", type=bool, default= True, help="Bump on collision") 
+    parser.add_argument("--rand_start", type=bool, default= False, help="Random initial state")
 
     # Parse arguments
     args = parser.parse_args()
 
     single_train_seed = 0 # Only for single run
-    single_eval_seed = 0 # Only for single run
+    single_eval_seed = 3 # Only fo0 single run
 
     ENV = args.ENV
 
@@ -754,10 +783,44 @@ if __name__ == "__main__":
 
         map_name = f"CustomParking"
 
-        args.model_file = f"hyper/ParkingEnv_evalpol=visit_iterations=1000_budget=64_df=0.995_lr=0.0001_nstepslr=1_c=1_seed=0/checkpoint.pth"
+        args.model_file = f"hyper/ParkingEnv_maxlength=150_budget=32_evalpol=visit_iterations=1000_epperit=10_n=1_vw=100.0_pw=2.0_df=1.0_lr=0.0005_nstepslr=1_c=0.2_nlayers=2_norm=batch_norm_seed=0/checkpoint.pth"
+    
+    elif ENV == "PARKING_SIMPLE":
+        challenge = env_challenges["ParkingSimple"]
+
+        observation_embedding = "parking_ego"
+
+        test_env_dict = {
+            "id": "ParkingSimple",
+            "render_mode": "no_render",
+            "obstacles": parking_simple_obstacles[args.parking_test_config],
+            "add_walls": args.add_walls,
+            "bump_on_collision": args.bump_on_collision,
+            "rand_start": args.rand_start,
+        }
+        map_name = f"ParkingSimple"
+        args.model_file = "hyper/ParkingSimple_budget=128_evalpol=visit_iterations=1000_epperit=6_n=1_vw=150_pw=1_df=0.99_lr=0.0001_nstepslr=1_c=1_nlayers=3_norm=batch_norm_seed=0/checkpoint.pth"
+
+    elif ENV == "PARKING_ACC":
+
+        challenge = env_challenges["ParkingAcc"]
+
+        observation_embedding = "parking_ego"
+
+        test_env_dict = {
+            "id": "ParkingAcc",
+            "render_mode": "no_render",
+            "obstacles": parking_simple_obstacles[args.parking_test_config],
+            "add_walls": args.add_walls,
+            "bump_on_collision": args.bump_on_collision,
+            "rand_start": args.rand_start,
+        }
+        map_name = f"ParkingAcc"
+        args.model_file = f"hyper/ParkingAcc_budget=128_evalpol=visit_iterations=1000_epperit=12_n=1_vw=100.0_pw=0.01_df=0.975_lr=0.0001_nstepslr=1_c=1.0_nlayers=3_norm=batch_norm_seed={single_train_seed}_bump=True/checkpoint.pth"
 
     # Construct the config
     config_modifications = {
+        "ENV": args.ENV,
         "wandb_logs": args.wandb_logs,
         "workers": args.workers,
         "runs": args.runs,
@@ -797,6 +860,11 @@ if __name__ == "__main__":
         "max_episode_length": args.max_episode_length,
         "rollout_budget": args.rollout_budget,
         "subopt_threshold": args.subopt_threshold,
+        "block_loops": args.block_loops,
+        "parking_test_config": args.parking_test_config,
+        "bump_on_collision": args.bump_on_collision,
+        "rand_start": args.rand_start,
+
     }
 
     run_config = {**base_parameters, **challenge, **config_modifications}
@@ -804,6 +872,6 @@ if __name__ == "__main__":
     # Execute the evaluation
 
     if args.run_full_eval:
-        eval_budget_sweep(config=run_config, budgets= [8, 16, 32, 64, 128],  num_train_seeds=args.train_seeds, num_eval_seeds=args.eval_seeds, final = args.final, save=args.save)
+        eval_budget_sweep(config=run_config, budgets= [8, 16, 32, 64, 128, 256],  num_train_seeds=args.train_seeds, num_eval_seeds=args.eval_seeds, final = args.final, save=args.save)
     else: 
         eval_from_config(config=run_config, eval_seed=single_eval_seed)

@@ -149,13 +149,66 @@ def plot_density(density, root_state, obst_coords, ncols, nrows, cmap, ax=None):
     ax.set_aspect('equal')  # Set aspect ratio to be equal, making each cell square
 
     # Add gridlines for better visibility
-    ax.grid(visible=True, which='both', color='black', linestyle='-', linewidth=0.5)
+    ax.grid(visible=True, which='both', color='black', linestyle='-', linewidth=1)
 
     plt.tight_layout()
 
     pos = ax.get_position()
 
     fig.add_artist(plt.Rectangle((pos.x0, pos.y0), pos.width, pos.height, edgecolor='black', fill=False, lw=1))
+
+    return ax
+
+def plot_density_values_only(density, root_state, obst_coords, ncols, nrows, ax=None):
+    """
+    Plot only the values as text on a white background, with obstacles in black.
+    No color mapping is used. Closely follows plot_density, but without heatmap.
+    """
+    goal_coord = (ncols - 1, nrows - 1)
+
+    # Set obstacles to nan so they are not annotated
+    for (row, col) in obst_coords:
+        density[row, col] = np.nan
+
+    if ax is None:
+        fig, ax = plt.subplots()
+
+    # Draw white background
+    ax.imshow(np.ones_like(density), cmap="gray", vmin=0, vmax=1, extent=[0, ncols, 0, nrows], origin='upper')
+
+    # Annotate values
+    for i in range(nrows):
+        for j in range(ncols):
+            if (i, j) in obst_coords:
+                ax.add_patch(plt.Rectangle((j, i), 1, 1, fill=True, color='black', lw=0))
+            elif not np.isnan(density[i, j]):
+                ax.text(j + 0.5, i + 0.5, f"{density[i, j]:.2f}", ha="center", va="center",
+                        color="black", fontsize=10 if ncols == 8 else 6)
+
+    # Draw grid lines to match heatmap style
+    for x in range(ncols + 1):
+        ax.axvline(x, color='black', linewidth=1)
+    for y in range(nrows + 1):
+        ax.axhline(y, color='black', linewidth=1)
+
+    # Mark the root state by a green border
+    root_row, root_col = obs_to_cords(root_state, ncols)
+    ax.add_patch(plt.Rectangle((root_col, root_row), 1, 1, fill=False, color='green', lw=5))
+    # Mark the goal state by a golden border
+    ax.add_patch(plt.Rectangle(goal_coord, 1, 1, fill=False, color='goldenrod', lw=5))
+
+    # Set ticks and labels
+    ax.set_xticks(range(ncols))
+    ax.set_yticks(range(nrows))
+    ax.set_xlim(0, ncols)
+    ax.set_ylim(nrows, 0)
+    ax.set_aspect('equal')
+    plt.tight_layout()
+
+    # Draw outer border if fig exists
+    if ax.figure:
+        pos = ax.get_position()
+        ax.figure.add_artist(plt.Rectangle((pos.x0, pos.y0), pos.width, pos.height, edgecolor='black', fill=False, lw=1))
 
     return ax
 

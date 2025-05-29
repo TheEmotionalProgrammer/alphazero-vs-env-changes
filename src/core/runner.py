@@ -337,7 +337,7 @@ def run_episode_pddp(
 
     observation, info = env.reset(seed=seed)
 
-    print(f"Env: obs = {print_obs(env, observation)}")
+    #print(f"Env: obs = {print_obs(env, observation)}")
 
     if render:
         if isinstance(env.unwrapped, CustomLunarLander):
@@ -394,13 +394,15 @@ def run_episode_pddp(
 
         action = distribution.sample().item() # Note that if the temperature of the softmax was zero, this becomes an argmax
 
+        #print(f"Env: action = {action}")
+
         new_obs, reward, terminated, truncated, _ = env.step(action)
 
         if render:
             vis_env.step(action)
             frames.append(vis_env.render())
 
-        print(f"Env: step = {step}, obs = {print_obs(env, new_obs)}, reward = {reward}, terminated = {terminated}, truncated = {truncated}")
+        #print(f"Env: step = {step}, obs = {print_obs(env, new_obs)}, reward = {reward}, terminated = {terminated}, truncated = {truncated}")
         
         assert not truncated
 

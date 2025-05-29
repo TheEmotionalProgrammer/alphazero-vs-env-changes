@@ -45,46 +45,46 @@ def plot_comparison_from_csvs(filepaths, labels=None, map_size=16, max_episode_l
                 print(f"Skipping {label}: Missing required columns in {filepaths}")
                 continue
 
-            # Determine color and linestyle based on label
-            if "AZ" in label:
-                color = "blue"
-            elif "MTVS" in label:
-                color = "orange"
-            elif "MVC" in label:
-                color = "green"
-            elif "CAP" in label or "STANDARD" in label:
-                color = "purple"
-            else:
-                color = None
+            # # Determine color and linestyle based on label
+            # if "AZ" in label:
+            #     color = "blue"
+            # elif "MTVS" in label:
+            #     color = "orange"
+            # elif "MVC" in label:
+            #     color = "green"
+            # elif "CAP" in label or "STANDARD" in label:
+            #     color = "purple"
+            # else:
+            #     color = None
 
 
-            if "PUCT" in label:
-                linestyle = "-"
-            elif "UCT" in label:
-                linestyle = "--"
-            else:
-                linestyle = "-"
+            # if "PUCT" in label:
+            #     linestyle = "-"
+            # elif "UCT" in label:
+            #     linestyle = "--"
+            # else:
+            #     linestyle = "-"
 
-            if "c=0.0" in label:
-                linestyle = "-"
-                color = "#001F3F"
-            elif "c=0.1" in label:
-                linestyle = "--"
-                color = "#001F3F" #"#191970"
-            elif "c=0.5" in label:
-                linestyle = "-"
-                color = "#0000FF"
-            elif "c=1.0" in label:
-                linestyle = "--"
-                color = "#0000FF" #"blue"
-            elif "c=2.0" in label:
-                linestyle = "-"
-                color = "#4169E1"
-            elif "c=100.0" in label:
-                linestyle = "--"
-                color = "#4169E1" #"#87CEEB"
-            else:
-                linestyle = "-"
+            # if "c=0.0" in label:
+            #     linestyle = "-"
+            #     color = "#001F3F"
+            # elif "c=0.1" in label:
+            #     linestyle = "--"
+            #     color = "#001F3F" #"#191970"
+            # elif "c=0.5" in label:
+            #     linestyle = "-"
+            #     color = "#0000FF"
+            # elif "c=1.0" in label:
+            #     linestyle = "--"
+            #     color = "#0000FF" #"blue"
+            # elif "c=2.0" in label:
+            #     linestyle = "-"
+            #     color = "#4169E1"
+            # elif "c=100.0" in label:
+            #     linestyle = "--"
+            #     color = "#4169E1" #"#87CEEB"
+            # else:
+            #     linestyle = "-"
 
             # if "c=0.0" in label:
             #     linestyle = "-"
@@ -104,22 +104,30 @@ def plot_comparison_from_csvs(filepaths, labels=None, map_size=16, max_episode_l
             # else:
             #     linestyle = "-"
 
-            # if "NO TREE REUSE" in label:
-            #     linestyle = "-"
-            #     color = "darkred"
-            # elif "C>0" in label:
-            #     linestyle = "-"
-            #     color = "goldenrod"
-            # elif "NO VP" in label:
-            #     linestyle = "-"
-            #     color = "orange"
-            # elif "NONE TEMP" in label:
-            #     linestyle = "-"
-            #     color = "red"
+            if "PDDP" in label:
+                linestyle = "-"
+                color = "purple"
+                marker = "o"
+            elif "C=1" in label:
+                linestyle = "--"
+                color = "black"
+                marker = "o"
+            elif "NO TREE-REUSE" in label:
+                linestyle = "-."
+                color = "black"
+                marker = "^"
+            elif "NO DETPOL" in label:
+                linestyle = ":"
+                color = "black"
+                marker = "s"
+            elif "NO VP" in label:
+                linestyle = "-"
+                color = "black"
+                marker = "D"
 
 
             # Plot mean values
-            plt.plot(df["Budget"], df[f"{metric} mean"], marker="o", linestyle=linestyle, color=color, label=label)
+            plt.plot(df["Budget"], df[f"{metric} mean"], marker=marker, linestyle=linestyle, color=color, label=label)
 
             # Fill shaded area for standard error
             plt.fill_between(df["Budget"], 
@@ -158,21 +166,44 @@ if __name__ == "__main__":
     SELPOL = "UCT"
 
     # Example usage
+    # filepaths = (
+    #     [   
+    #     f"thesis_exp/8x8/Algorithm_(azmcts)_EvalPol_(visit)_SelPol_({SELPOL})_c_(0.0)_ValueEst_(nn)_8x8_{TRAIN_CONFIG}_{CONFIG}.csv",
+    #     f"thesis_exp/8x8/Algorithm_(azmcts)_EvalPol_(visit)_SelPol_({SELPOL})_c_(0.1)_ValueEst_(nn)_8x8_{TRAIN_CONFIG}_{CONFIG}.csv",
+    #     f"thesis_exp/8x8/Algorithm_(azmcts)_EvalPol_(visit)_SelPol_({SELPOL})_c_(0.5)_ValueEst_(nn)_8x8_{TRAIN_CONFIG}_{CONFIG}.csv",
+    #     f"thesis_exp/8x8/Algorithm_(azmcts)_EvalPol_(visit)_SelPol_({SELPOL})_c_(1.0)_ValueEst_(nn)_8x8_{TRAIN_CONFIG}_{CONFIG}.csv",
+    #     f"thesis_exp/8x8/Algorithm_(azmcts)_EvalPol_(visit)_SelPol_({SELPOL})_c_(2.0)_ValueEst_(nn)_8x8_{TRAIN_CONFIG}_{CONFIG}.csv",
+    #     f"thesis_exp/8x8/Algorithm_(azmcts)_EvalPol_(visit)_SelPol_({SELPOL})_c_(100.0)_ValueEst_(nn)_8x8_{TRAIN_CONFIG}_{CONFIG}.csv",
+    #     ]
+    # )
+
+    # filepaths = (
+    #     [
+    #         "thesis_exp/8x8/Algorithm_(pddp)_EvalPol_(mvc)_SelPol_(PolicyUCT)_c_(0.0)_Beta_(10.0)_Predictor_(current_value)_eps_(0.05)_subthresh_(0.05)_ValueEst_(nn)_ttemp_(0.0)_Value_Penalty_1.0_8x8_NO_HOLES_NARROW.csv",
+    #         "thesis_exp/8x8/Algorithm_(pddp)_EvalPol_(mvc)_SelPol_(PolicyUCT)_c_(1.0)_Beta_(10.0)_Predictor_(current_value)_eps_(0.05)_subthresh_(0.05)_ValueEst_(nn)_ttemp_(0.0)_Value_Penalty_1.0_treuse_True_8x8_NO_HOLES_NARROW.csv",
+    #         "thesis_exp/8x8/Algorithm_(pddp)_EvalPol_(mvc)_SelPol_(PolicyUCT)_c_(0.0)_Beta_(10.0)_Predictor_(current_value)_eps_(0.05)_subthresh_(0.05)_ValueEst_(nn)_ttemp_(0.0)_Value_Penalty_1.0_treuse_False_8x8_NO_HOLES_NARROW.csv",
+    #         "thesis_exp/8x8/Algorithm_(pddp)_EvalPol_(mvc)_SelPol_(PolicyUCT)_c_(0.0)_Beta_(10.0)_Predictor_(current_value)_eps_(0.05)_subthresh_(0.05)_ValueEst_(nn)_ttemp_(None)_Value_Penalty_1.0_treuse_True_8x8_NO_HOLES_NARROW.csv",
+    #         "thesis_exp/8x8/Algorithm_(pddp)_EvalPol_(mvc)_SelPol_(PolicyUCT)_c_(0.0)_Beta_(10.0)_Predictor_(current_value)_eps_(0.05)_subthresh_(0.05)_ValueEst_(nn)_ttemp_(0.0)_Value_Penalty_0.0_treuse_True_8x8_NO_HOLES_NARROW.csv"
+    #     ]
+    # )
+
     filepaths = (
         [   
-        f"thesis_exp/8x8/Algorithm_(azmcts)_EvalPol_(visit)_SelPol_({SELPOL})_c_(0.0)_ValueEst_(nn)_8x8_{TRAIN_CONFIG}_{CONFIG}.csv",
-        f"thesis_exp/8x8/Algorithm_(azmcts)_EvalPol_(visit)_SelPol_({SELPOL})_c_(0.1)_ValueEst_(nn)_8x8_{TRAIN_CONFIG}_{CONFIG}.csv",
-        f"thesis_exp/8x8/Algorithm_(azmcts)_EvalPol_(visit)_SelPol_({SELPOL})_c_(0.5)_ValueEst_(nn)_8x8_{TRAIN_CONFIG}_{CONFIG}.csv",
-        f"thesis_exp/8x8/Algorithm_(azmcts)_EvalPol_(visit)_SelPol_({SELPOL})_c_(1.0)_ValueEst_(nn)_8x8_{TRAIN_CONFIG}_{CONFIG}.csv",
-        f"thesis_exp/8x8/Algorithm_(azmcts)_EvalPol_(visit)_SelPol_({SELPOL})_c_(2.0)_ValueEst_(nn)_8x8_{TRAIN_CONFIG}_{CONFIG}.csv",
-        f"thesis_exp/8x8/Algorithm_(azmcts)_EvalPol_(visit)_SelPol_({SELPOL})_c_(100.0)_ValueEst_(nn)_8x8_{TRAIN_CONFIG}_{CONFIG}.csv",
+            "thesis_exp/16x16/Algorithm_(pddp)_EvalPol_(mvc)_SelPol_(PolicyUCT)_c_(0.0)_Beta_(1.0)_Predictor_(current_value)_eps_(0.05)_subthresh_(0.1)_ValueEst_(nn)_ttemp_(0.0)_Value_Penalty_1.0_16x16_NO_HOLES_NARROW.csv",
+            "thesis_exp/16x16/Algorithm_(pddp)_EvalPol_(mvc)_SelPol_(PolicyUCT)_c_(1.0)_Beta_(1.0)_Predictor_(current_value)_eps_(0.05)_subthresh_(0.1)_ValueEst_(nn)_ttemp_(0.0)_Value_Penalty_1.0_treuse_True_16x16_NO_HOLES_NARROW.csv",
+            "thesis_exp/16x16/Algorithm_(pddp)_EvalPol_(mvc)_SelPol_(PolicyUCT)_c_(0.0)_Beta_(1.0)_Predictor_(current_value)_eps_(0.05)_subthresh_(0.1)_ValueEst_(nn)_ttemp_(0.0)_Value_Penalty_1.0_treuse_False_16x16_NO_HOLES_NARROW.csv",
+            "thesis_exp/16x16/Algorithm_(pddp)_EvalPol_(mvc)_SelPol_(PolicyUCT)_c_(0.0)_Beta_(1.0)_Predictor_(current_value)_eps_(0.05)_subthresh_(0.1)_ValueEst_(nn)_ttemp_(None)_Value_Penalty_1.0_treuse_True_16x16_NO_HOLES_NARROW.csv",
+            "thesis_exp/16x16/Algorithm_(pddp)_EvalPol_(mvc)_SelPol_(PolicyUCT)_c_(0.0)_Beta_(1.0)_Predictor_(current_value)_eps_(0.05)_subthresh_(0.1)_ValueEst_(nn)_ttemp_(0.0)_Value_Penalty_0.0_treuse_True_16x16_NO_HOLES_NARROW.csv"
         ]
+    
     )
+
+
     #labels = ["AZ+UCT", "AZ+PUCT" , "MVC+UCT", "MVC+PUCT" ,"CAP"]
     #labels = ["MVC+UCT c=0.0", "MVC+UCT c=0.5", "MVC+UCT c=1.0", "MVC+UCT c=2.0", "MVC+UCT c=100.0", "CAP"]
-    labels = ["AZ+UCT c=0.0", "AZ+UCT c=0.1" ,"AZ+UCT c=0.5", "AZ+UCT c=1.0", "AZ+UCT c=2.0", "AZ+UCT c=100.0"]
+    #labels = ["AZ+UCT c=0.0", "AZ+UCT c=0.1" ,"AZ+UCT c=0.5", "AZ+UCT c=1.0", "AZ+UCT c=2.0", "AZ+UCT c=100.0"]
     #labels = ["AZ+PUCT c=0.0", "AZ+PUCT c=0.1" ,"AZ+PUCT c=0.5", "AZ+PUCT c=1.0", "AZ+PUCT c=2.0", "AZ+PUCT c=100.0"]
-    #labels = ["NO TREE REUSE", "C>0", "NO VP", "NONE TEMP", "STANDARD"]
+    labels = ["PDDP", "C=1", "NO TREE-REUSE", "NO DETPOL", "NO VP"]
 
 
     plot_comparison_from_csvs(filepaths, labels, map_size, 100)

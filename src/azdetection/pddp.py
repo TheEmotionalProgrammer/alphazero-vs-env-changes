@@ -10,7 +10,7 @@ from core.node import Node
 from policies.policies import Policy
 import numpy as np
 
-from core.utils import print_obs, copy_environment
+from core.utils import print_obs, copy_environment, observations_equal
    
 class PDDP(AlphaZeroMCTS):
 
@@ -99,7 +99,7 @@ class PDDP(AlphaZeroMCTS):
                     value_estimate = value_estimate + (self.discount_factor**(i+1)) * self.value_function(node)
 
             return value_estimate   
-
+        
     def traverse(
         self, from_node: Node
     ) -> Tuple[Node, int]:
@@ -108,73 +108,120 @@ class PDDP(AlphaZeroMCTS):
         Same as AZMCTS but performs problem detection simultaneously.
         """
 
-        nodes = []
-        actions = []
-
-        i = 0
         node = from_node
-
-        nodes.append(node)
-        
-        action = self.root_selection_policy.sample(node) # Select which node to step into
-        actions.append(action)
-
+        nodes = [node]
+        i = 0
         cumulated_reward = node.reward
-
         i_pred = node.value_evaluation
-
-        if action not in node.children: # If the selection policy returns None, this indicates that the current node should be expanded
-            return node, action, cumulated_reward, i, i_pred, nodes, actions
-        
-        prev_prior = node.prior_policy
-        problem = node.problematic
-
-        node = node.step(action)  # Step into the chosen node
 
         while not node.is_terminal():
 
-            nodes.append(node)
+            action = self.selection_policy.sample(node, mask=node.mask) # Select which node to step into
 
-            i+=1
-
-            if self.issuboptimal(prev_prior, action, self.subopt_threshold):
-                i=0
-                nodes = [node]
-                cumulated_reward = node.reward
-                i_pred = node.value_evaluation
-            elif problem:
-                i=-1
-                nodes = []
-                cumulated_reward = 0
-                i_pred = 0
-            else:
-                if cumulated_reward + self.discount_factor**i * node.value_evaluation > i_pred:
-                    i_pred = cumulated_reward + self.discount_factor**i * node.value_evaluation
-                cumulated_reward += (self.discount_factor**i) * node.reward
-            
-            action = self.selection_policy.sample(node) # Select which node to step into
-            prev_prior = node.prior_policy
-            problem = node.problematic
-
-            actions.append(action)
-
-            if action not in node.children: # This means the node is not expanded, so we stop traversing the tree
-                prev_prior = node.prior_policy
-                if self.issuboptimal(prev_prior, action, self.subopt_threshold):
-                    i=0
-                    nodes = [node]
-                    cumulated_reward = node.reward
-                    i_pred = node.value_evaluation
-                elif problem:
+            if action not in node.children: # If the selection policy returns None, this indicates that the current node should be expanded
+                if node.problematic:
                     i=-1
                     nodes = []
                     cumulated_reward = 0
                     i_pred = 0
                 break
+            
+            node= node.step(action)  # Step into the chosen node
 
-            node = node.step(action) # Step into the chosen node
+            nodes.append(node)
 
-        return node, action, cumulated_reward, i, i_pred, nodes, actions
+            i+=1
+
+            if self.issuboptimal(node.parent.prior_policy, action, self.subopt_threshold) or node.parent.problematic:
+                i=0
+                nodes = [node]
+                cumulated_reward = node.reward
+                i_pred = node.value_evaluation
+            # elif node.parent.problematic:
+            #     #print(node.problematic)
+            #     i=0
+            #     nodes = [node]
+            #     cumulated_reward = node.reward
+            #     i_pred = node.value_evaluation#0
+            #     #print(node.value_evaluation)
+            else:
+                i_est = cumulated_reward + (self.discount_factor**i) * node.value_evaluation
+                if i_est > i_pred:
+                    i_pred = i_est
+                cumulated_reward += (self.discount_factor**i) * node.reward
+            
+        return node, action, cumulated_reward, i, i_pred, nodes
+
+    # def traverse(
+    #     self, from_node: Node
+    # ) -> Tuple[Node, int]:
+        
+    #     """
+    #     Same as AZMCTS but performs problem detection simultaneously.
+    #     """
+
+
+    #     i = 0
+    #     node = from_node
+    #     nodes = [node]
+
+    #     action = self.root_selection_policy.sample(node) # Select which node to step into
+
+    #     cumulated_reward = node.reward
+
+    #     i_pred = node.value_evaluation
+
+    #     if action not in node.children: # If the selection policy returns None, this indicates that the current node should be expanded
+    #         return node, action, cumulated_reward, i, i_pred, nodes
+        
+    #     prev_prior = node.prior_policy
+    #     problem = node.problematic
+
+    #     node = node.step(action)  # Step into the chosen node
+
+    #     while not node.is_terminal():
+
+    #         nodes.append(node)
+
+    #         i+=1
+
+    #         if self.issuboptimal(prev_prior, action, self.subopt_threshold):
+    #             i=0
+    #             nodes = [node]
+    #             cumulated_reward = node.reward
+    #             i_pred = node.value_evaluation
+    #         elif problem:
+    #             i=-1
+    #             nodes = []
+    #             cumulated_reward = 0
+    #             i_pred = 0
+    #         else:
+    #             if cumulated_reward + self.discount_factor**i * node.value_evaluation > i_pred:
+    #                 i_pred = cumulated_reward + self.discount_factor**i * node.value_evaluation
+    #             cumulated_reward += (self.discount_factor**i) * node.reward
+            
+    #         action = self.selection_policy.sample(node) # Select which node to step into
+    #         prev_prior = node.prior_policy
+
+    #         problem = node.problematic
+
+    #         if action not in node.children: # This means the node is not expanded, so we stop traversing the tree
+    #             prev_prior = node.prior_policy
+    #             if self.issuboptimal(prev_prior, action, self.subopt_threshold):
+    #                 i=0
+    #                 nodes = [node]
+    #                 cumulated_reward = node.reward
+    #                 i_pred = node.value_evaluation
+    #             if problem:
+    #                 i=-1
+    #                 nodes = []
+    #                 cumulated_reward = 0
+    #                 i_pred = 0
+    #             break
+
+    #         node = node.step(action) # Step into the chosen node
+
+    #     return node, action, cumulated_reward, i, i_pred, nodes
 
     def search(self, env: Env, iterations: int, obs, reward: float, lastaction: int = None) -> Node:
 
@@ -187,6 +234,7 @@ class PDDP(AlphaZeroMCTS):
                 action_space = env.action_space,
                 observation = obs,
                 terminal = False,
+                action = lastaction,
             )
 
             self.previous_root = root_node
@@ -204,7 +252,7 @@ class PDDP(AlphaZeroMCTS):
             found = False
             max_depth = 0
             for _, child in root_node.children.items():
-                if child.observation == obs and child.height > max_depth:
+                if observations_equal(child.observation,obs) and child.height > max_depth:
                     found = True
                     max_depth = child.height
                     root_node = child
@@ -220,7 +268,6 @@ class PDDP(AlphaZeroMCTS):
                     action_space = env.action_space,
                     observation = obs,
                     terminal = False,
-
                 )
 
                 self.previous_root = root_node
@@ -232,7 +279,7 @@ class PDDP(AlphaZeroMCTS):
         
         while root_node.visits - counter < iterations:
             
-            selected_node_for_expansion, selected_action, cumulated_reward, i, i_pred, nodes, _ = self.traverse(root_node) # Traverse the existing tree until a leaf node is reached
+            selected_node_for_expansion, selected_action, cumulated_reward, i, i_pred, nodes  = self.traverse(root_node) # Traverse the existing tree until a leaf node is reached
 
             predictor_rootval = i_pred + 1e-9
 
@@ -241,21 +288,28 @@ class PDDP(AlphaZeroMCTS):
                 i_root = cumulated_reward + self.discount_factor**(i) * self.model.single_observation_forward(selected_node_for_expansion.observation)[0]
             else:
                 i_root  = cumulated_reward + (self.discount_factor**(i)) * selected_node_for_expansion.value_evaluation
-
-            criterion = (i_root/predictor_rootval < 1 - self.threshold) if i >=0 else False
+            #print("cumulated reward", cumulated_reward, "predictor root value", predictor_rootval, "root value", i_root)
+            criterion = (i_root/predictor_rootval < 1 - self.threshold) and i>=0
 
             if criterion:
-                #print("index", i, "cumulated reward", cumulated_reward, "predictor root value", predictor_rootval, "root value", i_root)
+                #print("index", i, "cumulated reward", cumulated_reward, "predictor root value", predictor_rootval, "n-step root value", i_root)
                 safe_index = floor(i - (np.log(1 - self.threshold) / np.log(self.discount_factor)))
                 safe_index = max(0, safe_index)
 
+                
+
                 prob_index = min(safe_index+1, len(nodes)-1)
-                prob_node = nodes[prob_index]
+                prob_node = nodes[-1]#nodes[prob_index]
                 prob_node.problematic = True
+                prob_node.value_evaluation -= self.value_penalty # Set the value of the node to 0
+                #prob_node.value_evaluation = max(0, prob_node.value_evaluation - self.value_penalty) # Set the value of the node to 0
 
                 #print("Trajectory", [print_obs(n.env, n.observation) for n in nodes], "Action", selected_action, "Reward", cumulated_reward, "Predictor root value", predictor_rootval, "Root value", i_root, "Safe index", safe_index, "Prob index", prob_index)
 
-                prob_node.value_evaluation = prob_node.value_evaluation - self.value_penalty # Set the value of the node to 0
+                #prob_node.value_evaluation = 0
+                # prob_node.parent.mask[prob_node.action] = 0.0 # Set the action to 0 in the parent node
+                # self.backup(prob_node, prob_node.value_evaluation) # Backup the value of the node
+                # continue
 
             # Predict the value of the node n steps into the future
 
